@@ -1,4 +1,4 @@
-{include:domain.pdkbddl}
+;{include:domain.pdkbddl}
 
 (define (problem witch-collect-item)
 
@@ -9,7 +9,6 @@
         eye_of_newt toe_of_frog - item
     )
 
-    (:projection )
     (:depth 2)
     (:task valid_assessment)
 

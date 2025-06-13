@@ -21,7 +21,7 @@ def error_handling(e):
     except Exception as e:
         print(e)
 
-def parse_domain(grammar, d_pddl):
+def parse(grammar, d_pddl):
     with open(d_pddl, "r") as f:
         d_pddl = f.read()
     grammar = Path(grammar).read_text()
@@ -39,5 +39,6 @@ def parse_domain(grammar, d_pddl):
 
 
 if __name__ == "__main__":
-    parse_domain('bdi_testing/domain.lark','bdi_testing/grapevine.pdkbddl')
+    parse('bdi_testing/domain.lark','bdi_testing/suspicious_witches_domain.pdkbddl')
+    parse('bdi_testing/problem.lark','bdi_testing/witch_problem.pdkbddl')
     # prob
