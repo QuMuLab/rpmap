@@ -25,19 +25,19 @@ def parse_domain(grammar, d_pddl):
     with open(d_pddl, "r") as f:
         d_pddl = f.read()
     grammar = Path(grammar).read_text()
-    parser = Lark(grammar, parser='lalr')#, debug=True), strict=True)
+    parser = Lark(grammar, parser='lalr')# debug=True)#, strict=True)
 
     # adapted from the PDDL library for debugging purposes
     result = parser.parse(d_pddl, on_error=error_handling)
     print(result)
 
     # this is the part that doesn't quite work yet
-    dt = DomainTransformer()
-    result = dt.transform(result)
-    print(result)
+    # dt = DomainTransformer()
+    # result = dt.transform(result)
+    # print(result)
 
 
 
 if __name__ == "__main__":
-    parse_domain('bdi_testing/domain.lark','bdi_testing/mvex.pdkbddl')
+    parse_domain('bdi_testing/domain.lark','bdi_testing/grapevine.pdkbddl')
     # prob

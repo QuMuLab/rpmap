@@ -11,20 +11,26 @@ constants:             LPAR CONSTANTS typed_list_name RPAR
 predicates:            LPAR PREDICATES atomic_formula_skeleton+ RPAR
 functions:             LPAR FUNCTIONS f_typed_list_atomic_function_skeleton RPAR
 
-atomic_formula_skeleton:   LPAR NAME typed_list_variable RPAR
+bdi:                   "[" variable "]" | LESSER_OP variable GREATER_OP
+
+atomic_formula_skeleton: [LCURL "AK" RCURL] LPAR NAME typed_list_variable RPAR
 
 f_typed_list_atomic_function_skeleton: atomic_function_skeleton+
                                      | (atomic_function_skeleton+ TYPE_SEP f_type_def)+ atomic_function_skeleton*
 
 ?f_type_def: TYPE_NUMBER
 
-atomic_function_skeleton:  LPAR NAME typed_list_variable RPAR
+atomic_function_skeleton:  LPAR NAME typed_list_variable RPAR 
 
 ?structure_def:    action_def | derived_predicates
-action_def:        LPAR ACTION NAME PARAMETERS action_parameters action_body_def RPAR
+action_def:        LPAR ACTION NAME [DERIVE_CONDITION derived_conditions] PARAMETERS action_parameters action_body_def RPAR
 action_parameters: LPAR typed_list_variable RPAR
 ?action_body_def:  [PRECONDITION emptyor_pregd] [EFFECT emptyor_effect]
 derived_predicates: LPAR DERIVED atomic_formula_skeleton gd RPAR
+
+derived_term: term | DLR constant DLR
+
+derived_conditions: "always" | "never" | LPAR predicate derived_term* RPAR //TODO: test the 3rd option
 
 // preconditions
 emptyor_pregd:     LPAR RPAR
@@ -55,8 +61,9 @@ cond_effect:       LPAR AND p_effect* RPAR
            |       p_effect
 num_effect:        LPAR assign_op f_head f_exp RPAR
 
-atomic_formula_term:   LPAR predicate term* RPAR
+atomic_formula_term:   [EXC] bdi* LPAR predicate term* RPAR
                    |   LPAR EQUAL_OP term term RPAR
+                   
 ?term:  constant
      |  variable
 ?predicate: NAME
@@ -151,3 +158,8 @@ type_def:          LPAR EITHER primitive_type+ RPAR
 %import .common.TYPE_NUMBER -> TYPE_NUMBER
 
 %import .common.AGENTS -> AGENTS
+%import .common.DERIVE_CONDITION -> DERIVE_CONDITION
+%import .common.LCURL -> LCURL
+%import .common.RCURL -> RCURL
+%import .common.EXC -> EXC
+%import .common.DLR -> DLR
