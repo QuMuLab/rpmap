@@ -11,7 +11,7 @@ constants:             LPAR CONSTANTS typed_list_name RPAR
 predicates:            LPAR PREDICATES atomic_formula_skeleton+ RPAR
 functions:             LPAR FUNCTIONS f_typed_list_atomic_function_skeleton RPAR
 
-bdi:                   "[" variable "]" | LESSER_OP variable GREATER_OP
+bdi:                   LSQB variable RSQB | LESSER_OP variable GREATER_OP
 
 atomic_formula_skeleton: [LCURL "AK" RCURL] LPAR NAME typed_list_variable RPAR
 
@@ -163,3 +163,5 @@ type_def:          LPAR EITHER primitive_type+ RPAR
 %import .common.RCURL -> RCURL
 %import .common.EXC -> EXC
 %import .common.DLR -> DLR
+%import .common.LSQB -> LSQB
+%import .common.RSQB -> RSQB

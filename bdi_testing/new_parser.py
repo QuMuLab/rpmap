@@ -39,5 +39,5 @@ def parse_domain(grammar, d_pddl):
 
 
 if __name__ == "__main__":
-    parse_domain('bdi_testing/domain.lark','bdi_testing/grapevine.pdkbddl')
+    parse_domain('bdi_testing/domain.lark','bdi_testing/suspicious_witches.pdkbddl')
     # prob
