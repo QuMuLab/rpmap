@@ -5,13 +5,17 @@ domain_def:    LPAR DOMAIN NAME RPAR
 
 requirements:              LPAR REQUIREMENTS require_key+ RPAR
 
-agents:                LPAR AGENTS NAME+ RPAR
+agents:                LPAR ":agents" NAME* RPAR
 types:                 LPAR TYPES typed_list_name RPAR
 constants:             LPAR CONSTANTS typed_list_name RPAR
 predicates:            LPAR PREDICATES atomic_formula_skeleton+ RPAR
 functions:             LPAR FUNCTIONS f_typed_list_atomic_function_skeleton RPAR
 
-atomic_formula_skeleton:   LPAR NAME typed_list_variable RPAR
+bdi:                   "[" variable "]" | LESSER_OP variable GREATER_OP
+
+atomic_formula_skeleton:  LPAR NAME typed_list_variable RPAR
+                         //[LCURL "AK" RCURL] LPAR NAME typed_list_variable RPAR
+                        /// |  [EXC] bdi* LPAR NAME term RPAR
 
 f_typed_list_atomic_function_skeleton: atomic_function_skeleton+
                                      | (atomic_function_skeleton+ TYPE_SEP f_type_def)+ atomic_function_skeleton*
@@ -21,14 +25,15 @@ f_typed_list_atomic_function_skeleton: atomic_function_skeleton+
 atomic_function_skeleton:  LPAR NAME typed_list_variable RPAR
 
 ?structure_def:    action_def | derived_predicates
-action_def:        LPAR ACTION NAME PARAMETERS action_parameters action_body_def RPAR
+action_def:        LPAR ACTION NAME [":derive-condition" derived_conditions] PARAMETERS action_parameters action_body_def RPAR
 action_parameters: LPAR typed_list_variable RPAR
 ?action_body_def:  [PRECONDITION emptyor_pregd] [EFFECT emptyor_effect]
 derived_predicates: LPAR DERIVED atomic_formula_skeleton gd RPAR
+derived_conditions: "always" | "never" | atomic_formula_skeleton // TODO: test the 3rd option
 
 // preconditions
 emptyor_pregd:     LPAR RPAR
-             |     gd
+             |     gd  
 gd:                atomic_formula_term
   |                LPAR OR gd* RPAR
   |                LPAR NOT gd RPAR
@@ -57,6 +62,8 @@ num_effect:        LPAR assign_op f_head f_exp RPAR
 
 atomic_formula_term:   LPAR predicate term* RPAR
                    |   LPAR EQUAL_OP term term RPAR
+                   |   [EXC] bdi* LPAR NAME term RPAR
+
 ?term:  constant
      |  variable
 ?predicate: NAME
@@ -149,5 +156,10 @@ type_def:          LPAR EITHER primitive_type+ RPAR
 %import .common.RPAR -> RPAR
 %import .common.TYPE_SEP -> TYPE_SEP
 %import .common.TYPE_NUMBER -> TYPE_NUMBER
-
-%import .common.AGENTS -> AGENTS
+%import .common.LCURL -> LCURL
+%import .common.RCURL -> RCURL
+%import .common.LSQB -> LSQB
+%import .common.RSQB -> RSQB
+%import .common.LSQR -> LSQR
+%import .common.RSQR -> RSQR
+%import .common.EXC -> EXC

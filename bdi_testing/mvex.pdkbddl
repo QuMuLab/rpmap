@@ -1,0 +1,16 @@
+
+(define (domain grapevine)
+    (:agents a b c d)
+    (:requirements :typing)
+    (:types loc)
+
+    (:predicates
+        (secret)
+    )
+
+    (:action test
+        :parameters         ()
+        :precondition       (and (secret))
+        :effect             (and (not(secret)))
+    )
+)

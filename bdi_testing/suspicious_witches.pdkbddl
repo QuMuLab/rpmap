@@ -7,10 +7,9 @@
     (:agents alice bob cindy)
     ; (:agents bob cindy derek evelyn)
 
+    ; (:requirements)
 
     (:types loc item)
-
-    (:requirements)
 
     (:predicates 
         {AK}(diff ?a1 ?a2 - agent) ; agents are different
@@ -346,7 +345,7 @@
             (at ?inf ?l)
         )
         :effect (and 
-            (forall ?ag - agent 
+            (forall (?ag - agent) 
                 (and
                     (when 
                         (and
@@ -446,7 +445,7 @@
                     ) 
         :effect (and
             (accused-by ?a2 ?a1)
-            (forall ?ag - agent 
+            (forall (?ag - agent) 
                 (and
                     (when (at ?ag ?l) [?ag](accused-by ?a2 ?a1))
                     ; when civilian at the same location does not believe it possible a1 is a witch
@@ -522,7 +521,7 @@
                     )
         :effect (and
             (accused-by ?a2 ?a1)
-            (forall ?ag - agent 
+            (forall (?ag - agent) 
                 (and
                     (when (at ?ag ?l) [?ag](accused-by ?a2 ?a1))
                     ; when civilian at the same location does not believe it possible a1 is a witch
@@ -598,7 +597,7 @@
                     )
         :effect (and
             (accused-by ?a2 ?a1)
-            (forall ?ag - agent 
+            (forall (?ag - agent )
                 (and
                     (when (at ?ag ?l) [?ag](accused-by ?a2 ?a1))
                     ; when civilian at the same location does not believe it possible a1 is a witch
@@ -700,7 +699,7 @@
             (at ?acsd ?l)
         )
         :effect (and 
-            (forall ?ag - agent (and
+            (forall (?ag - agent) (and
                     (when (at ?ag ?l) [?ag](accused-by ?acsd ?acsr))
                     ; if agent believes it's possible the defender is a witch,
                     ; and they strongly believe the accused is a witch, 
@@ -795,7 +794,7 @@
             (at ?acsd ?l)
         )
         :effect (and 
-            (forall ?ag - agent (and
+            (forall (?ag - agent) (and
                     (when (at ?ag ?l) [?ag](accused-by ?acsd ?acsr))
                     ; if agent believes it's possible the defender is a witch,
                     ; and they strongly believe the accused is a witch, 

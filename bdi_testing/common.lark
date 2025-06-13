@@ -78,7 +78,13 @@ FLUENTS: ":fluents"
 ACTION_COSTS: ":action-costs"
 
 // others
+AGENTS: ":agents"
 LPAR : "("
 RPAR : ")"
+LCURL : "{"
+RCURL : "}"
+LSQB: "["
+RSQB: "]"
 TYPE_SEP: "-"
 TYPE_NUMBER: "number"
+EXC: "!"

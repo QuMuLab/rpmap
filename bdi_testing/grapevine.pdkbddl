@@ -1,0 +1,42 @@
+
+(define (domain grapevine)
+    (:agents a b c d)
+    (:requirements :typing)
+    (:types loc)
+
+    (:predicates
+        (secret)
+        ; (secret ?agent)
+        ; (at ?agent - agent ?l - loc)
+        ; (connected ?l1 ?l2 - loc)
+        ; {AK}(at ?agent - agent ?l - loc)
+        ; {AK}(connected ?l1 ?l2 - loc)
+    )
+
+    (:action test
+        :parameters         () ; (?a - agent ?l1 ?l2 - loc) 
+        :precondition       (and (secret))
+        :effect             (and (not(secret)))
+    )
+
+    ; (:action move
+    ;     ;:derive-condition   always
+    ;     :parameters         (?a ?l1 ?l2 - loc) ; (?a - agent ?l1 ?l2 - loc) 
+    ;     :precondition       (and (at ?a ?l1) (connected ?l1 ?l2))
+    ;     :effect             (and (at ?a ?l2) (not(at ?a ?l1)))
+    ; )
+
+;     ; (:action share
+;     ;     ; :derive-condition   (at $agent$ ?l)
+;     ;     :derive-condition   never
+;     ;     :parameters         (?a ?as - agent ?l - loc)
+;     ;     :precondition       (and (at ?a ?l) [?a](secret ?as))
+;     ;     :effect             (and
+;     ;                             ; (forall (?a2 - agent)
+;     ;                             ; (at ?a2 ?l)
+;     ;                             ;     ; (when     (at ?a2 ?l)
+;     ;                             ;     ;      [?a2](secret ?as))
+;     ;                             ; )
+;     ;                         )
+;     ; )
+)
