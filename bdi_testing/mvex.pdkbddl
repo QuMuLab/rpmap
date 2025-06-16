@@ -5,12 +5,12 @@
     (:types loc)
 
     (:predicates
-        (secret)
+        {AK}(secret ?l - loc)
     )
 
     (:action test
         :parameters         ()
-        :precondition       (and (secret))
-        :effect             (and (not(secret)))
+        :precondition       ()
+        :effect             ()
     )
 )
