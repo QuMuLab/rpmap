@@ -12,14 +12,14 @@
     )
 
     (:action move
-        :derive-condition   always
+        ; :derive-condition   always
         :parameters         (?a - agent ?l1 ?l2 - loc) 
         :precondition       (and (at ?a ?l1) (connected ?l1 ?l2))
         :effect             (and (at ?a ?l2) (not(at ?a ?l1)))
     )
 
     (:action share
-        :derive-condition   (at $agent$ ?l)
+        ; :derive-condition   (at $agent$ ?l)
         :parameters         (?a ?as - agent ?l - loc)
         :precondition       (and (at ?a ?l) [?a](secret ?as))
         :effect             (and

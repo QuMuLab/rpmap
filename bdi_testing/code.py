@@ -2,8 +2,11 @@
 import pddl
 import pddl.core
 from pddl.parser import domain
+from pddl.parser.symbols import Symbols
 from pddl.parser.domain import DomainParser
-from pddl.logic.predicates import Predicate
+from pddl.logic.predicates import Predicate, EqualTo
+from pddl.exceptions import PDDLMissingRequirementError
+from pddl.requirements import Requirements
 from pddl.formatter import (
     print_constants,
     print_function_skeleton,
@@ -30,7 +33,8 @@ def agent_transformer(self, args):
     return args[0].value
 
 def atomic_formula_skeleton(self, args):   
-    if not args:
+    # adapted from the PDDL Domain class atomic_formula_skeleton method
+    if not args or args is None:
         raise ValueError(f"Invalid atomic formula skeleton definition: {args}")
     predicate_name = args[2] # get name of the predicate
     ak = False
@@ -39,31 +43,39 @@ def atomic_formula_skeleton(self, args):
     # remove "always known" so variable is are in the correct position
     args = args[1:]
     variables = self._formula_skeleton(args)
-    
     p = Predicate(predicate_name, *variables)
     p.always_known = True if ak else False
-
     return p
 
+def atomic_formula_term(self, args):
+    # adapted from the PDDL Domain class atomic_formula_term method
+    """Process the 'atomic_formula_term' rule."""
+    if args[1] == Symbols.EQUAL.value:
+        if not bool({Requirements.EQUALITY} & self._extended_requirements):
+            raise PDDLMissingRequirementError(Requirements.EQUALITY)
+        left = self._constant_or_variable(args[2])
+        right = self._constant_or_variable(args[3])
+        return EqualTo(left, right)
+    elif type(args[0]) == list:
+        # this is a BDI term, e.g. [?agent] or < ?agent >
+        predicate_name = args[2]
+        terms = list(map(self._constant_or_variable, args[3:-1]))
+        p = Predicate(predicate_name, *terms)
+        p.bdi = args[0]  # store the BDI term
+        return p
+    else:
+        predicate_name = args[1]
+        terms = list(map(self._constant_or_variable, args[2:-1]))
+        return Predicate(predicate_name, *terms)
 
-def bdi_transformer(self, args):
-    print()
-    print()
-
-def derived_term_transformer(self, args):
-    print()
-    print()
-
-def derived_conditions_transformer(self, args):
-    print()
-    print()
+def basic_tokens_transformer(self, args):
+    if not args or args is None:
+        raise ValueError(f"Invalid definition of tokens: {args}")
     return args
 
-def always_known_transformer(self, args):
-    # NEXT TODO: INJECT {AK} PARAMETER INTO THE PREDICATE OBJECT, THEN MODIFY THE DOMAIN PRINT
-    print(type(args))
+def basic_token_transformer(self, args):
     if type(args) is not Token:
-        raise ValueError(f"Invalid agent definition: {args}")
+        raise ValueError(f"Invalid token definition: {args}")
     return args
 
 def new_init(self, *args, **kwargs):
@@ -119,10 +131,8 @@ def construct_domain_grammar():
         "LPAR DEFINE domain_def agents [requirements]"
     )    
 
-    inject_domain_grammar("AK", "\"{AK}\"", always_known_transformer)
-    # print(domain._domain_parser_lark)
+    inject_domain_grammar("AK", "\"{AK}\"", basic_token_transformer)
 
-    # inject_domain_grammar("bdi", "\"[\" variable \"]\" | LESSER_OP variable GREATER_OP", bdi_transformer)
     domain._domain_parser_lark = domain._domain_parser_lark.replace(
         "atomic_formula_skeleton:   LPAR NAME typed_list_variable RPAR",
         ""
@@ -134,11 +144,16 @@ def construct_domain_grammar():
     #     "action_def:        LPAR ACTION NAME PARAMETERS action_parameters action_body_def RPAR",
     #     "action_def:        LPAR ACTION NAME [\":derive-condition\" derived_conditions] PARAMETERS action_parameters action_body_def RPAR"
     # )
-    # domain._domain_parser_lark = domain._domain_parser_lark.replace(
-    #     "atomic_formula_term:   LPAR predicate term* RPAR",
-    #     "atomic_formula_term:   [\"!\"] bdi* LPAR predicate term* RPAR"
-    # )
-    
+    inject_domain_grammar("LSQB", "\"[\"", basic_token_transformer)
+    inject_domain_grammar("RSQB", "\"]\"", basic_token_transformer)
+    inject_domain_grammar("QMRK", "\"?\"", basic_token_transformer)
+    inject_domain_grammar("bdi", "LSQB QMRK NAME RSQB | LESSER_OP QMRK NAME GREATER_OP", basic_tokens_transformer)
+    domain._domain_parser_lark = domain._domain_parser_lark.replace(
+        "atomic_formula_term:   LPAR predicate term* RPAR",
+        ""
+    )
+    inject_domain_grammar("atomic_formula_term", "[\"!\"] bdi* LPAR predicate term* RPAR", atomic_formula_term)
+
     print(domain._domain_parser_lark)
 
     # Monkey patching to add agents to the Domain class

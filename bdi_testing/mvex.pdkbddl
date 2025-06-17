@@ -5,14 +5,16 @@
     (:types loc)
 
     (:predicates
-        {AK}(secret ?l - loc)
-        {AK}(secret3 ?l - loc)
-        (secret10 ?l - loc)
+        ; (at ?agent - agent ?l - loc)
+        ; (connected ?l1 ?l2 - loc)
+        ; {AK}(at ?agent - agent ?l - loc)
+        {AK}(connected ?l1 ?l2 - loc)
     )
 
-    (:action test
-        :parameters         ()
-        :precondition       ()
-        :effect             ()
+    (:action move
+        ; :derive-condition   always
+        :parameters         (?l1 ?l2 - loc) 
+        :precondition       (and [?a](at ?a ?l1) (connected ?l1 ?l2))
+        :effect             (and (at ?a ?l2))
     )
 )
