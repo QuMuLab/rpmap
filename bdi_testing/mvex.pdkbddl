@@ -6,6 +6,8 @@
 
     (:predicates
         {AK}(secret ?l - loc)
+        {AK}(secret3 ?l - loc)
+        (secret10 ?l - loc)
     )
 
     (:action test

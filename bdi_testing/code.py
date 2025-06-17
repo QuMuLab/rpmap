@@ -4,7 +4,16 @@ import pddl.core
 from pddl.parser import domain
 from pddl.parser.domain import DomainParser
 from pddl.logic.predicates import Predicate
+from pddl.formatter import (
+    print_constants,
+    print_function_skeleton,
+    print_predicates_with_types,
+    print_types_or_functions_with_parents,
+    remove_empty_lines,
+    sort_and_print_collection,
+)
 from lark.lexer import Token
+from textwrap import indent
 
 
 def inject_domain_grammar(label, rule, function):
@@ -20,14 +29,21 @@ def agent_transformer(self, args):
         raise ValueError(f"Invalid agent definition: {args}")
     return args[0].value
 
-def atomic_formula_skeleton(self, args):        
-    if args[0].type == "AK":
-        predicate_name = args[2]
-        args = args[1:]
-    else:
-        predicate_name = args[1]
+def atomic_formula_skeleton(self, args):   
+    if not args:
+        raise ValueError(f"Invalid atomic formula skeleton definition: {args}")
+    predicate_name = args[2] # get name of the predicate
+    ak = False
+    # have an "always known"
+    ak = True if args[0] else False
+    # remove "always known" so variable is are in the correct position
+    args = args[1:]
     variables = self._formula_skeleton(args)
-    return Predicate(predicate_name, *variables)
+    
+    p = Predicate(predicate_name, *variables)
+    p.always_known = True if ak else False
+
+    return p
 
 
 def bdi_transformer(self, args):
@@ -56,9 +72,43 @@ def new_init(self, *args, **kwargs):
     self.orig_init(*args, **kwargs)
 
 def new_str(self):
-    original_str = self.orig_str()
-    agents_str = " ".join(sorted(self.agents)) if self.agents else ""
-    return original_str.replace('(:requirements', f'(:agents {agents_str})\n    (:requirements')
+    # adapted from the PDDL Domain class __str__ method
+    result = f"(define (domain {self.name})"
+    body = ""
+    indentation = " " * 4
+    body += sort_and_print_collection("(:requirements ", self.requirements, ")\n")
+    body += f"(:agents {' '.join(sorted(self.agents)) if self.agents else ''})\n"
+    body += print_types_or_functions_with_parents("(:types", self.types, ")\n")
+    body += print_constants("(:constants", self.constants, ")\n")
+    if self.predicates:
+        predicates_str = []
+        for p in self.predicates:
+            p_str = ""
+            if p.always_known:
+                p_str += "{AK}"
+            predicates_str.append(f"{p_str}{print_predicates_with_types([p])}")
+        predicates_str = "\n\t".join(predicates_str)
+        body += f"(:predicates\n\t{predicates_str}\n)\n"
+    if self.functions:
+        body += print_types_or_functions_with_parents(
+            "(:functions", self.functions, ")\n", print_function_skeleton
+        )
+    body += sort_and_print_collection(
+        "",
+        self.derived_predicates,
+        "",
+        to_string=lambda obj: str(obj) + "\n",
+    )
+    body += sort_and_print_collection(
+        "",
+        self.actions,
+        "",
+        to_string=lambda obj: str(obj) + "\n",
+    )
+    result = result + "\n" + indent(body, indentation) + "\n)"
+    result = remove_empty_lines(result)
+
+    return result
 
 def construct_domain_grammar():
     # domain._domain_parser_lark += 
