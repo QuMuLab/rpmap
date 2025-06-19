@@ -1,6 +1,7 @@
 # adapted from the PDDL library
 import pddl
 import pddl.core
+import pddl.logic
 from pddl.parser import domain
 from pddl.parser.symbols import Symbols
 from pddl.parser.domain import DomainParser
@@ -83,6 +84,23 @@ def new_init(self, *args, **kwargs):
     kwargs.pop("agents")
     self.orig_init(*args, **kwargs)
 
+# for Predicate class
+def get_predicate_prefix(self):
+    p_str = ""
+    if self.always_known:
+        p_str += "{AK}"
+    if self.bdi:
+        p_str += f"{''.join(self.bdi)}"
+    return p_str
+
+def new_predicate_str(self):
+    p_str = self.get_predicate_prefix()
+    if self.arity == 0:
+        return f"{p_str}({self.name})"
+    else:
+        return f"{p_str}({self.name} {' '.join(map(str, self.terms))})"   
+
+# for Domain class
 def new_str(self):
     # adapted from the PDDL Domain class __str__ method
     result = f"(define (domain {self.name})"
@@ -93,13 +111,7 @@ def new_str(self):
     body += print_types_or_functions_with_parents("(:types", self.types, ")\n")
     body += print_constants("(:constants", self.constants, ")\n")
     if self.predicates:
-        predicates_str = []
-        for p in self.predicates:
-            p_str = ""
-            if p.always_known:
-                p_str += "{AK}"
-            predicates_str.append(f"{p_str}{print_predicates_with_types([p])}")
-        predicates_str = "\n\t".join(predicates_str)
+        predicates_str = "\n\t".join([f"{p.get_predicate_prefix()}{print_predicates_with_types([p])}" for p in self.predicates])
         body += f"(:predicates\n\t{predicates_str}\n)\n"
     if self.functions:
         body += print_types_or_functions_with_parents(
@@ -163,6 +175,11 @@ def construct_domain_grammar():
     # Similar monkey patching for the string representation of the Domain class
     pddl.core.Domain.orig_str = pddl.core.Domain.__str__
     pddl.core.Domain.__str__ = new_str
+    pddl.logic.predicates.Predicate.orig_str = pddl.logic.predicates.Predicate.__str__
+    pddl.logic.predicates.Predicate.__str__ = new_predicate_str
+    pddl.logic.predicates.Predicate.get_predicate_prefix = get_predicate_prefix
+    pddl.logic.predicates.Predicate.always_known = False
+    pddl.logic.predicates.Predicate.bdi = None
 
 
 if __name__ == "__main__":
