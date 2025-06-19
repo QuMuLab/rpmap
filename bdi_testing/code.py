@@ -17,6 +17,8 @@ from pddl.formatter import (
     sort_and_print_collection,
 )
 from pddl.action import Action
+from pddl._validation import Types
+from pddl.helpers.base import _typed_parameters
 from lark.lexer import Token
 from textwrap import indent
 
@@ -25,6 +27,7 @@ def inject_domain_grammar(label, rule, function):
     domain._domain_parser_lark += f"\n{label}: {rule}\n"
     setattr(domain.DomainTransformer, label, function)
 
+# transformers for the new grammar rules
 def agents_transformer(self, args):
     self._agents = set(args[1:-1])
     return {"agents": self._agents}
@@ -57,7 +60,7 @@ def atomic_formula_term(self, args):
         right = self._constant_or_variable(args[3])
         return EqualTo(left, right)
     elif type(args[0]) == list:
-        # this is a BDI term, e.g. [?agent] or < ?agent >
+        # this is a BDI term, e.g. [?agent] or <?agent>
         predicate_name = args[2]
         terms = list(map(self._constant_or_variable, args[3:-1]))
         p = Predicate(predicate_name, *terms)
@@ -90,11 +93,6 @@ def action_transformer(self, args):
     }
     return Action(action_name, variables, **action_body)
 
-def new_init(self, *args, **kwargs):
-    self._agents = kwargs["agents"]
-    kwargs.pop("agents")
-    self.orig_init(*args, **kwargs)
-
 # for Predicate class
 def get_predicate_prefix(self):
     p_str = ""
@@ -105,11 +103,25 @@ def get_predicate_prefix(self):
     return p_str
 
 def new_predicate_str(self):
+    # adapted from the PDDL Predicate class __str__ method
     p_str = self.get_predicate_prefix()
     if self.arity == 0:
         return f"{p_str}({self.name})"
     else:
         return f"{p_str}({self.name} {' '.join(map(str, self.terms))})"   
+    
+# for Action class
+def new_action_str(self):
+    # TODO: add support for derived conditions
+    # adapted from the PDDL Action class __str__ method
+    operator_str = "(:action {0}\n".format(self.name)
+    operator_str += f"    :parameters ({_typed_parameters(self.parameters)})\n"
+    if self.precondition is not None:
+        operator_str += f"    :precondition {str(self.precondition)}\n"
+    if self.effect is not None:
+        operator_str += f"    :effect {str(self.effect)}\n"
+    operator_str += ")"
+    return operator_str
 
 # for Domain class
 def new_str(self):
@@ -119,6 +131,8 @@ def new_str(self):
     indentation = " " * 4
     body += sort_and_print_collection("(:requirements ", self.requirements, ")\n")
     body += f"(:agents {' '.join(sorted(self.agents)) if self.agents else ''})\n"
+    del self.types["agent"]  # remove agents from types
+    self._types = Types(self.types, self._requirements)
     body += print_types_or_functions_with_parents("(:types", self.types, ")\n")
     body += print_constants("(:constants", self.constants, ")\n")
     if self.predicates:
@@ -145,6 +159,13 @@ def new_str(self):
 
     return result
 
+def new_init(self, *args, **kwargs):
+    self._agents = kwargs["agents"]
+    kwargs["types"]["agent"] = None
+    kwargs.pop("agents")
+    self.orig_init(*args, **kwargs)
+
+# to build the domain grammar via Python magic
 def construct_domain_grammar():
     # inject rules for defining agents
     inject_domain_grammar("agents", "LPAR \":agents\" agent+ RPAR", agents_transformer)
@@ -196,14 +217,16 @@ def construct_domain_grammar():
     pddl.logic.predicates.Predicate.orig_str = pddl.logic.predicates.Predicate.__str__
     pddl.logic.predicates.Predicate.__str__ = new_predicate_str
     pddl.logic.predicates.Predicate.get_predicate_prefix = get_predicate_prefix
-    pddl.logic.predicates.Predicate.always_known = False
+    pddl.logic.predicates.Predicate.always_known = None
     pddl.logic.predicates.Predicate.bdi = None
+    pddl.action.Action.orig_str = pddl.action.Action.__str__
+    pddl.action.Action.__str__ = new_action_str
 
 
 if __name__ == "__main__":
     construct_domain_grammar()
     parser = DomainParser()
-    with open("bdi_testing/mvex.pdkbddl", "r") as f:
+    with open("bdi_testing/grapevine.pdkbddl", "r") as f:
         d_pddl = f.read()
     result = parser(d_pddl)
     print(f"\n{result}\n")
