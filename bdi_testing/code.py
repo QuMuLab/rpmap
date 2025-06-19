@@ -16,6 +16,7 @@ from pddl.formatter import (
     remove_empty_lines,
     sort_and_print_collection,
 )
+from pddl.action import Action
 from lark.lexer import Token
 from textwrap import indent
 
@@ -34,9 +35,7 @@ def agent_transformer(self, args):
     return args[0].value
 
 def atomic_formula_skeleton(self, args):   
-    # adapted from the PDDL Domain class atomic_formula_skeleton method
-    if not args or args is None:
-        raise ValueError(f"Invalid atomic formula skeleton definition: {args}")
+    # adapted from the PDDL DomainTransformer class atomic_formula_skeleton method
     predicate_name = args[2] # get name of the predicate
     ak = False
     # have an "always known"
@@ -49,7 +48,7 @@ def atomic_formula_skeleton(self, args):
     return p
 
 def atomic_formula_term(self, args):
-    # adapted from the PDDL Domain class atomic_formula_term method
+    # adapted from the PDDL DomainTransformer class atomic_formula_term method
     """Process the 'atomic_formula_term' rule."""
     if args[1] == Symbols.EQUAL.value:
         if not bool({Requirements.EQUALITY} & self._extended_requirements):
@@ -78,6 +77,18 @@ def basic_token_transformer(self, args):
     if type(args) is not Token:
         raise ValueError(f"Invalid token definition: {args}")
     return args
+
+def action_transformer(self, args):
+    # adapted from the PDDL DomainTransformer class action_def method
+    action_name = args[2]
+    variables = args[6]
+
+    # process action body
+    _children = args[7].children
+    action_body = {
+        _children[i][1:]: _children[i + 1] for i in range(0, len(_children), 2)
+    }
+    return Action(action_name, variables, **action_body)
 
 def new_init(self, *args, **kwargs):
     self._agents = kwargs["agents"]
@@ -135,27 +146,34 @@ def new_str(self):
     return result
 
 def construct_domain_grammar():
-    # domain._domain_parser_lark += 
+    # inject rules for defining agents
     inject_domain_grammar("agents", "LPAR \":agents\" agent+ RPAR", agents_transformer)
     inject_domain_grammar("agent", "/[a-zA-Z_][a-zA-Z0-9_]*/", agent_transformer)
     domain._domain_parser_lark = domain._domain_parser_lark.replace(
         "LPAR DEFINE domain_def [requirements]",
         "LPAR DEFINE domain_def agents [requirements]"
     )    
-
+    # inject rules for always known predicates
     inject_domain_grammar("AK", "\"{AK}\"", basic_token_transformer)
-
     domain._domain_parser_lark = domain._domain_parser_lark.replace(
         "atomic_formula_skeleton:   LPAR NAME typed_list_variable RPAR",
         ""
     )
     inject_domain_grammar("atomic_formula_skeleton", "[AK] LPAR NAME typed_list_variable RPAR", atomic_formula_skeleton)
-    # inject_domain_grammar("derived_term", "term | \"$\" constant \"$\"", derived_term_transformer)
-    # inject_domain_grammar("derived_conditions", "\"always\" | \"never\" | LPAR predicate derived_term* RPAR", derived_conditions_transformer)
-    # domain._domain_parser_lark = domain._domain_parser_lark.replace(
-    #     "action_def:        LPAR ACTION NAME PARAMETERS action_parameters action_body_def RPAR",
-    #     "action_def:        LPAR ACTION NAME [\":derive-condition\" derived_conditions] PARAMETERS action_parameters action_body_def RPAR"
-    # )
+    
+    # inject rules for derived conditions
+    inject_domain_grammar("derived_term", "term | \"$\" constant \"$\"", basic_tokens_transformer)
+    inject_domain_grammar("ALWAYS", "\"always\"", basic_token_transformer)
+    inject_domain_grammar("NEVER", "\"never\"", basic_token_transformer)
+    inject_domain_grammar("derived_conditions", "ALWAYS | NEVER | LPAR predicate derived_term* RPAR", basic_tokens_transformer)
+    inject_domain_grammar("DERIVE_CONDITION", "\":derive-condition\"", basic_tokens_transformer)
+    domain._domain_parser_lark = domain._domain_parser_lark.replace(
+        "action_def:        LPAR ACTION NAME PARAMETERS action_parameters action_body_def RPAR",
+        ""
+    )
+    inject_domain_grammar("action_def", "LPAR ACTION NAME [DERIVE_CONDITION derived_conditions] PARAMETERS action_parameters action_body_def RPAR", action_transformer)
+
+    # inject rules for BDI terms
     inject_domain_grammar("LSQB", "\"[\"", basic_token_transformer)
     inject_domain_grammar("RSQB", "\"]\"", basic_token_transformer)
     inject_domain_grammar("QMRK", "\"?\"", basic_token_transformer)
