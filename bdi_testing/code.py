@@ -2,10 +2,14 @@
 import pddl
 import pddl.core
 import pddl.logic
+from pddl.logic.terms import Constant
 from pddl.parser import domain
+from pddl.parser import problem
+import pddl.parser
 from pddl.parser.symbols import Symbols
 from pddl.parser.domain import DomainParser
-from pddl.logic.predicates import Predicate, EqualTo
+from pddl.parser.problem import ProblemParser
+from pddl.logic.predicates import Predicate
 from pddl.exceptions import PDDLMissingRequirementError
 from pddl.requirements import Requirements
 from pddl.formatter import (
@@ -22,7 +26,7 @@ from pddl.helpers.base import _typed_parameters
 from lark.lexer import Token
 from textwrap import indent
 
-
+# FOR THE DOMAIN FILE
 def inject_domain_grammar(label, rule, function):
     domain._domain_parser_lark += f"\n{label}: {rule}\n"
     setattr(domain.DomainTransformer, label, function)
@@ -52,30 +56,18 @@ def atomic_formula_skeleton(self, args):
 
 def atomic_formula_term(self, args):
     # adapted from the PDDL DomainTransformer class atomic_formula_term method
-    """Process the 'atomic_formula_term' rule."""
-    if args[1] == Symbols.EQUAL.value:
-        if not bool({Requirements.EQUALITY} & self._extended_requirements):
-            raise PDDLMissingRequirementError(Requirements.EQUALITY)
-        left = self._constant_or_variable(args[2])
-        right = self._constant_or_variable(args[3])
-        return EqualTo(left, right)
-    elif type(args[0]) != Token or args[0].type == "EXC":
         # figure out where the BDI term ends, e.g. (!)[?agent] or (!)<?agent>
-        # if there's no BDI term, we just skip over None
-        for i in range(len(args)):
-            if type(args[i]) == Token and args[i].type != "EXC":
-                # reached the end of the BDI terms
-                after_bdi = i
-                break
-        predicate_name = args[after_bdi + 1] # (add one to skip the LPAR)
-        terms = list(map(self._constant_or_variable, args[after_bdi + 2:-1]))
-        p = Predicate(predicate_name, *terms)
-        p.bdi = args[:after_bdi]  # store the BDI term
-        return p
-    else:
-        predicate_name = args[1]
-        terms = list(map(self._constant_or_variable, args[2:-1]))
-        return Predicate(predicate_name, *terms)
+        # (if there's no BDI term, we just skip over None)
+    for i in range(len(args)):
+        if type(args[i]) == Token and args[i].type != "EXC":
+            # reached the end of the BDI terms
+            after_bdi = i
+            break
+    predicate_name = args[after_bdi + 1] # (add one to skip the LPAR)
+    terms = list(map(self._constant_or_variable, args[after_bdi + 2:-1]))
+    p = Predicate(predicate_name, *terms)
+    p.bdi = args[:after_bdi]  # store the BDI term
+    return p
 
 def basic_tokens_transformer(self, args):
     if not args or args is None:
@@ -184,6 +176,102 @@ def new_init(self, *args, **kwargs):
     kwargs.pop("agents")
     self.orig_init(*args, **kwargs)
 
+# FOR THE PROBLEM FILE
+def inject_problem_grammar(label, rule, function):
+    problem._problem_parser_lark += f"\n{label}: {rule}\n"
+    setattr(problem.ProblemTransformer, label, function)
+
+def atomic_formula_name(self, args):
+    # adapted from the PDDL ProblemTransformer class atomic_formula_name method
+    # figure out where the BDI term ends, e.g. (!)[?agent] or (!)<?agent>
+    # (if there's no BDI term, we just skip over None)
+    for i in range(len(args)):
+        if type(args[i]) == Token and args[i].type != "EXC":
+            # reached the end of the BDI terms
+            after_bdi = i
+            break
+    predicate_name = args[after_bdi + 1] # (add one to skip the LPAR)
+    terms = []
+    for _term_name in args[after_bdi + 2:-1]:
+        if self._objects_by_name.get(str(_term_name)) is None:
+            terms.append(Constant(str(_term_name)))
+        else:
+            terms.append(self._objects_by_name.get(str(_term_name)))
+    p = Predicate(predicate_name, *terms)
+    p.bdi = args[:after_bdi]  # store the BDI term
+    return p
+
+def depth_transformer(self, args):
+    args = basic_tokens_transformer(self, args)
+    return ("depth", args)
+
+def task_transformer(self, args):
+    args = basic_tokens_transformer(self, args)
+    return ("task", args)
+
+def init_type_transformer(self, args):
+    args = basic_tokens_transformer(self, args)
+    return ("init_type", args) 
+
+def plan_transformer(self, args):
+    args = basic_tokens_transformer(self, args)
+    return ("plan", args) 
+
+def new_init_problem(self, *args, **kwargs):
+    self.depth = int(kwargs["depth"][2].value)  # store the depth
+    self.task = kwargs["task"][2].value  # store the task
+    self.init_type = kwargs["init_type"][2].value  # store the init type
+    self.plan = kwargs["plan"][2:-1]  # store the plan
+    kwargs.pop("depth")
+    kwargs.pop("task")
+    kwargs.pop("init_type")
+    kwargs.pop("plan")
+    self.orig_init(*args, **kwargs)
+
+def new_problem_str(self):
+    # adapted from the PDDL Problem class __str__ method
+    result = f"(define (problem {self.name})"
+    body = f"(:domain {self.domain_name})\n"
+    indentation = " " * 4
+    body += sort_and_print_collection("(:requirements ", self.requirements, ")\n")
+    if self.objects:
+        body += print_constants("(:objects", self.objects, ")\n")
+    body += f"(:depth {self.depth})\n"
+    body += f"(:task {self.task})\n"
+    body += f"(:init-type {self.init_type})\n"
+    body += sort_and_print_collection(
+        "(:init ", self.init, ")\n", is_mandatory=True
+    )
+    body += f"{'(:goal ' + str(self.goal) + ')'}\n"
+    body += f"{'(:metric ' + str(self.metric) + ')'}\n" if self.metric else ""
+    if self.plan:
+        body += sort_and_print_collection(
+            "(:plan ", self.plan, ")\n"
+        )
+    result = result + "\n" + indent(body, indentation) + "\n)"
+    result = remove_empty_lines(result)
+    return result
+
+# FOR THE PREDICATE CLASS
+def new_predicate_eq(self, other):
+    # adapted from the PDDL Predicate class __eq__ method
+    return (
+            isinstance(other, Predicate)
+            and self.name == other.name
+            and self.terms == other.terms
+            and self.always_known == other.always_known
+            and self.bdi == other.bdi
+        )
+
+def new_predicate_hash(self):
+    # adapted from the PDDL Predicate class __hash__ method
+    bdi_str = ""
+    if self.bdi:
+        for bdi_term in self.bdi:
+            if bdi_term:
+                bdi_str += f"{''.join(bdi_term)}"
+    return hash((self.name, self.arity, self.terms, self.always_known, bdi_str))
+
 # to build the domain grammar via Python magic
 def construct_domain_grammar():
     # inject rules for defining agents
@@ -226,8 +314,6 @@ def construct_domain_grammar():
     inject_domain_grammar("EXC", "\"!\"", basic_token_transformer)
     inject_domain_grammar("atomic_formula_term", "[EXC] bdi* LPAR predicate term* RPAR", atomic_formula_term)
 
-    print(domain._domain_parser_lark)
-
     # Monkey patching to add agents to the Domain class
     pddl.core.Domain.orig_init = pddl.core.Domain.__init__
     pddl.core.Domain.__init__ = new_init
@@ -235,8 +321,49 @@ def construct_domain_grammar():
     # Similar monkey patching for the string representation of the Domain class
     pddl.core.Domain.orig_str = pddl.core.Domain.__str__
     pddl.core.Domain.__str__ = new_str
+
+def construct_problem_grammar():
+    problem._problem_parser_lark = problem._problem_parser_lark.replace(
+        "LPAR DEFINE problem_def problem_domain [problem_requirements] [objects] init goal [metric_spec] RPAR",
+        "LPAR DEFINE problem_def problem_domain [problem_requirements] [objects] depth task init_type init goal [metric_spec] [plan] RPAR"
+    )    
+    inject_problem_grammar("EXC", "\"!\"", basic_token_transformer)
+    inject_problem_grammar("LSQB", "\"[\"", basic_token_transformer)
+    inject_problem_grammar("RSQB", "\"]\"", basic_token_transformer)
+    inject_problem_grammar("DEPTH", "\":depth\"", basic_token_transformer)
+    inject_problem_grammar("TASK", "\":task\"", basic_token_transformer)
+    inject_problem_grammar("INIT_TYPE", "\":init-type\"", basic_token_transformer)
+    inject_problem_grammar("VALID", "\"valid_generation\"", basic_token_transformer)
+    inject_problem_grammar("ASSESS", "\"valid_assessment\"", basic_token_transformer)
+    inject_problem_grammar("PLAN", "\":plan\"", basic_token_transformer)
+    inject_problem_grammar("COMPLETE", "\"complete\"", basic_token_transformer)
+    inject_problem_grammar("?require_task_key", "VALID | ASSESS", basic_tokens_transformer)
+    inject_problem_grammar("bdi", "LSQB NAME RSQB | LESSER_OP NAME GREATER_OP", basic_tokens_transformer)
+
+    problem._problem_parser_lark = problem._problem_parser_lark.replace(
+        "atomic_formula_name:   LPAR predicate NAME* RPAR",
+        ""
+    )
+    inject_problem_grammar("atomic_formula_name", "[EXC] bdi* LPAR predicate NAME* RPAR", atomic_formula_name)
+    inject_problem_grammar("depth", "LPAR DEPTH NUMBER RPAR", depth_transformer)
+    inject_problem_grammar("task", "LPAR TASK require_task_key RPAR", task_transformer)
+    inject_problem_grammar("init_type", "LPAR INIT_TYPE COMPLETE RPAR", init_type_transformer)
+    inject_problem_grammar("plan", "LPAR PLAN gd_name* RPAR", plan_transformer)
+
+    pddl.core.Problem.orig_init = pddl.core.Problem.__init__
+    pddl.core.Problem.__init__ = new_init_problem
+    pddl.core.Problem.__str__ = new_problem_str
+    pddl.core.Problem.depth = None
+    pddl.core.Problem.task = None
+    pddl.core.Problem.init_type = None
+    pddl.core.Problem.plan = None
+    print(problem._problem_parser_lark)
+
+if __name__ == "__main__":
     pddl.logic.predicates.Predicate.orig_str = pddl.logic.predicates.Predicate.__str__
     pddl.logic.predicates.Predicate.__str__ = new_predicate_str
+    pddl.logic.predicates.Predicate.__eq__ = new_predicate_eq
+    pddl.logic.predicates.Predicate.__hash__ = new_predicate_hash
     pddl.logic.predicates.Predicate.get_predicate_prefix = get_predicate_prefix
     pddl.logic.predicates.Predicate.always_known = None
     pddl.logic.predicates.Predicate.bdi = None
@@ -244,13 +371,19 @@ def construct_domain_grammar():
     pddl.action.Action.__str__ = new_action_str
     pddl.action.Action.derive_condition = None
 
-
-if __name__ == "__main__":
     construct_domain_grammar()
     parser = DomainParser()
     with open("bdi_testing/suspicious_witches_domain.pdkbddl", "r") as f:
         d_pddl = f.read()
     result = parser(d_pddl)
     # print(f"\n{result}\n")
-    with open("parsed_domain.pddl", "w") as f:
+    with open("bdi_testing/parsed_domain.pddl", "w") as f:
+        f.write(f"\n{result}\n")
+
+    construct_problem_grammar()
+    parser = ProblemParser()
+    with open("bdi_testing/witch_problem.pdkbddl", "r") as f:
+        p_pddl = f.read()
+    result = parser(p_pddl)
+    with open("bdi_testing/parsed_problem.pddl", "w") as f:
         f.write(f"\n{result}\n")

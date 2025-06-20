@@ -6,39 +6,39 @@
         item loc - object
     )
     (:predicates
-    	{AK}(desire-accuse-lying-hatred ?a1 - agent ?a2 - agent)
-    	{AK}(fled ?ag - agent)
+    	{AK}(threatened-by ?a1 - agent ?a2 - agent)
+    	(accused-by ?a1 - agent ?a2 - agent)
+    	(witch ?ag - agent)
+    	{AK}(intend-accuse-paranoid ?a1 - agent ?a2 - agent)
+    	{AK}(hates ?a1 - agent ?a2 - agent)
+    	{AK}(desire-defend-earnestly ?a1 - agent ?a2 - agent ?a3 - agent)
+    	{AK}(executed ?ag - agent)
+    	{AK}(desire-defend-threatened ?a1 - agent ?a2 - agent ?a3 - agent)
+    	{AK}(stealthy ?ag - agent)
+    	{AK}(town-exit ?l - loc)
+    	{AK}(intend-flee ?ag - agent)
+    	{AK}(influencer ?ag - agent)
     	{AK}(intend-accuse-random-accused ?a1 - agent ?a2 - agent)
-    	{AK}(intend-accuse ?a1 - agent ?a2 - agent)
-    	{AK}(intend-defend-threatened ?a1 - agent ?a2 - agent ?a3 - agent)
+    	{AK}(connected ?l1 - loc ?l2 - loc)
+    	{AK}(item-at ?i - item ?loc - loc)
+    	{AK}(diff ?a1 - agent ?a2 - agent)
+    	{AK}(sycophant ?a1 - agent ?a2 - agent)
     	{AK}(desire-flee ?ag - agent)
+    	{AK}(fled ?ag - agent)
+    	{AK}(witch-hunting ?a1 - agent ?a2 - agent)
     	{AK}(cursed ?ag - agent)
     	{AK}(paranoid ?ag - agent)
-    	(civilian ?ag - agent)
-    	{AK}(item-at ?i - item ?loc - loc)
-    	{AK}(desire-defend-earnestly ?a1 - agent ?a2 - agent ?a3 - agent)
-    	{AK}(desire-defend-threatened ?a1 - agent ?a2 - agent ?a3 - agent)
     	{AK}(desire-accuse ?a1 - agent ?a2 - agent)
-    	{AK}(executed ?ag - agent)
-    	{AK}(witch-hunting ?a1 - agent ?a2 - agent)
-    	{AK}(influencer ?ag - agent)
-    	{AK}(intend-flee ?ag - agent)
-    	{AK}(at ?ag - agent ?l - loc)
-    	{AK}(intend-accuse-paranoid ?a1 - agent ?a2 - agent)
-    	{AK}(collected ?i - item)
-    	(witch ?ag - agent)
-    	{AK}(hates ?a1 - agent ?a2 - agent)
-    	{AK}(sycophant ?a1 - agent ?a2 - agent)
-    	{AK}(town-exit ?l - loc)
+    	{AK}(intend-defend-threatened ?a1 - agent ?a2 - agent ?a3 - agent)
     	{AK}(desire-accuse-random-accused ?a1 - agent ?a2 - agent)
-    	(accused-by ?a1 - agent ?a2 - agent)
-    	{AK}(connected ?l1 - loc ?l2 - loc)
     	{AK}(intend-defend-earnestly ?a1 - agent ?a2 - agent ?a3 - agent)
-    	{AK}(stealthy ?ag - agent)
-    	{AK}(diff ?a1 - agent ?a2 - agent)
+    	{AK}(collected ?i - item)
+    	{AK}(desire-accuse-lying-hatred ?a1 - agent ?a2 - agent)
+    	{AK}(intend-accuse ?a1 - agent ?a2 - agent)
     	{AK}(intend-accuse-lying-hatred ?a1 - agent ?a2 - agent)
+    	(civilian ?ag - agent)
     	{AK}(desire-accuse-paranoid ?a1 - agent ?a2 - agent)
-    	{AK}(threatened-by ?a1 - agent ?a2 - agent)
+    	{AK}(at ?ag - agent ?l - loc)
     )
     (:action burn-the-witch-three-civ
        :derive-condition never 
@@ -50,19 +50,19 @@
        :derive-condition never 
         :parameters (?a1 - agent ?a2 - agent ?l - loc)
         :precondition (and (intend-accuse-paranoid ?a1 ?a2) (at ?a1 ?l))
-        :effect (and (accused-by ?a2 ?a1) (forall (?ag - agent) (and (when (at ?ag ?l) [?ag](accused-by ?a2 ?a1)) (when (and (at ?ag ?l) (civilian ?ag) (diff ?ag ?a1) (diff ?ag ?a2) !<?ag>(witch ?a1) <?ag>(witch ?a2)) [?ag](witch ?a2)) (when (and (at ?ag ?l) (civilian ?ag) (diff ?ag ?a1) (diff ?ag ?a2) <?ag>(witch ?a1) !<?ag>(witch ?a2)) [?ag](witch ?a1)) (when (and (at ?ag ?l) (witch ?ag) (diff ?ag ?a2)) [?ag][?a1](witch ?a2)))))
+        :effect (and (accused-by ?a2 ?a1) (forall (?ag - agent) (and (when (at ?ag ?l) [?ag](accused-by ?a2 ?a1)) (when (and (at ?ag ?l) (civilian ?ag) (diff ?ag ?a1) (diff ?ag ?a2) !<?ag>(witch ?a1) <?ag>(witch ?a2)) [?ag](witch ?a2)) (when (and (at ?ag ?l) (civilian ?ag) (diff ?ag ?a1) (diff ?ag ?a2) !<?ag>(witch ?a1) <?ag>(witch ?a2)) [?ag][?a1](witch ?a2)) (when (and (at ?ag ?l) (civilian ?ag) (diff ?ag ?a1) (diff ?ag ?a2) <?ag>(witch ?a1) !<?ag>(witch ?a2)) [?ag](witch ?a1)) (when (and (at ?ag ?l) (civilian ?ag) (diff ?ag ?a1) (diff ?ag ?a2) <?ag>(witch ?a1) !<?ag>(witch ?a2)) [?ag][?a1](witch ?a2)) (when (and (at ?ag ?l) (witch ?ag) (diff ?ag ?a2)) [?ag][?a1](witch ?a2)))))
     )
      (:action civilian-whisper-accuse
        :derive-condition never 
         :parameters (?a1 - agent ?a2 - agent ?a3 - agent ?l - loc)
         :precondition (and (intend-accuse ?a1 ?a3) (at ?a1 ?l) (at ?a2 ?l) (diff ?a1 ?a2) (diff ?a2 ?a3) !<?a1>(witch ?a2))
-        :effect (and (accused-by ?a3 ?a1) (when (and (civilian ?a2) <?a2>(witch ?a3) !<?a2>(witch ?a1)) [?a2](witch ?a3)) (when (and (civilian ?a2) <?a2>(witch ?a1) !<?a2>(witch ?a3)) [?a2](witch ?a1)) (when (witch ?a2) [?a2][?a1](witch ?a3)))
+        :effect (and (accused-by ?a3 ?a1) [?a2](accused-by ?a3 ?a1) [?a1](accused-by ?a3 ?a1) (when (and (civilian ?a2) <?a2>(witch ?a3) !<?a2>(witch ?a1)) [?a2](witch ?a3)) (when (and (civilian ?a2) <?a2>(witch ?a1) !<?a2>(witch ?a3)) [?a2](witch ?a1)) (when (witch ?a2) [?a2][?a1](witch ?a3)))
     )
      (:action collect-item
        :derive-condition never 
         :parameters (?w - agent ?i - item ?l - loc)
         :precondition (and (at ?w ?l) (item-at ?i ?l) (witch ?w) (not (collected ?i)))
-        :effect (and (collected ?i) (forall (?ag - agent) (and (when (and (at ?ag ?l) (civilian ?ag) <?ag>(witch ?w)) [?ag](witch ?w)) (when (and (at ?ag ?l) (civilian ?ag) (not (stealthy ?ag))) [?w][?ag](witch ?w)))))
+        :effect (and (collected ?i) (forall (?ag - agent) (and (when (and (at ?ag ?l) (civilian ?ag) <?ag>(witch ?w)) [?ag](witch ?w)) (when (and (at ?ag ?l) (civilian ?ag) !<?ag>(witch ?w)) <?ag>(witch ?w)) (when (and (at ?ag ?l) (civilian ?ag) (not (stealthy ?ag))) [?w][?ag](witch ?w)))))
     )
      (:action copy-desire-to-accuse
        :derive-condition never 
@@ -86,7 +86,7 @@
        :derive-condition never 
         :parameters (?syc - agent ?a2 - agent ?acsd - agent ?l - loc)
         :precondition (and (sycophant ?syc ?a2) (civilian ?syc) (at ?syc ?l) (at ?a2 ?l) (diff ?syc ?a2) (diff ?syc ?acsd) (desire-accuse-paranoid ?a2 ?acsd))
-        :effect (and (desire-accuse-paranoid ?syc ?acsd) <?syc>(witch ?acsd) (paranoid ?syc))
+        :effect (and (desire-accuse-paranoid ?syc ?acsd) <?syc>(witch ?acsd) ![?syc](witch ?acsd) (paranoid ?syc))
     )
      (:action copy-desire-to-defend-earnestly
        :derive-condition never 
@@ -110,13 +110,13 @@
        :derive-condition never 
         :parameters (?defender - agent ?acsd - agent ?acsr - agent ?l - loc)
         :precondition (and (intend-defend-earnestly ?defender ?acsd ?acsr) (at ?defender ?l) (at ?acsd ?l))
-        :effect (forall (?ag - agent) (and (when (at ?ag ?l) [?ag](accused-by ?acsd ?acsr)) (when (and (civilian ?ag) (at ?ag ?l) (diff ?ag ?defender) (diff ?ag ?acsd) [?ag](witch ?acsd) <?ag>(witch ?defender)) [?ag](witch ?defender)) (when (and (civilian ?ag) (at ?ag ?l) (diff ?ag ?defender) (diff ?ag ?acsd) [?ag](witch ?defender) <?ag>(witch ?acsd)) [?ag](witch ?acsd))))
+        :effect (forall (?ag - agent) (and (when (at ?ag ?l) [?ag](accused-by ?acsd ?acsr)) (when (and (civilian ?ag) (at ?ag ?l) (diff ?ag ?defender) (diff ?ag ?acsd) [?ag](witch ?acsd) <?ag>(witch ?defender)) [?ag](witch ?defender)) (when (and (civilian ?ag) (at ?ag ?l) (diff ?ag ?defender) (diff ?ag ?acsd) !<?ag>(witch ?acsd) [?ag](witch ?defender)) ![?ag](witch ?defender)) (when (and (civilian ?ag) (at ?ag ?l) (diff ?ag ?defender) (diff ?ag ?acsd) [?ag](witch ?defender) <?ag>(witch ?acsd)) [?ag](witch ?acsd)) (when (and (civilian ?ag) (at ?ag ?l) (diff ?ag ?defender) (diff ?ag ?acsd) !<?ag>(witch ?defender) [?ag](witch ?acsd)) ![?ag](witch ?acsd))))
     )
      (:action defend-threatened
        :derive-condition never 
         :parameters (?defender - agent ?acsd - agent ?acsr - agent ?l - loc)
         :precondition (and (intend-defend-threatened ?defender ?acsd ?acsr) (at ?defender ?l) (at ?acsd ?l))
-        :effect (forall (?ag - agent) (and (when (at ?ag ?l) [?ag](accused-by ?acsd ?acsr)) (when (and (civilian ?ag) (at ?ag ?l) (diff ?ag ?defender) (diff ?ag ?acsd) [?ag](witch ?acsd) <?ag>(witch ?defender)) [?ag](witch ?defender)) (when (and (civilian ?ag) (at ?ag ?l) (diff ?ag ?defender) (diff ?ag ?acsd) [?ag](witch ?defender) <?ag>(witch ?acsd)) [?ag](witch ?acsd))))
+        :effect (forall (?ag - agent) (and (when (at ?ag ?l) [?ag](accused-by ?acsd ?acsr)) (when (and (civilian ?ag) (at ?ag ?l) (diff ?ag ?defender) (diff ?ag ?acsd) [?ag](witch ?acsd) <?ag>(witch ?defender)) [?ag](witch ?defender)) (when (and (civilian ?ag) (at ?ag ?l) (diff ?ag ?defender) (diff ?ag ?acsd) !<?ag>(witch ?acsd) [?ag](witch ?defender)) ![?ag](witch ?defender)) (when (and (civilian ?ag) (at ?ag ?l) (diff ?ag ?defender) (diff ?ag ?acsd) [?ag](witch ?defender) <?ag>(witch ?acsd)) [?ag](witch ?acsd)) (when (and (civilian ?ag) (at ?ag ?l) (diff ?ag ?defender) (diff ?ag ?acsd) !<?ag>(witch ?defender) [?ag](witch ?acsd)) ![?ag](witch ?acsd))))
     )
      (:action desire-flee
        :derive-condition never 
@@ -133,7 +133,7 @@
      (:action desire-to-accuse-accused
        :derive-condition never 
         :parameters (?a1 - agent ?acsd - agent ?acsr - agent)
-        :precondition (and (diff ?a1 ?acsd) (diff ?a1 ?acsr) (accused-by ?a1 ?acsr))
+        :precondition (and (diff ?a1 ?acsd) (diff ?a1 ?acsr) (accused-by ?a1 ?acsr) [?a1](accused-by ?a1 ?acsr))
         :effect (desire-accuse-random-accused ?a1 ?acsd)
     )
      (:action desire-to-accuse-lying
@@ -145,19 +145,19 @@
      (:action desire-to-accuse-paranoid
        :derive-condition never 
         :parameters (?a1 - agent ?acsd - agent)
-        :precondition (and (civilian ?a1) (diff ?a1 ?acsd) <?a1>(witch ?acsd) (paranoid ?a1))
+        :precondition (and (civilian ?a1) (diff ?a1 ?acsd) <?a1>(witch ?acsd) ![?a1](witch ?acsd) (paranoid ?a1))
         :effect (desire-accuse-paranoid ?a1 ?acsd)
     )
      (:action desire-to-defend-earnestly
        :derive-condition never 
         :parameters (?defender - agent ?acsd - agent ?acsr - agent)
-        :precondition (and !<?defender>(witch ?acsd) (accused-by ?acsd ?acsr) (diff ?defender ?acsd) (diff ?defender ?acsr) (diff ?acsd ?acsr))
+        :precondition (and !<?defender>(witch ?acsd) (accused-by ?acsd ?acsr) [?defender](accused-by ?acsd ?acsr) (diff ?defender ?acsd) (diff ?defender ?acsr) (diff ?acsd ?acsr))
         :effect (desire-defend-earnestly ?defender ?acsd ?acsr)
     )
      (:action desire-to-defend-threatened
        :derive-condition never 
         :parameters (?defender - agent ?acsd - agent ?acsr - agent)
-        :precondition (and (threatened-by ?defender ?acsd) (accused-by ?acsd ?acsr) (diff ?defender ?acsd) (diff ?defender ?acsr) (diff ?acsd ?acsr))
+        :precondition (and (threatened-by ?defender ?acsd) (accused-by ?acsd ?acsr) [?defender](accused-by ?acsd ?acsr) (diff ?defender ?acsd) (diff ?defender ?acsr) (diff ?acsd ?acsr))
         :effect (desire-defend-threatened ?defender ?acsd ?acsr)
     )
      (:action flee
@@ -242,7 +242,7 @@
        :derive-condition never 
         :parameters (?a1 - agent ?a2 - agent ?l - loc)
         :precondition (and (intend-accuse-lying-hatred ?a1 ?a2) (at ?a1 ?l))
-        :effect (and (accused-by ?a2 ?a1) (forall (?ag - agent) (and (when (at ?ag ?l) [?ag](accused-by ?a2 ?a1)) (when (and (at ?ag ?l) (civilian ?ag) (diff ?ag ?a1) (diff ?ag ?a2) !<?ag>(witch ?a1) <?ag>(witch ?a2)) [?ag](witch ?a2)) (when (and (at ?ag ?l) (civilian ?ag) (diff ?ag ?a1) (diff ?ag ?a2) <?ag>(witch ?a1) !<?ag>(witch ?a2)) [?ag](witch ?a1)) (when (and (at ?ag ?l) (witch ?ag) (diff ?ag ?a2)) [?ag][?a1](witch ?a2)))))
+        :effect (and (accused-by ?a2 ?a1) (forall (?ag - agent) (and (when (at ?ag ?l) [?ag](accused-by ?a2 ?a1)) (when (and (at ?ag ?l) (civilian ?ag) (diff ?ag ?a1) (diff ?ag ?a2) !<?ag>(witch ?a1) <?ag>(witch ?a2)) [?ag](witch ?a2)) (when (and (at ?ag ?l) (civilian ?ag) (diff ?ag ?a1) (diff ?ag ?a2) !<?ag>(witch ?a1) <?ag>(witch ?a2)) [?ag][?a1](witch ?a2)) (when (and (at ?ag ?l) (civilian ?ag) (diff ?ag ?a1) (diff ?ag ?a2) <?ag>(witch ?a1) !<?ag>(witch ?a2)) [?ag](witch ?a1)) (when (and (at ?ag ?l) (civilian ?ag) (diff ?ag ?a1) (diff ?ag ?a2) <?ag>(witch ?a1) !<?ag>(witch ?a2)) [?ag][?a1](witch ?a2)) (when (and (at ?ag ?l) (witch ?ag) (diff ?ag ?a2)) [?ag][?a1](witch ?a2)))))
     )
      (:action move
        :derive-condition always 
@@ -260,30 +260,30 @@
        :derive-condition never 
         :parameters (?a1 - agent ?a2 - agent ?l - loc)
         :precondition (and (intend-accuse-random-accused ?a1 ?a2) (at ?a1 ?l))
-        :effect (and (accused-by ?a2 ?a1) (forall (?ag - agent) (and (when (at ?ag ?l) [?ag](accused-by ?a2 ?a1)) (when (and (at ?ag ?l) (civilian ?ag) (diff ?ag ?a1) (diff ?ag ?a2) !<?ag>(witch ?a1) <?ag>(witch ?a2)) [?ag](witch ?a2)) (when (and (at ?ag ?l) (civilian ?ag) (diff ?ag ?a1) (diff ?ag ?a2) <?ag>(witch ?a1) !<?ag>(witch ?a2)) [?ag](witch ?a1)) (when (and (at ?ag ?l) (witch ?ag) (diff ?ag ?a2)) [?ag][?a1](witch ?a2)))))
+        :effect (and (accused-by ?a2 ?a1) (forall (?ag - agent) (and (when (at ?ag ?l) [?ag](accused-by ?a2 ?a1)) (when (and (at ?ag ?l) (civilian ?ag) (diff ?ag ?a1) (diff ?ag ?a2) !<?ag>(witch ?a1) <?ag>(witch ?a2)) [?ag](witch ?a2)) (when (and (at ?ag ?l) (civilian ?ag) (diff ?ag ?a1) (diff ?ag ?a2) !<?ag>(witch ?a1) <?ag>(witch ?a2)) [?ag][?a1](witch ?a2)) (when (and (at ?ag ?l) (civilian ?ag) (diff ?ag ?a1) (diff ?ag ?a2) <?ag>(witch ?a1) !<?ag>(witch ?a2)) [?ag](witch ?a1)) (when (and (at ?ag ?l) (civilian ?ag) (diff ?ag ?a1) (diff ?ag ?a2) <?ag>(witch ?a1) !<?ag>(witch ?a2)) [?ag][?a1](witch ?a2)) (when (and (at ?ag ?l) (witch ?ag) (diff ?ag ?a2)) [?ag][?a1](witch ?a2)))))
     )
      (:action witch-inform-witch-accused
        :derive-condition never 
         :parameters (?w1 - agent ?w2 - agent ?acsr - agent ?l - loc)
-        :precondition (and (witch ?w1) (witch ?w2) (accused-by ?w2 ?acsr) (at ?w1 ?l) (at ?w2 ?l))
+        :precondition (and (witch ?w1) (witch ?w2) (accused-by ?w2 ?acsr) [?w1](accused-by ?w2 ?acsr) (at ?w1 ?l) (at ?w2 ?l))
         :effect [?w2](accused-by ?w2 ?acsr)
     )
      (:action witch-inform-witch-suspicious
        :derive-condition never 
         :parameters (?w1 - agent ?w2 - agent ?c - agent ?l - loc)
-        :precondition (and (witch ?w1) (witch ?w2) (civilian ?c) (at ?w1 ?l) (at ?w2 ?l))
+        :precondition (and (witch ?w1) (witch ?w2) (civilian ?c) [?w1][?c](witch ?w2) (at ?w1 ?l) (at ?w2 ?l))
         :effect [?w2][?c](witch ?w2)
     )
      (:action witch-whisper-threat-suspicious
        :derive-condition never 
         :parameters (?c - agent ?w - agent ?l - loc)
-        :precondition (and (diff ?c ?w) (civilian ?c) (witch ?w) (not (threatened-by ?c ?w)) (at ?c ?l) (at ?w ?l))
+        :precondition (and (diff ?c ?w) (civilian ?c) (witch ?w) (not (threatened-by ?c ?w)) [?w][?c](witch ?w) (at ?c ?l) (at ?w ?l))
         :effect (and (threatened-by ?c ?w) [?c](witch ?w))
     )
      (:action witch-whisper-threat-to-accuser
        :derive-condition never 
         :parameters (?c - agent ?w - agent ?l - loc)
-        :precondition (and (diff ?c ?w) (civilian ?c) (witch ?w) (accused-by ?w ?c) (at ?c ?l) (at ?w ?l))
+        :precondition (and (diff ?c ?w) (civilian ?c) (witch ?w) (accused-by ?w ?c) [?w](accused-by ?w ?c) (at ?c ?l) (at ?w ?l))
         :effect (and (threatened-by ?c ?w) [?c](witch ?w))
     )
 )
