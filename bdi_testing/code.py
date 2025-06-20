@@ -251,5 +251,6 @@ if __name__ == "__main__":
     with open("bdi_testing/suspicious_witches_domain.pdkbddl", "r") as f:
         d_pddl = f.read()
     result = parser(d_pddl)
-    print(f"\n{result}\n")
-    print(f"Agents: {result.agents}\n")
+    # print(f"\n{result}\n")
+    with open("parsed_domain.pddl", "w") as f:
+        f.write(f"\n{result}\n")
