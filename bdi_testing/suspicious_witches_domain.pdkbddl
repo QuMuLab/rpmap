@@ -7,7 +7,10 @@
     (:agents alice bob cindy)
     ; (:agents bob cindy derek evelyn)
 
-    ; (:requirements)
+    (:requirements
+        :universal-preconditions
+        :typing
+    )
 
     (:types loc item)
 

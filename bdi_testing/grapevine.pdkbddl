@@ -17,8 +17,7 @@
     )
 
     (:action share
-        ; :derive-condition   (at $agent$ ?l)
-        :derive-condition   never
+        :derive-condition   (at $agent$ ?l)
         :parameters         (?a ?as - agent ?l - loc)
         :precondition       (and (at ?a ?l) [?a](secret ?as))
         :effect             (and

@@ -59,12 +59,18 @@ def atomic_formula_term(self, args):
         left = self._constant_or_variable(args[2])
         right = self._constant_or_variable(args[3])
         return EqualTo(left, right)
-    elif type(args[0]) == list:
-        # this is a BDI term, e.g. [?agent] or <?agent>
-        predicate_name = args[2]
-        terms = list(map(self._constant_or_variable, args[3:-1]))
+    elif type(args[0]) != Token or args[0].type == "EXC":
+        # figure out where the BDI term ends, e.g. (!)[?agent] or (!)<?agent>
+        # if there's no BDI term, we just skip over None
+        for i in range(len(args)):
+            if type(args[i]) == Token and args[i].type != "EXC":
+                # reached the end of the BDI terms
+                after_bdi = i
+                break
+        predicate_name = args[after_bdi + 1] # (add one to skip the LPAR)
+        terms = list(map(self._constant_or_variable, args[after_bdi + 2:-1]))
         p = Predicate(predicate_name, *terms)
-        p.bdi = args[0]  # store the BDI term
+        p.bdi = args[:after_bdi]  # store the BDI term
         return p
     else:
         predicate_name = args[1]
@@ -91,7 +97,9 @@ def action_transformer(self, args):
     action_body = {
         _children[i][1:]: _children[i + 1] for i in range(0, len(_children), 2)
     }
-    return Action(action_name, variables, **action_body)
+    a = Action(action_name, variables, **action_body)
+    a.derive_condition = args[4]
+    return a
 
 # for Predicate class
 def get_predicate_prefix(self):
@@ -99,7 +107,9 @@ def get_predicate_prefix(self):
     if self.always_known:
         p_str += "{AK}"
     if self.bdi:
-        p_str += f"{''.join(self.bdi)}"
+        for bdi_term in self.bdi:
+            if bdi_term:
+                p_str += f"{''.join(bdi_term)}"
     return p_str
 
 def new_predicate_str(self):
@@ -115,6 +125,15 @@ def new_action_str(self):
     # TODO: add support for derived conditions
     # adapted from the PDDL Action class __str__ method
     operator_str = "(:action {0}\n".format(self.name)
+    if self.derive_condition:
+        operator_str += f"   :derive-condition "
+        for term in self.derive_condition:
+            if type(term) == list:
+                operator_str += f"{''.join(term)} "
+            else:
+                operator_str += f"{term} "
+                
+        operator_str += "\n"
     operator_str += f"    :parameters ({_typed_parameters(self.parameters)})\n"
     if self.precondition is not None:
         operator_str += f"    :precondition {str(self.precondition)}\n"
@@ -183,7 +202,8 @@ def construct_domain_grammar():
     inject_domain_grammar("atomic_formula_skeleton", "[AK] LPAR NAME typed_list_variable RPAR", atomic_formula_skeleton)
     
     # inject rules for derived conditions
-    inject_domain_grammar("derived_term", "term | \"$\" constant \"$\"", basic_tokens_transformer)
+    inject_domain_grammar("DLR", "\"$\"", basic_token_transformer)
+    inject_domain_grammar("derived_term", "QMRK NAME | DLR NAME DLR", basic_tokens_transformer)
     inject_domain_grammar("ALWAYS", "\"always\"", basic_token_transformer)
     inject_domain_grammar("NEVER", "\"never\"", basic_token_transformer)
     inject_domain_grammar("derived_conditions", "ALWAYS | NEVER | LPAR predicate derived_term* RPAR", basic_tokens_transformer)
@@ -203,7 +223,8 @@ def construct_domain_grammar():
         "atomic_formula_term:   LPAR predicate term* RPAR",
         ""
     )
-    inject_domain_grammar("atomic_formula_term", "[\"!\"] bdi* LPAR predicate term* RPAR", atomic_formula_term)
+    inject_domain_grammar("EXC", "\"!\"", basic_token_transformer)
+    inject_domain_grammar("atomic_formula_term", "[EXC] bdi* LPAR predicate term* RPAR", atomic_formula_term)
 
     print(domain._domain_parser_lark)
 
@@ -221,12 +242,13 @@ def construct_domain_grammar():
     pddl.logic.predicates.Predicate.bdi = None
     pddl.action.Action.orig_str = pddl.action.Action.__str__
     pddl.action.Action.__str__ = new_action_str
+    pddl.action.Action.derive_condition = None
 
 
 if __name__ == "__main__":
     construct_domain_grammar()
     parser = DomainParser()
-    with open("bdi_testing/grapevine.pdkbddl", "r") as f:
+    with open("bdi_testing/suspicious_witches_domain.pdkbddl", "r") as f:
         d_pddl = f.read()
     result = parser(d_pddl)
     print(f"\n{result}\n")
