@@ -1,0 +1,83 @@
+(:anceff kd45-closure
+    :cond1 (
+        :poscond ?pos1
+        :negcond ?neg1
+        :rml [b, a](?rml)
+        :type add
+    )
+    :cond2 (
+        :poscond ?pos2
+        :negcond ?neg2
+        :rml <b, a>(?rml)
+        :type add
+    )
+)
+(:anceff negation-removal
+    :cond1 (
+        :poscond ?pos1
+        :negcond ?neg1
+        :rml ?rml
+        :type add
+    )
+    :cond2 (
+        :poscond ?pos2
+        :negcond ?neg2
+        :rml !?rml
+        :type delete
+    )
+)
+(:anceff kd45-un-closure
+    :cond1 (
+        :poscond ?pos1
+        :negcond ?neg1
+        :rml <b, a>(?rml)
+        :type del
+    )
+    :cond2 (
+        :poscond ?pos2
+        :negcond ?neg2
+        :rml [b, a](?rml)
+        :type del
+    )
+)
+(:anceff uncertain-firing
+    :cond1 (
+        :poscond ?pos
+        :negcond ?neg
+        :rml ?rml
+        :type add
+    )
+    :cond2 (
+        :negcond {!?r for r in ?pos} + ?neg
+        :rml !?rml
+        :type del
+    )
+)
+(:anceff mutual-awareness-pos
+    :cond1 (
+        :poscond ?pos
+        :negcond ?neg
+        :condition [b, a](?mu)
+        :rml ?rml
+        :type add
+    )
+    :cond2 (
+        :poscond {[b, a](?r) for r in ?pos} + {![b, a](?r) for r in ?neg} + [b, a](?mu)
+        :rml [b,a](?rml)
+        :type add
+    )
+)
+(:anceff mutual-awareness-neg
+    :cond1 (
+        :poscond ?pos
+        :negcond ?neg
+        :condition [b, a](?mu)
+        :rml ?rml
+        :type neg
+    )
+    :cond2 (
+        :poscond {[b, a](?r) for r in ?pos} + {![b, a](?r) for r in ?neg} + [b, a](?mu)
+        :rml ![b,a](?rml)
+        :type add
+    )
+)
