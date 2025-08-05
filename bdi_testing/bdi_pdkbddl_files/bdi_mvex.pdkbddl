@@ -20,8 +20,8 @@
     ; )
     (:predicates
         (secret ?agent)
-        ; {AK}(at ?agent - agent ?l - loc)
-        ; {AK}(connected ?l1 ?l2 - loc)
+        {AK}(at ?agent - agent ?l - loc)
+        {AK}(connected ?l1 ?l2 - loc)
     )
 
     ; (:action move

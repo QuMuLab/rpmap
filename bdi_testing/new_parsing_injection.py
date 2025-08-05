@@ -36,6 +36,10 @@ def recursive_print(tree):
     else:
         return str(tree) if tree else ""
     
+# recursive print for the BDI function
+def recursive_print_bdi(tree):
+    tree_str = recursive_print(tree)
+    return tree_str if "," not in tree_str else f"{', '.join(tree_str.split(','))}"
 
 # FOR THE DOMAIN FILE
 def inject_domain_grammar(label, rule, function):
@@ -71,8 +75,8 @@ def atomic_formula_skeleton(self, args):
 
 def atomic_formula_term(self, args):
     # adapted from the PDDL DomainTransformer class atomic_formula_term method
-        # figure out where the BDI term ends, e.g. (!)[?agent] or (!)<?agent>
-        # (if there's no BDI term, we just skip over None)
+    # figure out where the BDI term ends, e.g. (!)[?agent] or (!)<?agent>
+    # (if there's no BDI term, we just skip over None)
     for i in range(len(args)):
         if type(args[i]) == Token:
             if args[i].type == "LPAR":
@@ -83,7 +87,6 @@ def atomic_formula_term(self, args):
     if args[after_bdi + 1]:
         if args[after_bdi + 1].type == "EXC":
             negated = True
-    # if type(args[after_bdi]) == Token and args[after_bdi].type == "EXC"
     predicate_name = args[after_bdi + 2] # add 2 to skip the EXC space
     terms = list(map(self._constant_or_variable, args[after_bdi + 3:-1]))
     p = Predicate(predicate_name, *terms)
@@ -121,7 +124,7 @@ def get_predicate_prefix(self):
     if self.always_known:
         p_str += "{AK}"
     if self.bdi:
-        p_str += recursive_print(self.bdi)
+        p_str += recursive_print_bdi(self.bdi)
     return p_str
 
 def new_predicate_str(self):
@@ -136,19 +139,23 @@ def new_predicate_str(self):
 def new_action_str(self):
     # TODO: add support for derived conditions
     # adapted from the PDDL Action class __str__ method
+    nl = "\n"
+    nl_and_tabs = nl + "\t" * 2
+    nl_and_less_tabs = nl + "\t"
     operator_str = "(:action {0}\n".format(self.name)
     if self.derive_condition:
-        operator_str += f"   :derive-condition {recursive_print(self.derive_condition)}\n"
+        operator_str += f"    :derive-condition {recursive_print(self.derive_condition)}\n"
     operator_str += f"    :parameters ({_typed_parameters(self.parameters)})\n"
     if self.precondition is not None:
-        operator_str += f"    :precondition {str(self.precondition)}\n"
+        
+        operator_str += f"    :precondition ({self.precondition.SYMBOL}{nl_and_tabs}{nl_and_tabs.join(map(str, self.precondition.operands))}{nl_and_less_tabs})\n"
     if self.effect is not None:
-        operator_str += f"    :effect {str(self.effect)}\n"
+        operator_str += f"    :effect ({self.effect.SYMBOL}{nl_and_tabs}{nl_and_tabs.join(map(str, self.effect.operands))}{nl_and_less_tabs})\n"
     operator_str += ")"
     return operator_str
 
 # for Domain class
-def new_str(self):
+def new_domain_str(self):
     # adapted from the PDDL Domain class __str__ method
     result = f"(define (domain {self.name})"
     body = ""
@@ -276,11 +283,12 @@ def new_predicate_eq(self, other):
             and self.terms == other.terms
             and self.always_known == other.always_known
             and self.bdi == other.bdi
+            and self.negated == other.negated
         )
 
 def new_predicate_hash(self):
-    bdi_str = recursive_print(self.bdi) if self.bdi else ""
-    return hash((self.name, self.arity, self.terms, self.always_known, bdi_str))
+    bdi_str = recursive_print_bdi(self.bdi) if self.bdi else ""
+    return hash((self.name, self.arity, self.terms, self.always_known, bdi_str, self.negated))
 
 # to build the domain grammar via Python magic
 def construct_domain_grammar():
@@ -353,7 +361,7 @@ def construct_domain_grammar():
     pddl.core.Domain.agents = property(lambda self: self._agents)
     # Similar monkey patching for the string representation of the Domain class
     pddl.core.Domain.orig_str = pddl.core.Domain.__str__
-    pddl.core.Domain.__str__ = new_str
+    pddl.core.Domain.__str__ = new_domain_str
 
 def construct_problem_grammar():
     problem._problem_parser_lark = problem._problem_parser_lark.replace(
