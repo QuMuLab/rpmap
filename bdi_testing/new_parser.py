@@ -91,29 +91,33 @@ def action_transformer(self, args):
 
 # for Predicate class
 def get_predicate_prefix(self):
-    p_str = ""
+    bdi_str = ""
     if self.always_known:
-        p_str += "{AK}"
+        bdi_str += "{AK}"
     if self.bdi:
+        bdi_str = ""
         for bdi_term in self.bdi:
             if bdi_term:
-                p_str += f"{''.join(bdi_term)}"
-    return p_str
+                if type(bdi_term) == list:
+                    bdi_str += f"{''.join(b.value for b in bdi_term)}"
+                else:
+                    bdi_str += bdi_term.value
+    return bdi_str
 
 def new_predicate_str(self):
     # adapted from the PDDL Predicate class __str__ method
-    p_str = self.get_predicate_prefix()
+    bdi_str = self.get_predicate_prefix()
     if self.arity == 0:
-        return f"{p_str}({self.name})"
+        return f"{bdi_str}({self.name})"
     else:
-        return f"{p_str}({self.name} {' '.join(map(str, self.terms))})"   
+        return f"{bdi_str}({self.name} {' '.join(map(str, self.terms))})"   
     
 # for Action class
 def new_action_str(self):
     # adapted from the PDDL Action class __str__ method
     operator_str = "(:action {0}\n".format(self.name)
     if self.derive_condition:
-        operator_str += f"   :derive-condition "
+        operator_str += f"\t:derive-condition "
         for term in self.derive_condition:
             if type(term) == list:
                 operator_str += f"{''.join(term)} "
@@ -260,12 +264,7 @@ def new_predicate_eq(self, other):
 
 def new_predicate_hash(self):
     # adapted from the PDDL Predicate class __hash__ method
-    bdi_str = ""
-    if self.bdi:
-        for bdi_term in self.bdi:
-            if bdi_term:
-                bdi_str += f"{''.join(bdi_term)}"
-    return hash((self.name, self.arity, self.terms, self.always_known, bdi_str))
+    return hash((self.name, self.arity, self.terms, self.always_known, self.get_predicate_prefix()))
 
 # to build the domain grammar via Python magic
 def construct_domain_grammar():
@@ -301,13 +300,25 @@ def construct_domain_grammar():
     inject_domain_grammar("LSQB", "\"[\"", basic_token_transformer)
     inject_domain_grammar("RSQB", "\"]\"", basic_token_transformer)
     inject_domain_grammar("QMRK", "\"?\"", basic_token_transformer)
-    inject_domain_grammar("bdi", "LSQB QMRK NAME RSQB | LESSER_OP QMRK NAME GREATER_OP", basic_tokens_transformer)
+    inject_domain_grammar("COMMA", "\",\"", basic_token_transformer)
+    inject_domain_grammar("B", "\"b\"", basic_token_transformer)
+    inject_domain_grammar("D", "\"d\"", basic_token_transformer)
+    inject_domain_grammar("I", "\"i\"", basic_token_transformer)
+    inject_domain_grammar("bdi_term", 
+                            "LSQB B COMMA QMRK NAME RSQB"
+                            "| LSQB D COMMA QMRK NAME RSQB"
+                            "| LSQB I COMMA QMRK NAME RSQB"
+                            "| LESSER_OP B COMMA QMRK NAME GREATER_OP"
+                            "| LESSER_OP D COMMA QMRK NAME GREATER_OP"
+                            "| LESSER_OP I COMMA QMRK NAME GREATER_OP",
+                            basic_tokens_transformer
+                        )
     domain._domain_parser_lark = domain._domain_parser_lark.replace(
         "atomic_formula_term:   LPAR predicate term* RPAR",
         ""
     )
     inject_domain_grammar("EXC", "\"!\"", basic_token_transformer)
-    inject_domain_grammar("atomic_formula_term", "[EXC] bdi* LPAR predicate term* RPAR", atomic_formula_term)
+    inject_domain_grammar("atomic_formula_term", "[EXC] bdi_term* LPAR predicate term* RPAR", atomic_formula_term)
 
     # Monkey patching to add agents to the Domain class
     pddl.core.Domain.orig_init = pddl.core.Domain.__init__
@@ -354,7 +365,7 @@ def construct_problem_grammar():
     pddl.core.Problem.plan = None
     print(problem._problem_parser_lark)
 
-def parse(domain_file, problem_file):
+def parse(domain_file=None, problem_file=None):
     pddl.logic.predicates.Predicate.orig_str = pddl.logic.predicates.Predicate.__str__
     pddl.logic.predicates.Predicate.__str__ = new_predicate_str
     pddl.logic.predicates.Predicate.__eq__ = new_predicate_eq
@@ -366,21 +377,23 @@ def parse(domain_file, problem_file):
     pddl.action.Action.__str__ = new_action_str
     pddl.action.Action.derive_condition = None
 
-    construct_domain_grammar()
-    parser = DomainParser()
-    with open(domain_file, "r") as f:
-        d_pddl = f.read()
-    result = parser(d_pddl)
-    with open("bdi_testing/parsing_results/parsed_domain.pddl", "w") as f:
-        f.write(f"\n{result}\n")
+    if domain_file:
+        construct_domain_grammar()
+        parser = DomainParser()
+        with open(domain_file, "r") as f:
+            d_pddl = f.read()
+        result = parser(d_pddl)
+        with open("bdi_testing/parsing_results/parsed_domain.pddl", "w") as f:
+            f.write(str(result))
 
-    construct_problem_grammar()
-    parser = ProblemParser()
-    with open(problem_file, "r") as f:
-        p_pddl = f.read()
-    result = parser(p_pddl)
-    with open("bdi_testing/parsing_results/parsed_problem.pddl", "w") as f:
-        f.write(f"\n{result}\n")
+    if problem_file:
+        construct_problem_grammar()
+        parser = ProblemParser()
+        with open(problem_file, "r") as f:
+            p_pddl = f.read()
+        result = parser(p_pddl)
+        with open("bdi_testing/parsing_results/parsed_problem.pddl", "w") as f:
+            f.write(str(result))
 
 if __name__ == "__main__":
-    parse("bdi_testing/original_pdkbddl_files/suspicious_witches_domain.pdkbddl", "bdi_testing/original_pdkbddl_files/witch_problem.pdkbddl")
+    parse("bdi_testing/bdi_pdkbddl_files/bdi_mvex.pdkbddl")
