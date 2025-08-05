@@ -26,6 +26,17 @@ from pddl.helpers.base import _typed_parameters
 from lark.lexer import Token
 from textwrap import indent
 
+# general function for recursive printing of Tokens/lists of Tokens
+def recursive_print(tree):
+    new_str = ""
+    if type(tree) == list:
+        for child in tree:
+            new_str += recursive_print(child)
+        return new_str
+    else:
+        return str(tree) if tree else ""
+    
+
 # FOR THE DOMAIN FILE
 def inject_domain_grammar(label, rule, function):
     domain._domain_parser_lark += f"\n{label}: {rule}\n"
@@ -40,6 +51,10 @@ def agent_transformer(self, args):
     if len(args) != 1:
         raise ValueError(f"Invalid agent definition: {args}")
     return args[0].value
+
+def anc_effs_transformer(self, args):
+    self._anceffs = set(args[1:-1])
+    return {"ancillary effects": self._anceffs}
 
 def atomic_formula_skeleton(self, args):   
     # adapted from the PDDL DomainTransformer class atomic_formula_skeleton method
@@ -59,14 +74,21 @@ def atomic_formula_term(self, args):
         # figure out where the BDI term ends, e.g. (!)[?agent] or (!)<?agent>
         # (if there's no BDI term, we just skip over None)
     for i in range(len(args)):
-        if type(args[i]) == Token and args[i].type != "EXC":
-            # reached the end of the BDI terms
-            after_bdi = i
-            break
-    predicate_name = args[after_bdi + 1] # (add one to skip the LPAR)
-    terms = list(map(self._constant_or_variable, args[after_bdi + 2:-1]))
+        if type(args[i]) == Token:
+            if args[i].type == "LPAR":
+                # reached the end of the BDI terms
+                after_bdi = i
+                break
+    negated = False
+    if args[after_bdi + 1]:
+        if args[after_bdi + 1].type == "EXC":
+            negated = True
+    # if type(args[after_bdi]) == Token and args[after_bdi].type == "EXC"
+    predicate_name = args[after_bdi + 2] # add 2 to skip the EXC space
+    terms = list(map(self._constant_or_variable, args[after_bdi + 3:-1]))
     p = Predicate(predicate_name, *terms)
     p.bdi = args[:after_bdi]  # store the BDI term
+    p.negated = negated # store the negated term, e.g. (!term ?a ?b)
     return p
 
 def basic_tokens_transformer(self, args):
@@ -99,9 +121,7 @@ def get_predicate_prefix(self):
     if self.always_known:
         p_str += "{AK}"
     if self.bdi:
-        for bdi_term in self.bdi:
-            if bdi_term:
-                p_str += f"{''.join(bdi_term)}"
+        p_str += recursive_print(self.bdi)
     return p_str
 
 def new_predicate_str(self):
@@ -118,14 +138,7 @@ def new_action_str(self):
     # adapted from the PDDL Action class __str__ method
     operator_str = "(:action {0}\n".format(self.name)
     if self.derive_condition:
-        operator_str += f"   :derive-condition "
-        for term in self.derive_condition:
-            if type(term) == list:
-                operator_str += f"{''.join(term)} "
-            else:
-                operator_str += f"{term} "
-                
-        operator_str += "\n"
+        operator_str += f"   :derive-condition {recursive_print(self.derive_condition)}\n"
     operator_str += f"    :parameters ({_typed_parameters(self.parameters)})\n"
     if self.precondition is not None:
         operator_str += f"    :precondition {str(self.precondition)}\n"
@@ -172,8 +185,10 @@ def new_str(self):
 
 def new_init(self, *args, **kwargs):
     self._agents = kwargs["agents"]
+    # self._anceffs = kwargs["ancillary effects"]
     kwargs["types"]["agent"] = None
     kwargs.pop("agents")
+    # kwargs.pop("ancillary effects")
     self.orig_init(*args, **kwargs)
 
 # FOR THE PROBLEM FILE
@@ -264,12 +279,7 @@ def new_predicate_eq(self, other):
         )
 
 def new_predicate_hash(self):
-    # adapted from the PDDL Predicate class __hash__ method
-    bdi_str = ""
-    if self.bdi:
-        for bdi_term in self.bdi:
-            if bdi_term:
-                bdi_str += f"{''.join(bdi_term)}"
+    bdi_str = recursive_print(self.bdi) if self.bdi else ""
     return hash((self.name, self.arity, self.terms, self.always_known, bdi_str))
 
 # to build the domain grammar via Python magic
@@ -277,10 +287,28 @@ def construct_domain_grammar():
     # inject rules for defining agents
     inject_domain_grammar("agents", "LPAR \":agents\" agent+ RPAR", agents_transformer)
     inject_domain_grammar("agent", "/[a-zA-Z_][a-zA-Z0-9_]*/", agent_transformer)
+
+    # inject rules for defining ancillary effects
+    inject_domain_grammar("anceff_name", "/[a-zA-Z_][a-zA-Z0-9_]*/", agent_transformer)  
+    inject_domain_grammar("cond1", "\":cond1\"", basic_token_transformer)
+    inject_domain_grammar("cond2", "\":cond2\"", basic_token_transformer)
+    inject_domain_grammar("poscond", "\":poscond\"", basic_token_transformer)
+    inject_domain_grammar("negcond", "\":negcond\"", basic_token_transformer)
+    inject_domain_grammar("rml_var", "QMRK \"rml\"", basic_tokens_transformer)
+    inject_domain_grammar("rml", "\":rml\"", basic_token_transformer)
+    inject_domain_grammar("cond_type", "\":type\"", basic_token_transformer)
+    inject_domain_grammar("add", "\"add\"", basic_token_transformer)
+    inject_domain_grammar("del", "\"del\"", basic_token_transformer)
+    inject_domain_grammar("cond_types", "add | del", basic_tokens_transformer)
+    inject_domain_grammar("atomic_formula_term_rml", "[EXC] bdi* LPAR [EXC] rml_var RPAR", atomic_formula_term)
+    inject_domain_grammar("cond_def", "LPAR poscond variable negcond variable rml atomic_formula_term_rml cond_type cond_types RPAR", basic_tokens_transformer)
+    inject_domain_grammar("anceffs", "LPAR \":anceff\" anceff_name cond1 RPAR", basic_tokens_transformer)
+    # inject_domain_grammar("anceffs", "LPAR \":anceff\" NAME RPAR", anc_effs_transformer)}
+
     domain._domain_parser_lark = domain._domain_parser_lark.replace(
-        "LPAR DEFINE domain_def [requirements]",
-        "LPAR DEFINE domain_def agents [requirements]"
-    )    
+        "LPAR DEFINE domain_def [requirements] [types] [constants] [predicates] [functions] structure_def* RPAR",
+        "LPAR DEFINE domain_def agents [requirements] [types] [constants] [anceffs] [predicates] [functions] structure_def* RPAR"
+    )   
     # inject rules for always known predicates
     inject_domain_grammar("AK", "\"{AK}\"", basic_token_transformer)
     domain._domain_parser_lark = domain._domain_parser_lark.replace(
@@ -306,13 +334,18 @@ def construct_domain_grammar():
     inject_domain_grammar("LSQB", "\"[\"", basic_token_transformer)
     inject_domain_grammar("RSQB", "\"]\"", basic_token_transformer)
     inject_domain_grammar("QMRK", "\"?\"", basic_token_transformer)
-    inject_domain_grammar("bdi", "LSQB QMRK NAME RSQB | LESSER_OP QMRK NAME GREATER_OP", basic_tokens_transformer)
+    inject_domain_grammar("BELIEF", "\"b\"", basic_token_transformer)
+    inject_domain_grammar("DESIRE", "\"d\"", basic_token_transformer)
+    inject_domain_grammar("INTENTION", "\"i\"", basic_token_transformer)
+    inject_domain_grammar("COMMA", "\",\"", basic_token_transformer)
+    inject_domain_grammar("bdi_term", "BELIEF | DESIRE | INTENTION", basic_tokens_transformer)
+    inject_domain_grammar("bdi", "LSQB bdi_term COMMA QMRK NAME RSQB | LESSER_OP bdi_term COMMA QMRK NAME GREATER_OP", basic_tokens_transformer)
     domain._domain_parser_lark = domain._domain_parser_lark.replace(
         "atomic_formula_term:   LPAR predicate term* RPAR",
         ""
     )
     inject_domain_grammar("EXC", "\"!\"", basic_token_transformer)
-    inject_domain_grammar("atomic_formula_term", "[EXC] bdi* LPAR predicate term* RPAR", atomic_formula_term)
+    inject_domain_grammar("atomic_formula_term", "[EXC] bdi* LPAR [EXC] predicate term* RPAR", atomic_formula_term)
 
     # Monkey patching to add agents to the Domain class
     pddl.core.Domain.orig_init = pddl.core.Domain.__init__
@@ -367,23 +400,24 @@ if __name__ == "__main__":
     pddl.logic.predicates.Predicate.get_predicate_prefix = get_predicate_prefix
     pddl.logic.predicates.Predicate.always_known = None
     pddl.logic.predicates.Predicate.bdi = None
+    pddl.logic.predicates.Predicate.negated = None
     pddl.action.Action.orig_str = pddl.action.Action.__str__
     pddl.action.Action.__str__ = new_action_str
     pddl.action.Action.derive_condition = None
 
     construct_domain_grammar()
     parser = DomainParser()
-    with open("bdi_testing/suspicious_witches_domain.pdkbddl", "r") as f:
+    with open("bdi_testing/bdi_pdkbddl_files/bdi_mvex.pdkbddl", "r") as f:
         d_pddl = f.read()
     result = parser(d_pddl)
     # print(f"\n{result}\n")
     with open("bdi_testing/parsed_domain.pddl", "w") as f:
         f.write(f"\n{result}\n")
 
-    construct_problem_grammar()
-    parser = ProblemParser()
-    with open("bdi_testing/witch_problem.pdkbddl", "r") as f:
-        p_pddl = f.read()
-    result = parser(p_pddl)
-    with open("bdi_testing/parsed_problem.pddl", "w") as f:
-        f.write(f"\n{result}\n")
+    # construct_problem_grammar()
+    # parser = ProblemParser()
+    # with open("bdi_testing/witch_problem.pdkbddl", "r") as f:
+    #     p_pddl = f.read()
+    # result = parser(p_pddl)
+    # with open("bdi_testing/parsed_problem.pddl", "w") as f:
+    #     f.write(f"\n{result}\n")

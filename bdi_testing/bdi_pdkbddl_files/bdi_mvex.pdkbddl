@@ -2,19 +2,34 @@
     (:agents a b)
     (:requirements :typing)
     (:types loc)
-
+    ; (:anceff kd45closure
+    ;     :cond1 
+    ;     ; (
+    ;     ;     :poscond ?pos1
+    ;     ;     :negcond ?neg1
+    ;     ;     :rml [?a](?rml)
+    ;     ;     :type add
+    ;     ; )
+    ;     ; :cond2 
+    ;     ; (
+    ;     ;     :poscond ?pos2
+    ;     ;     :negcond ?neg2
+    ;     ;     :rml <?a>(?rml)
+    ;     ;     :type add
+    ;     ; )
+    ; )
     (:predicates
         (secret ?agent)
-        {AK}(at ?agent - agent ?l - loc)
-        {AK}(connected ?l1 ?l2 - loc)
+        ; {AK}(at ?agent - agent ?l - loc)
+        ; {AK}(connected ?l1 ?l2 - loc)
     )
 
-    (:action move
-        :derive-condition   always
-        :parameters         (?a - agent ?l1 ?l2 - loc)
-        :precondition       (and (at ?a ?l1) (connected ?l1 ?l2))
-        :effect             (and (at ?a ?l2) (not(at ?a ?l1)))
-    )
+    ; (:action move
+    ;     :derive-condition   always
+    ;     :parameters         (?a - agent ?l1 ?l2 - loc)
+    ;     :precondition       (and (at ?a ?l1) (connected ?l1 ?l2))
+    ;     :effect             (and (at ?a ?l2) (not(at ?a ?l1)))
+    ; )
 
     (:action share
         :derive-condition   never
