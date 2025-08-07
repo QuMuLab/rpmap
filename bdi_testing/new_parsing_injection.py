@@ -5,13 +5,9 @@ import pddl.logic
 from pddl.logic.terms import Constant
 from pddl.parser import domain
 from pddl.parser import problem
-import pddl.parser
-from pddl.parser.symbols import Symbols
 from pddl.parser.domain import DomainParser
 from pddl.parser.problem import ProblemParser
 from pddl.logic.predicates import Predicate
-from pddl.exceptions import PDDLMissingRequirementError
-from pddl.requirements import Requirements
 from pddl.formatter import (
     print_constants,
     print_function_skeleton,
@@ -25,6 +21,12 @@ from pddl._validation import Types
 from pddl.helpers.base import _typed_parameters
 from lark.lexer import Token
 from textwrap import indent
+
+# pretty print PDDL collection
+def pprint_pddl_collection(prefix, collection,):
+    nl = "\n"
+    nl_and_tab = nl + "\t"
+    return f"{prefix} {nl_and_tab}{nl_and_tab.join(map(str, collection))}{nl})\n"
 
 # general function for recursive printing of Tokens/lists of Tokens
 def recursive_print(tree):
@@ -267,14 +269,11 @@ def new_problem_str(self):
     body += f"(:depth {self.depth})\n"
     body += f"(:task {self.task})\n"
     body += f"(:init-type {self.init_type})\n"
-    nl = "\n"
-    nl_and_tab = nl + "\t"
-    body += f"(:init {nl_and_tab}{nl_and_tab.join(map(str, self.init))}{nl})\n"
-
+    
+    body += pprint_pddl_collection("(:init", self.init)
     body += f"{'(:goal ' + str(self.goal) + ')'}\n"
-
     body += f"{'(:metric ' + str(self.metric) + ')'}\n" if self.metric else ""
-    body += f"(:plan {nl_and_tab}{nl_and_tab.join(map(str, self.plan))}{nl})\n"
+    body += pprint_pddl_collection("(:plan", self.plan)
     result = result + "\n" + indent(body, "\t") + "\n)"
     result = remove_empty_lines(result)
     return result
