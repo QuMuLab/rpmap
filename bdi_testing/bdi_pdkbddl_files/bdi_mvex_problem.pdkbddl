@@ -1,0 +1,34 @@
+;{include:domain.pdkbddl}
+
+(define (problem bdi-item)
+    (:domain bdi)
+
+    (:objects 
+        l1 l2 l3 - loc
+    )
+
+    (:depth 2)
+    (:task valid_generation)
+
+    (:init-type complete)
+    (:init
+        ; locations + connections
+        (connected l1 l2)
+        (connected l2 l1)
+        (connected l2 l3)
+        (connected l3 l2)
+        (at a l1)
+        (at b l1)
+
+        ; beliefs
+        ![d, a](!secret a)
+    )
+
+    (:goal (and 
+        [i, b](secret a)   
+        )
+    )
+
+    (:plan
+    )
+)

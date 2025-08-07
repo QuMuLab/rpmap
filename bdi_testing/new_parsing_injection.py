@@ -208,19 +208,25 @@ def atomic_formula_name(self, args):
     # figure out where the BDI term ends, e.g. (!)[?agent] or (!)<?agent>
     # (if there's no BDI term, we just skip over None)
     for i in range(len(args)):
-        if type(args[i]) == Token and args[i].type != "EXC":
-            # reached the end of the BDI terms
-            after_bdi = i
-            break
-    predicate_name = args[after_bdi + 1] # (add one to skip the LPAR)
+        if type(args[i]) == Token:
+            if args[i].type == "LPAR":
+                # reached the end of the BDI terms
+                after_bdi = i
+                break
+    negated = False
+    if args[after_bdi + 1]:
+        if args[after_bdi + 1].type == "EXC":
+            negated = True
+    predicate_name = args[after_bdi + 2] # add 2 to skip the EXC space
     terms = []
-    for _term_name in args[after_bdi + 2:-1]:
+    for _term_name in args[after_bdi + 3:-1]:
         if self._objects_by_name.get(str(_term_name)) is None:
             terms.append(Constant(str(_term_name)))
         else:
             terms.append(self._objects_by_name.get(str(_term_name)))
     p = Predicate(predicate_name, *terms)
     p.bdi = args[:after_bdi]  # store the BDI term
+    p.negated = negated # store the negated term, e.g. (!term ?a ?b)
     return p
 
 def depth_transformer(self, args):
@@ -358,12 +364,13 @@ def construct_domain_grammar():
     # Monkey patching to add agents to the Domain class
     pddl.core.Domain.orig_init = pddl.core.Domain.__init__
     pddl.core.Domain.__init__ = new_init
-    pddl.core.Domain.agents = property(lambda self: self._agents)
+    pddl.core.Domain.agents = None
     # Similar monkey patching for the string representation of the Domain class
     pddl.core.Domain.orig_str = pddl.core.Domain.__str__
     pddl.core.Domain.__str__ = new_domain_str
 
 def construct_problem_grammar():
+    # replace overall structure
     problem._problem_parser_lark = problem._problem_parser_lark.replace(
         "LPAR DEFINE problem_def problem_domain [problem_requirements] [objects] init goal [metric_spec] RPAR",
         "LPAR DEFINE problem_def problem_domain [problem_requirements] [objects] depth task init_type init goal [metric_spec] [plan] RPAR"
@@ -379,13 +386,18 @@ def construct_problem_grammar():
     inject_problem_grammar("PLAN", "\":plan\"", basic_token_transformer)
     inject_problem_grammar("COMPLETE", "\"complete\"", basic_token_transformer)
     inject_problem_grammar("?require_task_key", "VALID | ASSESS", basic_tokens_transformer)
-    inject_problem_grammar("bdi", "LSQB NAME RSQB | LESSER_OP NAME GREATER_OP", basic_tokens_transformer)
+    inject_problem_grammar("BELIEF", "\"b\"", basic_token_transformer)
+    inject_problem_grammar("DESIRE", "\"d\"", basic_token_transformer)
+    inject_problem_grammar("INTENTION", "\"i\"", basic_token_transformer)
+    inject_problem_grammar("COMMA", "\",\"", basic_token_transformer)
+    inject_problem_grammar("bdi_term", "BELIEF | DESIRE | INTENTION", basic_tokens_transformer)
+    inject_problem_grammar("bdi", "LSQB bdi_term COMMA NAME RSQB | LESSER_OP bdi_term COMMA NAME GREATER_OP", basic_tokens_transformer)
 
     problem._problem_parser_lark = problem._problem_parser_lark.replace(
         "atomic_formula_name:   LPAR predicate NAME* RPAR",
         ""
     )
-    inject_problem_grammar("atomic_formula_name", "[EXC] bdi* LPAR predicate NAME* RPAR", atomic_formula_name)
+    inject_problem_grammar("atomic_formula_name", "[EXC] bdi* LPAR [EXC] predicate NAME* RPAR", atomic_formula_name)
     inject_problem_grammar("depth", "LPAR DEPTH NUMBER RPAR", depth_transformer)
     inject_problem_grammar("task", "LPAR TASK require_task_key RPAR", task_transformer)
     inject_problem_grammar("init_type", "LPAR INIT_TYPE COMPLETE RPAR", init_type_transformer)
@@ -394,11 +406,11 @@ def construct_problem_grammar():
     pddl.core.Problem.orig_init = pddl.core.Problem.__init__
     pddl.core.Problem.__init__ = new_init_problem
     pddl.core.Problem.__str__ = new_problem_str
+    pddl.core.Problem.agents = None
     pddl.core.Problem.depth = None
     pddl.core.Problem.task = None
     pddl.core.Problem.init_type = None
     pddl.core.Problem.plan = None
-    print(problem._problem_parser_lark)
 
 if __name__ == "__main__":
     pddl.logic.predicates.Predicate.orig_str = pddl.logic.predicates.Predicate.__str__
@@ -418,14 +430,13 @@ if __name__ == "__main__":
     with open("bdi_testing/bdi_pdkbddl_files/bdi_mvex.pdkbddl", "r") as f:
         d_pddl = f.read()
     result = parser(d_pddl)
-    # print(f"\n{result}\n")
-    with open("bdi_testing/parsed_domain.pddl", "w") as f:
+    with open("bdi_testing/parsing_results/parsed_domain.pddl", "w") as f:
         f.write(f"\n{result}\n")
 
-    # construct_problem_grammar()
-    # parser = ProblemParser()
-    # with open("bdi_testing/witch_problem.pdkbddl", "r") as f:
-    #     p_pddl = f.read()
-    # result = parser(p_pddl)
-    # with open("bdi_testing/parsed_problem.pddl", "w") as f:
-    #     f.write(f"\n{result}\n")
+    construct_problem_grammar()
+    parser = ProblemParser()
+    with open("bdi_testing/bdi_pdkbddl_files/bdi_mvex_problem.pdkbddl", "r") as f:
+        p_pddl = f.read()
+    result = parser(p_pddl)
+    with open("bdi_testing/parsing_results/parsed_problem.pddl", "w") as f:
+        f.write(f"\n{result}\n")
