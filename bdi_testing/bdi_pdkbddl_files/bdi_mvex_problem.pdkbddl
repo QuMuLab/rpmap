@@ -30,5 +30,7 @@
     )
 
     (:plan
+        ![d, a](!secret a)
+        ![d, a](!secret a)
     )
 )

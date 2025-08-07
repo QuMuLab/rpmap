@@ -130,27 +130,29 @@ def get_predicate_prefix(self):
 def new_predicate_str(self):
     # adapted from the PDDL Predicate class __str__ method
     p_str = self.get_predicate_prefix()
-    if self.arity == 0:
-        return f"{p_str}({self.name})"
+    if self.negated:
+        p_str += f"(!{self.name}"
     else:
-        return f"{p_str}({self.name} {' '.join(map(str, self.terms))})"   
+        p_str += f"({self.name}"
+    if self.arity == 0:
+        return f"{p_str})"
+    else:
+        return f"{p_str} {' '.join(map(str, self.terms))})"   
     
 # for Action class
 def new_action_str(self):
     # TODO: add support for derived conditions
     # adapted from the PDDL Action class __str__ method
-    nl = "\n"
-    nl_and_tabs = nl + "\t" * 2
-    nl_and_less_tabs = nl + "\t"
+    nl_and_tabs = "\n" + "\t" * 2
+    nl_and_tab = "\n" + "\t"
     operator_str = "(:action {0}\n".format(self.name)
     if self.derive_condition:
         operator_str += f"    :derive-condition {recursive_print(self.derive_condition)}\n"
     operator_str += f"    :parameters ({_typed_parameters(self.parameters)})\n"
     if self.precondition is not None:
-        
-        operator_str += f"    :precondition ({self.precondition.SYMBOL}{nl_and_tabs}{nl_and_tabs.join(map(str, self.precondition.operands))}{nl_and_less_tabs})\n"
+        operator_str += f"    :precondition ({self.precondition.SYMBOL}{nl_and_tabs}{nl_and_tabs.join(map(str, self.precondition.operands))}{nl_and_tab})\n"
     if self.effect is not None:
-        operator_str += f"    :effect ({self.effect.SYMBOL}{nl_and_tabs}{nl_and_tabs.join(map(str, self.effect.operands))}{nl_and_less_tabs})\n"
+        operator_str += f"    :effect ({self.effect.SYMBOL}{nl_and_tabs}{nl_and_tabs.join(map(str, self.effect.operands))}{nl_and_tab})\n"
     operator_str += ")"
     return operator_str
 
@@ -159,7 +161,6 @@ def new_domain_str(self):
     # adapted from the PDDL Domain class __str__ method
     result = f"(define (domain {self.name})"
     body = ""
-    indentation = " " * 4
     body += sort_and_print_collection("(:requirements ", self.requirements, ")\n")
     body += f"(:agents {' '.join(sorted(self.agents)) if self.agents else ''})\n"
     del self.types["agent"]  # remove agents from types
@@ -185,7 +186,7 @@ def new_domain_str(self):
         "",
         to_string=lambda obj: str(obj) + "\n",
     )
-    result = result + "\n" + indent(body, indentation) + "\n)"
+    result = result + "\n" + indent(body, "\t") + "\n)"
     result = remove_empty_lines(result)
 
     return result
@@ -260,23 +261,21 @@ def new_problem_str(self):
     # adapted from the PDDL Problem class __str__ method
     result = f"(define (problem {self.name})"
     body = f"(:domain {self.domain_name})\n"
-    indentation = " " * 4
     body += sort_and_print_collection("(:requirements ", self.requirements, ")\n")
     if self.objects:
         body += print_constants("(:objects", self.objects, ")\n")
     body += f"(:depth {self.depth})\n"
     body += f"(:task {self.task})\n"
     body += f"(:init-type {self.init_type})\n"
-    body += sort_and_print_collection(
-        "(:init ", self.init, ")\n", is_mandatory=True
-    )
+    nl = "\n"
+    nl_and_tab = nl + "\t"
+    body += f"(:init {nl_and_tab}{nl_and_tab.join(map(str, self.init))}{nl})\n"
+
     body += f"{'(:goal ' + str(self.goal) + ')'}\n"
+
     body += f"{'(:metric ' + str(self.metric) + ')'}\n" if self.metric else ""
-    if self.plan:
-        body += sort_and_print_collection(
-            "(:plan ", self.plan, ")\n"
-        )
-    result = result + "\n" + indent(body, indentation) + "\n)"
+    body += f"(:plan {nl_and_tab}{nl_and_tab.join(map(str, self.plan))}{nl})\n"
+    result = result + "\n" + indent(body, "\t") + "\n)"
     result = remove_empty_lines(result)
     return result
 

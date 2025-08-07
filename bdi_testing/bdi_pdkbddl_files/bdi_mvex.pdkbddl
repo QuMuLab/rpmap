@@ -34,7 +34,7 @@
     (:action share
         :derive-condition   never
         :parameters         (?a1 ?a2 - agent ?l - loc)
-        :precondition       (and (at ?a1 ?l) (at ?a2 ?l) ![b, ?a1](secret ?a1))
+        :precondition       (and (at ?a1 ?l) (at ?a2 ?l) ![b, ?a1](!secret ?a1))
         :effect             (and
                                 [d, ?a2](secret ?a2)
                                 [i, ?a2](secret ?a2)
