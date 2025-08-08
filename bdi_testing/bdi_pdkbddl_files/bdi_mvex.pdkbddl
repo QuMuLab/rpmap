@@ -2,22 +2,22 @@
     (:agents a b)
     (:requirements :typing)
     (:types loc)
-    ; (:anceff kd45closure
-    ;     :cond1 
-    ;     ; (
-    ;     ;     :poscond ?pos1
-    ;     ;     :negcond ?neg1
-    ;     ;     :rml [?a](?rml)
-    ;     ;     :type add
-    ;     ; )
-    ;     ; :cond2 
-    ;     ; (
-    ;     ;     :poscond ?pos2
-    ;     ;     :negcond ?neg2
-    ;     ;     :rml <?a>(?rml)
-    ;     ;     :type add
-    ;     ; )
-    ; )
+    (:anceff kd45closure
+        :cond1 
+        (
+            :poscond ?pos1
+            :negcond ?neg1
+            :rml [b, ?a](?rml)
+            :type add
+        )
+        ; :cond2 
+        ; (
+        ;     :poscond ?pos2
+        ;     :negcond ?neg2
+        ;     :rml <?a>(?rml)
+        ;     :type add
+        ; )
+    )
     (:predicates
         (secret ?agent)
         {AK}(at ?agent - agent ?l - loc)

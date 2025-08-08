@@ -6,8 +6,8 @@
 	    loc - object
 	)
 	(:predicates
-		{AK}(connected ?l1 - loc ?l2 - loc)
 		(secret ?agent)
+		{AK}(connected ?l1 - loc ?l2 - loc)
 		{AK}(at ?agent - agent ?l - loc)
 	)
 	(:action move

@@ -90,6 +90,8 @@ def atomic_formula_term(self, args):
         if args[after_bdi + 1].type == "EXC":
             negated = True
     predicate_name = args[after_bdi + 2] # add 2 to skip the EXC space
+    if type(predicate_name) == list:
+        predicate_name =  Token("ANY_STR", "".join(p.value for p in predicate_name))
     terms = list(map(self._constant_or_variable, args[after_bdi + 3:-1]))
     p = Predicate(predicate_name, *terms)
     p.bdi = args[:after_bdi]  # store the BDI term
@@ -119,6 +121,10 @@ def action_transformer(self, args):
     a = Action(action_name, variables, **action_body)
     a.derive_condition = args[4]
     return a
+
+def ancillary_effects_transformer(self, args):
+    # self._anceff
+    return {"ancillary effects": args[2:-1]}
 
 # for Predicate class
 def get_predicate_prefix(self):
@@ -168,6 +174,12 @@ def new_domain_str(self):
     del self.types["agent"]  # remove agents from types
     self._types = Types(self.types, self._requirements)
     body += print_types_or_functions_with_parents("(:types", self.types, ")\n")
+    # if self._anceffs:
+    #     body += f"(:anceffs {self.anceffs[0]}"
+    #     for token in self._anceffs[1:]:
+    #         if token.type == "COND1":
+    #             for cond1token in 
+        # body += pprint_pddl_collection(":cond1", self._anceffs)
     body += print_constants("(:constants", self.constants, ")\n")
     if self.predicates:
         predicates_str = "\n\t".join([f"{p.get_predicate_prefix()}{print_predicates_with_types([p])}" for p in self.predicates])
@@ -193,12 +205,12 @@ def new_domain_str(self):
 
     return result
 
-def new_init(self, *args, **kwargs):
+def new_init_domain(self, *args, **kwargs):
     self._agents = kwargs["agents"]
-    # self._anceffs = kwargs["ancillary effects"]
+    self._anceffs = kwargs["ancillary effects"]
     kwargs["types"]["agent"] = None
     kwargs.pop("agents")
-    # kwargs.pop("ancillary effects")
+    kwargs.pop("ancillary effects")
     self.orig_init(*args, **kwargs)
 
 # FOR THE PROBLEM FILE
@@ -296,26 +308,29 @@ def new_predicate_hash(self):
 
 # to build the domain grammar via Python magic
 def construct_domain_grammar():
+    inject_domain_grammar("ANY_STR", "/.*/", basic_token_transformer)
+
     # inject rules for defining agents
     inject_domain_grammar("agents", "LPAR \":agents\" agent+ RPAR", agents_transformer)
     inject_domain_grammar("agent", "/[a-zA-Z_][a-zA-Z0-9_]*/", agent_transformer)
 
     # inject rules for defining ancillary effects
-    inject_domain_grammar("anceff_name", "/[a-zA-Z_][a-zA-Z0-9_]*/", agent_transformer)  
-    inject_domain_grammar("cond1", "\":cond1\"", basic_token_transformer)
-    inject_domain_grammar("cond2", "\":cond2\"", basic_token_transformer)
-    inject_domain_grammar("poscond", "\":poscond\"", basic_token_transformer)
-    inject_domain_grammar("negcond", "\":negcond\"", basic_token_transformer)
-    inject_domain_grammar("rml_var", "QMRK \"rml\"", basic_tokens_transformer)
-    inject_domain_grammar("rml", "\":rml\"", basic_token_transformer)
-    inject_domain_grammar("cond_type", "\":type\"", basic_token_transformer)
-    inject_domain_grammar("add", "\"add\"", basic_token_transformer)
-    inject_domain_grammar("del", "\"del\"", basic_token_transformer)
-    inject_domain_grammar("cond_types", "add | del", basic_tokens_transformer)
+    inject_domain_grammar("ANCEFF_NAME", "\":anceff\"", basic_token_transformer)  
+    inject_domain_grammar("COND1", "\":cond1\"", basic_token_transformer)
+    inject_domain_grammar("COND2", "\":cond2\"", basic_token_transformer)
+    inject_domain_grammar("POSCOND", "\":poscond\"", basic_token_transformer)
+    inject_domain_grammar("NEGCOND", "\":negcond\"", basic_token_transformer)
+    inject_domain_grammar("RML_NAME", "\"rml\"", basic_token_transformer)
+    inject_domain_grammar("rml_var", "QMRK RML_NAME", basic_tokens_transformer)
+    inject_domain_grammar("RML_TYPE", "\":rml\"", basic_token_transformer)
+    inject_domain_grammar("COND_TYPE", "\":type\"", basic_token_transformer)
+    inject_domain_grammar("ADD", "\"add\"", basic_token_transformer)
+    inject_domain_grammar("DEL", "\"del\"", basic_token_transformer)
+    inject_domain_grammar("cond_types", "ADD | DEL", basic_tokens_transformer)
+    inject_domain_grammar("var", "QMRK NAME", basic_tokens_transformer)
     inject_domain_grammar("atomic_formula_term_rml", "[EXC] bdi* LPAR [EXC] rml_var RPAR", atomic_formula_term)
-    inject_domain_grammar("cond_def", "LPAR poscond variable negcond variable rml atomic_formula_term_rml cond_type cond_types RPAR", basic_tokens_transformer)
-    inject_domain_grammar("anceffs", "LPAR \":anceff\" anceff_name cond1 RPAR", basic_tokens_transformer)
-    # inject_domain_grammar("anceffs", "LPAR \":anceff\" NAME RPAR", anc_effs_transformer)}
+    inject_domain_grammar("cond_def1", "COND1 LPAR POSCOND var NEGCOND var RML_TYPE atomic_formula_term_rml COND_TYPE cond_types RPAR", basic_tokens_transformer)
+    inject_domain_grammar("anceffs", "LPAR ANCEFF_NAME NAME cond_def1 RPAR", ancillary_effects_transformer)
 
     domain._domain_parser_lark = domain._domain_parser_lark.replace(
         "LPAR DEFINE domain_def [requirements] [types] [constants] [predicates] [functions] structure_def* RPAR",
@@ -331,7 +346,7 @@ def construct_domain_grammar():
     
     # inject rules for derived conditions
     inject_domain_grammar("DLR", "\"$\"", basic_token_transformer)
-    inject_domain_grammar("derived_term", "QMRK NAME | DLR NAME DLR", basic_tokens_transformer)
+    inject_domain_grammar("derived_term", "var | DLR NAME DLR", basic_tokens_transformer)
     inject_domain_grammar("ALWAYS", "\"always\"", basic_token_transformer)
     inject_domain_grammar("NEVER", "\"never\"", basic_token_transformer)
     inject_domain_grammar("derived_conditions", "ALWAYS | NEVER | LPAR predicate derived_term* RPAR", basic_tokens_transformer)
@@ -351,7 +366,7 @@ def construct_domain_grammar():
     inject_domain_grammar("INTENTION", "\"i\"", basic_token_transformer)
     inject_domain_grammar("COMMA", "\",\"", basic_token_transformer)
     inject_domain_grammar("bdi_term", "BELIEF | DESIRE | INTENTION", basic_tokens_transformer)
-    inject_domain_grammar("bdi", "LSQB bdi_term COMMA QMRK NAME RSQB | LESSER_OP bdi_term COMMA QMRK NAME GREATER_OP", basic_tokens_transformer)
+    inject_domain_grammar("bdi", "LSQB bdi_term COMMA var RSQB | LESSER_OP bdi_term COMMA var GREATER_OP", basic_tokens_transformer)
     domain._domain_parser_lark = domain._domain_parser_lark.replace(
         "atomic_formula_term:   LPAR predicate term* RPAR",
         ""
@@ -361,7 +376,7 @@ def construct_domain_grammar():
 
     # Monkey patching to add agents to the Domain class
     pddl.core.Domain.orig_init = pddl.core.Domain.__init__
-    pddl.core.Domain.__init__ = new_init
+    pddl.core.Domain.__init__ = new_init_domain
     pddl.core.Domain.agents = None
     # Similar monkey patching for the string representation of the Domain class
     pddl.core.Domain.orig_str = pddl.core.Domain.__str__
