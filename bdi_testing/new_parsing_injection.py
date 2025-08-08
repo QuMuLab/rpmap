@@ -321,15 +321,17 @@ def construct_domain_grammar():
     inject_domain_grammar("POSCOND", "\":poscond\"", basic_token_transformer)
     inject_domain_grammar("NEGCOND", "\":negcond\"", basic_token_transformer)
     inject_domain_grammar("RML_NAME", "\"rml\"", basic_token_transformer)
-    inject_domain_grammar("rml_var", "QMRK RML_NAME", basic_tokens_transformer)
+    # inject_domain_grammar("rml_var", "QMRK RML_NAME", basic_tokens_transformer)
     inject_domain_grammar("RML_TYPE", "\":rml\"", basic_token_transformer)
     inject_domain_grammar("COND_TYPE", "\":type\"", basic_token_transformer)
     inject_domain_grammar("ADD", "\"add\"", basic_token_transformer)
     inject_domain_grammar("DEL", "\"del\"", basic_token_transformer)
     inject_domain_grammar("cond_types", "ADD | DEL", basic_tokens_transformer)
     inject_domain_grammar("var", "QMRK NAME", basic_tokens_transformer)
-    inject_domain_grammar("atomic_formula_term_rml", "[EXC] bdi* LPAR [EXC] rml_var RPAR", atomic_formula_term)
-    inject_domain_grammar("cond_def1", "COND1 LPAR POSCOND var NEGCOND var RML_TYPE atomic_formula_term_rml COND_TYPE cond_types RPAR", basic_tokens_transformer)
+    inject_domain_grammar("atomic_formula_term_rml", "[EXC] bdi* LPAR [EXC] RML_NAME RPAR", atomic_formula_term)
+    inject_domain_grammar("cond_def1", "PARAMETERS action_parameters \
+                                        COND1 LPAR POSCOND var NEGCOND var RML_TYPE atomic_formula_term_rml COND_TYPE cond_types RPAR \
+                                        COND2 LPAR POSCOND var NEGCOND var RML_TYPE atomic_formula_term_rml COND_TYPE cond_types RPAR", basic_tokens_transformer)
     inject_domain_grammar("anceffs", "LPAR ANCEFF_NAME NAME cond_def1 RPAR", ancillary_effects_transformer)
 
     domain._domain_parser_lark = domain._domain_parser_lark.replace(
@@ -440,7 +442,7 @@ if __name__ == "__main__":
 
     construct_domain_grammar()
     parser = DomainParser()
-    with open("bdi_testing/bdi_pdkbddl_files/bdi_mvex.pdkbddl", "r") as f:
+    with open("bdi_testing/bdi_pdkbddl_files/bdi_mvex_domain.pdkbddl", "r") as f:
         d_pddl = f.read()
     result = parser(d_pddl)
     with open("bdi_testing/parsing_results/parsed_domain.pddl", "w") as f:
