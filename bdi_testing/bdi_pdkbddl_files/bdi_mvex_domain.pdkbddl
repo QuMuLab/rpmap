@@ -3,6 +3,23 @@
     (:requirements :typing)
     (:types loc)
     (:anceff kd45closure
+        :parameters (?a ?b - agent)
+        :cond1 
+        (
+            :poscond ?pos1
+            :negcond ?neg1
+            :rml [b, ?a](rml)
+            :type add
+        )
+        :cond2 
+        (
+            :poscond ?pos2
+            :negcond ?neg2
+            :rml <b, ?a>(rml)
+            :type add
+        )
+    )
+    (:anceff kd45closure2
         :parameters (?a - agent)
         :cond1 
         (

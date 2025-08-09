@@ -29,12 +29,12 @@ def pprint_pddl_collection(prefix, collection,):
     return f"{prefix} {nl_and_tab}{nl_and_tab.join(map(str, collection))}{nl})\n"
 
 # general function for recursive printing of Tokens/lists of Tokens
-def recursive_print(tree):
-    new_str = ""
+def recursive_print(tree, outer_sep=""):
+    new_str = []
     if type(tree) == list:
         for child in tree:
-            new_str += recursive_print(child)
-        return new_str
+            new_str.append(recursive_print(child))
+        return outer_sep.join(new_str)
     else:
         return str(tree) if tree else ""
     
@@ -59,7 +59,9 @@ def agent_transformer(self, args):
     return args[0].value
 
 def anc_effs_transformer(self, args):
-    self._anceffs = set(args[1:-1])
+    if not hasattr(self, "_anceffs"):
+        self._anceffs = []
+    self._anceffs.append(args[2:-1])
     return {"ancillary effects": self._anceffs}
 
 def atomic_formula_skeleton(self, args):   
@@ -122,10 +124,6 @@ def action_transformer(self, args):
     a.derive_condition = args[4]
     return a
 
-def ancillary_effects_transformer(self, args):
-    # self._anceff
-    return {"ancillary effects": args[2:-1]}
-
 # for Predicate class
 def get_predicate_prefix(self):
     p_str = ""
@@ -166,6 +164,8 @@ def new_action_str(self):
 
 # for Domain class
 def new_domain_str(self):
+    nl_and_tab = "\n" + "\t"
+    nl_and_tabs = "\n" + "\t" * 2
     # adapted from the PDDL Domain class __str__ method
     result = f"(define (domain {self.name})"
     body = ""
@@ -174,16 +174,28 @@ def new_domain_str(self):
     del self.types["agent"]  # remove agents from types
     self._types = Types(self.types, self._requirements)
     body += print_types_or_functions_with_parents("(:types", self.types, ")\n")
-    # if self._anceffs:
-    #     body += f"(:anceffs {self.anceffs[0]}"
-    #     for token in self._anceffs[1:]:
-    #         if token.type == "COND1":
-    #             for cond1token in 
-        # body += pprint_pddl_collection(":cond1", self._anceffs)
+    if self._anceffs:
+        # loop through all ancillary effects
+        for anc_eff in self._anceffs: 
+            # add name
+            body += f"(:anceff {anc_eff[0]}"
+            # add parameters
+            body += f"{nl_and_tab}:parameters ({_typed_parameters(*anc_eff[1][1:])})"
+            # add conditions
+            for cond in anc_eff[2:4]:
+                body += f"{nl_and_tab}{cond[0]}{nl_and_tab}(\n"
+                cond = cond[2:-1]
+                # add each of the condition items
+                for item in cond:
+                    body += f"{nl_and_tabs}{recursive_print(item, ' ')}"
+                body += f"{nl_and_tab})\n"
+            body += ")\n"
+
+
     body += print_constants("(:constants", self.constants, ")\n")
     if self.predicates:
-        predicates_str = "\n\t".join([f"{p.get_predicate_prefix()}{print_predicates_with_types([p])}" for p in self.predicates])
-        body += f"(:predicates\n\t{predicates_str}\n)\n"
+        predicates_str = nl_and_tab.join([f"{p.get_predicate_prefix()}{print_predicates_with_types([p])}" for p in self.predicates])
+        body += f"(:predicates{nl_and_tab}{predicates_str}\n)\n"
     if self.functions:
         body += print_types_or_functions_with_parents(
             "(:functions", self.functions, ")\n", print_function_skeleton
@@ -321,7 +333,6 @@ def construct_domain_grammar():
     inject_domain_grammar("POSCOND", "\":poscond\"", basic_token_transformer)
     inject_domain_grammar("NEGCOND", "\":negcond\"", basic_token_transformer)
     inject_domain_grammar("RML_NAME", "\"rml\"", basic_token_transformer)
-    # inject_domain_grammar("rml_var", "QMRK RML_NAME", basic_tokens_transformer)
     inject_domain_grammar("RML_TYPE", "\":rml\"", basic_token_transformer)
     inject_domain_grammar("COND_TYPE", "\":type\"", basic_token_transformer)
     inject_domain_grammar("ADD", "\"add\"", basic_token_transformer)
@@ -329,14 +340,18 @@ def construct_domain_grammar():
     inject_domain_grammar("cond_types", "ADD | DEL", basic_tokens_transformer)
     inject_domain_grammar("var", "QMRK NAME", basic_tokens_transformer)
     inject_domain_grammar("atomic_formula_term_rml", "[EXC] bdi* LPAR [EXC] RML_NAME RPAR", atomic_formula_term)
-    inject_domain_grammar("cond_def1", "PARAMETERS action_parameters \
-                                        COND1 LPAR POSCOND var NEGCOND var RML_TYPE atomic_formula_term_rml COND_TYPE cond_types RPAR \
-                                        COND2 LPAR POSCOND var NEGCOND var RML_TYPE atomic_formula_term_rml COND_TYPE cond_types RPAR", basic_tokens_transformer)
-    inject_domain_grammar("anceffs", "LPAR ANCEFF_NAME NAME cond_def1 RPAR", ancillary_effects_transformer)
+    inject_domain_grammar("anceff_params", "PARAMETERS action_parameters", basic_tokens_transformer)
+    inject_domain_grammar("poscond", "POSCOND var", basic_tokens_transformer)
+    inject_domain_grammar("negcond", "NEGCOND var", basic_tokens_transformer)
+    inject_domain_grammar("rml_def", "RML_TYPE atomic_formula_term_rml", basic_tokens_transformer)
+    inject_domain_grammar("cond_type_def", "COND_TYPE cond_types", basic_tokens_transformer)
+    inject_domain_grammar("cond_def1", "COND1 LPAR poscond negcond rml_def cond_type_def RPAR", basic_tokens_transformer)
+    inject_domain_grammar("cond_def2", "COND2 LPAR poscond negcond rml_def cond_type_def RPAR", basic_tokens_transformer)
+    inject_domain_grammar("anceff", "LPAR ANCEFF_NAME NAME anceff_params cond_def1 cond_def2 RPAR", anc_effs_transformer)
 
     domain._domain_parser_lark = domain._domain_parser_lark.replace(
         "LPAR DEFINE domain_def [requirements] [types] [constants] [predicates] [functions] structure_def* RPAR",
-        "LPAR DEFINE domain_def agents [requirements] [types] [constants] [anceffs] [predicates] [functions] structure_def* RPAR"
+        "LPAR DEFINE domain_def agents [requirements] [types] [constants] anceff* [predicates] [functions] structure_def* RPAR"
     )   
     # inject rules for always known predicates
     inject_domain_grammar("AK", "\"{AK}\"", basic_token_transformer)
