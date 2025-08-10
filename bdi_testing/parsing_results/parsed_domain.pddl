@@ -6,23 +6,6 @@
 	    loc - object
 	)
 	(:anceff kd45closure
-		:parameters (?a - agent ?b - agent)
-		:cond1
-		(
-			:poscond ?pos1
-			:negcond ?neg1
-			:rml [b, ?a](rml)
-			:type add
-		)
-		:cond2
-		(
-			:poscond ?pos2
-			:negcond ?neg2
-			:rml <b, ?a>(rml)
-			:type add
-		)
-	)
-	(:anceff kd45closure2
 		:parameters (?a - agent)
 		:cond1
 		(
@@ -39,9 +22,42 @@
 			:type add
 		)
 	)
+	(:anceff negation-removal
+		:cond1
+		(
+			:poscond ?pos1
+			:negcond ?neg1
+			:rml (rml)
+			:type add
+		)
+		:cond2
+		(
+			:poscond ?pos2
+			:negcond ?neg2
+			:rml !(rml)
+			:type del
+		)
+	)
+	(:anceff kd45-un-closure
+		:parameters (?a - agent)
+		:cond1
+		(
+			:poscond ?pos1
+			:negcond ?neg1
+			:rml <b, ?a>(rml)
+			:type del
+		)
+		:cond2
+		(
+			:poscond ?pos2
+			:negcond ?neg2
+			:rml [b, ?a](rml)
+			:type del
+		)
+	)
 	(:predicates
-		{AK}(at ?agent - agent ?l - loc)
 		(secret ?agent)
+		{AK}(at ?agent - agent ?l - loc)
 		{AK}(connected ?l1 - loc ?l2 - loc)
 	)
 	(:action move

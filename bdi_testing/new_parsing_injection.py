@@ -179,8 +179,9 @@ def new_domain_str(self):
         for anc_eff in self._anceffs: 
             # add name
             body += f"(:anceff {anc_eff[0]}"
-            # add parameters
-            body += f"{nl_and_tab}:parameters ({_typed_parameters(*anc_eff[1][1:])})"
+            # add parameters (if any)
+            if anc_eff[1]:
+                body += f"{nl_and_tab}:parameters ({_typed_parameters(*anc_eff[1][1:])})"
             # add conditions
             for cond in anc_eff[2:4]:
                 body += f"{nl_and_tab}{cond[0]}{nl_and_tab}(\n"
@@ -347,7 +348,7 @@ def construct_domain_grammar():
     inject_domain_grammar("cond_type_def", "COND_TYPE cond_types", basic_tokens_transformer)
     inject_domain_grammar("cond_def1", "COND1 LPAR poscond negcond rml_def cond_type_def RPAR", basic_tokens_transformer)
     inject_domain_grammar("cond_def2", "COND2 LPAR poscond negcond rml_def cond_type_def RPAR", basic_tokens_transformer)
-    inject_domain_grammar("anceff", "LPAR ANCEFF_NAME NAME anceff_params cond_def1 cond_def2 RPAR", anc_effs_transformer)
+    inject_domain_grammar("anceff", "LPAR ANCEFF_NAME NAME [anceff_params] cond_def1 cond_def2 RPAR", anc_effs_transformer)
 
     domain._domain_parser_lark = domain._domain_parser_lark.replace(
         "LPAR DEFINE domain_def [requirements] [types] [constants] [predicates] [functions] structure_def* RPAR",
