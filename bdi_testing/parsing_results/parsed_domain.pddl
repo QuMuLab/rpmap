@@ -7,14 +7,14 @@
 	)
 	(:anceff kd45closure
 		:parameters (?a - agent)
-		:cond1
+		:antecedent
 		(
 			:poscond ?pos1
 			:negcond ?neg1
 			:rml [b, ?a](rml)
 			:type add
 		)
-		:cond2
+		:consequent
 		(
 			:poscond ?pos2
 			:negcond ?neg2
@@ -23,14 +23,14 @@
 		)
 	)
 	(:anceff negation-removal
-		:cond1
+		:antecedent
 		(
 			:poscond ?pos1
 			:negcond ?neg1
 			:rml (rml)
 			:type add
 		)
-		:cond2
+		:consequent
 		(
 			:poscond ?pos2
 			:negcond ?neg2
@@ -40,14 +40,14 @@
 	)
 	(:anceff kd45-un-closure
 		:parameters (?a - agent)
-		:cond1
+		:antecedent
 		(
 			:poscond ?pos1
 			:negcond ?neg1
 			:rml <b, ?a>(rml)
 			:type del
 		)
-		:cond2
+		:consequent
 		(
 			:poscond ?pos2
 			:negcond ?neg2
@@ -55,10 +55,25 @@
 			:type del
 		)
 	)
+	(:anceff uncertain-firing
+		:antecedent
+		(
+			:poscond ?pos
+			:negcond ?neg
+			:rml (rml)
+			:type add
+		)
+		:consequent
+		(
+			:negcond { !(r) for r in ?pos }
+			:rml !(rml)
+			:type del
+		)
+	)
 	(:predicates
-		(secret ?agent)
-		{AK}(at ?agent - agent ?l - loc)
 		{AK}(connected ?l1 - loc ?l2 - loc)
+		{AK}(at ?agent - agent ?l - loc)
+		(secret ?agent)
 	)
 	(:action move
 	    :derive-condition always

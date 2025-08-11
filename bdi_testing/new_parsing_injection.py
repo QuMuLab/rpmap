@@ -33,7 +33,7 @@ def recursive_print(tree, outer_sep=""):
     new_str = []
     if type(tree) == list:
         for child in tree:
-            new_str.append(recursive_print(child))
+            new_str.append(recursive_print(child),)
         return outer_sep.join(new_str)
     else:
         return str(tree) if tree else ""
@@ -99,6 +99,10 @@ def atomic_formula_term(self, args):
     p.bdi = args[:after_bdi]  # store the BDI term
     p.negated = negated # store the negated term, e.g. (!term ?a ?b)
     return p
+
+def list_comp_transformer(self, args):
+    atomic_formula_term(self, args)
+    print()
 
 def basic_tokens_transformer(self, args):
     if not args or args is None:
@@ -188,7 +192,11 @@ def new_domain_str(self):
                 cond = cond[2:-1]
                 # add each of the condition items
                 for item in cond:
-                    body += f"{nl_and_tabs}{recursive_print(item, ' ')}"
+                    if item:
+                        if type(item[1]) == list:
+                            body += f"{nl_and_tabs}{item[0].value} {recursive_print(item[1], ' ')}"
+                        else:
+                            body += f"{nl_and_tabs}{recursive_print(item, ' ')}"
                 body += f"{nl_and_tab})\n"
             body += ")\n"
 
@@ -329,8 +337,8 @@ def construct_domain_grammar():
 
     # inject rules for defining ancillary effects
     inject_domain_grammar("ANCEFF_NAME", "\":anceff\"", basic_token_transformer)  
-    inject_domain_grammar("COND1", "\":cond1\"", basic_token_transformer)
-    inject_domain_grammar("COND2", "\":cond2\"", basic_token_transformer)
+    inject_domain_grammar("ANT", "\":antecedent\"", basic_token_transformer)
+    inject_domain_grammar("CONS", "\":consequent\"", basic_token_transformer)
     inject_domain_grammar("POSCOND", "\":poscond\"", basic_token_transformer)
     inject_domain_grammar("NEGCOND", "\":negcond\"", basic_token_transformer)
     inject_domain_grammar("RML_NAME", "\"rml\"", basic_token_transformer)
@@ -342,13 +350,22 @@ def construct_domain_grammar():
     inject_domain_grammar("var", "QMRK NAME", basic_tokens_transformer)
     inject_domain_grammar("atomic_formula_term_rml", "[EXC] bdi* LPAR [EXC] RML_NAME RPAR", atomic_formula_term)
     inject_domain_grammar("anceff_params", "PARAMETERS action_parameters", basic_tokens_transformer)
-    inject_domain_grammar("poscond", "POSCOND var", basic_tokens_transformer)
-    inject_domain_grammar("negcond", "NEGCOND var", basic_tokens_transformer)
+    inject_domain_grammar("poscond", "POSCOND condition", basic_tokens_transformer)
+    inject_domain_grammar("negcond", "NEGCOND condition", basic_tokens_transformer)
+    inject_domain_grammar("condition", "var | LCRL atomic_formula_term_list_comp_r FOR R IN var RCRL", basic_tokens_transformer)
+
     inject_domain_grammar("rml_def", "RML_TYPE atomic_formula_term_rml", basic_tokens_transformer)
     inject_domain_grammar("cond_type_def", "COND_TYPE cond_types", basic_tokens_transformer)
-    inject_domain_grammar("cond_def1", "COND1 LPAR poscond negcond rml_def cond_type_def RPAR", basic_tokens_transformer)
-    inject_domain_grammar("cond_def2", "COND2 LPAR poscond negcond rml_def cond_type_def RPAR", basic_tokens_transformer)
-    inject_domain_grammar("anceff", "LPAR ANCEFF_NAME NAME [anceff_params] cond_def1 cond_def2 RPAR", anc_effs_transformer)
+    inject_domain_grammar("ant_def", "ANT LPAR [poscond] [negcond] rml_def cond_type_def RPAR", basic_tokens_transformer)
+    inject_domain_grammar("cons_def", "CONS LPAR [poscond] [negcond] rml_def cond_type_def RPAR", basic_tokens_transformer)
+    inject_domain_grammar("anceff", "LPAR ANCEFF_NAME NAME [anceff_params] ant_def cons_def RPAR", anc_effs_transformer)
+    inject_domain_grammar("LCRL", "\"{\"", basic_token_transformer)
+    inject_domain_grammar("RCRL", "\"}\"", basic_token_transformer)
+    inject_domain_grammar("FOR", "\"for\"", basic_token_transformer)
+    inject_domain_grammar("IN", "\"in\"", basic_token_transformer)
+    inject_domain_grammar("R", "\"r\"", basic_token_transformer)
+    inject_domain_grammar("atomic_formula_term_list_comp_r", "[EXC] bdi* LPAR [EXC] R RPAR", atomic_formula_term)
+    # inject_domain_grammar("list_comp", "LCRL atomic_formula_term_list_comp_r FOR R IN var RCRL", basic_tokens_transformer)
 
     domain._domain_parser_lark = domain._domain_parser_lark.replace(
         "LPAR DEFINE domain_def [requirements] [types] [constants] [predicates] [functions] structure_def* RPAR",

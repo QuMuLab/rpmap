@@ -48,12 +48,12 @@
     :cond1 (
         :poscond ?pos
         :negcond ?neg
-        :rml ?rml
+        :rml rml
         :type add
     )
     :cond2 (
-        :negcond {!?r for r in ?pos} + ?neg
-        :rml !?rml
+        :negcond {!r for r in ?pos} + ?neg
+        :rml !(rml)
         :type del
     )
 )
@@ -62,12 +62,12 @@
         :poscond ?pos
         :negcond ?neg
         :condition [b, a](?mu)
-        :rml ?rml
+        :rml rml
         :type add
     )
     :cond2 (
-        :poscond {[b, a](?r) for r in ?pos} + {![b, a](?r) for r in ?neg} + [b, a](?mu)
-        :rml [b,a](?rml)
+        :poscond {[b, a](r) for r in ?pos} + {![b, a](r) for r in ?neg} + [b, a](?mu)
+        :rml [b, a](rml)
         :type add
     )
 )
