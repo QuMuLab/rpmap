@@ -6,7 +6,6 @@ from pddl.logic.terms import Constant
 from pddl.parser import domain
 from pddl.parser import problem
 from pddl.parser.domain import DomainParser
-from pddl.parser.problem import ProblemParser
 from pddl.logic.predicates import Predicate
 from pddl.formatter import (
     print_constants,
@@ -34,11 +33,10 @@ def recursive_print(tree, outer_sep=""):
     if type(tree) == list:
         for child in tree:
             if type(child) == list:
-                if type(child[0]) == Token:
-                    if child[0].type == "LCRL": # printing a list comp (this is hacky...)
-                        new_str.append(recursive_print(child, " "))
-                    else:
-                        new_str.append(recursive_print(child, ""))
+                # other printing type is defined
+                if type(child[0]) == str:
+                    if child[0] == "COMPOUND": # printing a list comp 
+                        new_str.append(recursive_print(child[1:], " "))
                 else:
                     new_str.append(recursive_print(child, ""))
             else:
@@ -113,9 +111,13 @@ def list_comp_transformer(self, args):
     atomic_formula_term(self, args)
     print()
 
-def basic_tokens_transformer(self, args):
+def basic_tokens_transformer(self, args, print_type=None):
     if not args or args is None:
         raise ValueError(f"Invalid definition of tokens: {args}")
+    if print_type:
+        if type(args) == list:
+            return [print_type] + args
+        return [print_type, args]
     return args
 
 def basic_token_transformer(self, args):
@@ -136,6 +138,10 @@ def action_transformer(self, args):
     a = Action(action_name, variables, **action_body)
     a.derive_condition = args[4]
     return a
+
+def compound_term_transformer(self, args):
+    # need to be able to identify list comps for printing :P
+    return basic_tokens_transformer(self, args, "COMPOUND")
 
 # for Predicate class
 def get_predicate_prefix(self):
@@ -344,39 +350,38 @@ def construct_domain_grammar():
     inject_domain_grammar("agents", "LPAR \":agents\" agent+ RPAR", agents_transformer)
     inject_domain_grammar("agent", "/[a-zA-Z_][a-zA-Z0-9_]*/", agent_transformer)
 
-    # inject rules for defining ancillary effects
+    # define PDDL terms for ancillary effects
     inject_domain_grammar("ANCEFF_NAME", "\":anceff\"", basic_token_transformer)  
     inject_domain_grammar("ANT", "\":antecedent\"", basic_token_transformer)
     inject_domain_grammar("CONS", "\":consequent\"", basic_token_transformer)
     inject_domain_grammar("POSCOND", "\":poscond\"", basic_token_transformer)
     inject_domain_grammar("NEGCOND", "\":negcond\"", basic_token_transformer)
-    inject_domain_grammar("RML_NAME", "\"rml\"", basic_token_transformer)
     inject_domain_grammar("RML_TYPE", "\":rml\"", basic_token_transformer)
     inject_domain_grammar("COND_TYPE", "\":type\"", basic_token_transformer)
+    # define basic names for ancillary effects
+    inject_domain_grammar("LCRL", "\"{\"", basic_token_transformer)
+    inject_domain_grammar("RCRL", "\"}\"", basic_token_transformer)
+    inject_domain_grammar("FOR", "\"for\"", basic_token_transformer)
+    inject_domain_grammar("IN", "\"in\"", basic_token_transformer)
+    inject_domain_grammar("R", "\"r\"", basic_token_transformer)
+    inject_domain_grammar("RML_NAME", "\"rml\"", basic_token_transformer)
     inject_domain_grammar("ADD", "\"add\"", basic_token_transformer)
     inject_domain_grammar("DEL", "\"del\"", basic_token_transformer)
+    # define compound rules for ancillary effects
     inject_domain_grammar("cond_types", "ADD | DEL", basic_tokens_transformer)
     inject_domain_grammar("var", "QMRK NAME", basic_tokens_transformer)
     inject_domain_grammar("atomic_formula_term_rml", "[EXC] bdi* LPAR [EXC] RML_NAME RPAR", atomic_formula_term)
     inject_domain_grammar("anceff_params", "PARAMETERS action_parameters", basic_tokens_transformer)
     inject_domain_grammar("poscond", "POSCOND condition", basic_tokens_transformer)
     inject_domain_grammar("negcond", "NEGCOND condition", basic_tokens_transformer)
-    # inject_domain_grammar("PLUS", "\"+\"", basic_token_transformer)
+    inject_domain_grammar("atomic_formula_term_list_comp_r", "[EXC] bdi* LPAR [EXC] R RPAR", atomic_formula_term)
+    inject_domain_grammar("list_comp", "LCRL atomic_formula_term_list_comp_r FOR R IN var RCRL", compound_term_transformer)
     inject_domain_grammar("condition", "var | list_comp (PLUS condition)*", basic_tokens_transformer)
-    # inject_domain_grammar("condition_w_union", )
-
     inject_domain_grammar("rml_def", "RML_TYPE atomic_formula_term_rml", basic_tokens_transformer)
     inject_domain_grammar("cond_type_def", "COND_TYPE cond_types", basic_tokens_transformer)
     inject_domain_grammar("ant_def", "ANT LPAR [poscond] [negcond] rml_def cond_type_def RPAR", basic_tokens_transformer)
     inject_domain_grammar("cons_def", "CONS LPAR [poscond] [negcond] rml_def cond_type_def RPAR", basic_tokens_transformer)
     inject_domain_grammar("anceff", "LPAR ANCEFF_NAME NAME [anceff_params] ant_def cons_def RPAR", anc_effs_transformer)
-    inject_domain_grammar("LCRL", "\"{\"", basic_token_transformer)
-    inject_domain_grammar("RCRL", "\"}\"", basic_token_transformer)
-    inject_domain_grammar("FOR", "\"for\"", basic_token_transformer)
-    inject_domain_grammar("IN", "\"in\"", basic_token_transformer)
-    inject_domain_grammar("R", "\"r\"", basic_token_transformer)
-    inject_domain_grammar("atomic_formula_term_list_comp_r", "[EXC] bdi* LPAR [EXC] R RPAR", atomic_formula_term)
-    inject_domain_grammar("list_comp", "LCRL atomic_formula_term_list_comp_r FOR R IN var RCRL", basic_tokens_transformer)
 
     domain._domain_parser_lark = domain._domain_parser_lark.replace(
         "LPAR DEFINE domain_def [requirements] [types] [constants] [predicates] [functions] structure_def* RPAR",
@@ -492,10 +497,10 @@ if __name__ == "__main__":
     with open("bdi_testing/parsing_results/parsed_domain.pddl", "w") as f:
         f.write(f"\n{result}\n")
 
-    construct_problem_grammar()
-    parser = ProblemParser()
-    with open("bdi_testing/bdi_pdkbddl_files/bdi_mvex_problem.pdkbddl", "r") as f:
-        p_pddl = f.read()
-    result = parser(p_pddl)
-    with open("bdi_testing/parsing_results/parsed_problem.pddl", "w") as f:
-        f.write(f"\n{result}\n")
+    # construct_problem_grammar()
+    # parser = ProblemParser()
+    # with open("bdi_testing/bdi_pdkbddl_files/bdi_mvex_problem.pdkbddl", "r") as f:
+    #     p_pddl = f.read()
+    # result = parser(p_pddl)
+    # with open("bdi_testing/parsing_results/parsed_problem.pddl", "w") as f:
+    #     f.write(f"\n{result}\n")
