@@ -56,11 +56,39 @@
             :type add
         )
         :consequent (
-            :negcond {!(r) for r in ?pos}; + ?neg
+            :negcond {!(r) for r in ?pos} + ?neg
             :rml !(rml)
             :type del
         )
     )
+    ; (:anceff mutual-awareness-pos
+    ;     :antecedent (
+    ;         :poscond ?pos
+    ;         :negcond ?neg
+    ;         :condition [b, a](?mu)
+    ;         :rml (rml)
+    ;         :type add
+    ;     )
+    ;     :consequent (
+    ;         :poscond {[b, a](r) for r in ?pos} + {![b, a](r) for r in ?neg} + [b, a](?mu)
+    ;         :rml [b, a](rml)
+    ;         :type add
+    ;     )
+    ; )
+    ; (:anceff mutual-awareness-neg
+    ;     :antecedent (
+    ;         :poscond ?pos
+    ;         :negcond ?neg
+    ;         :condition [b, a](?mu)
+    ;         :rml (rml)
+    ;         :type neg
+    ;     )
+    ;     :consequent (
+    ;         :poscond {[b, a](r) for r in ?pos} + {![b, a](r) for r in ?neg} + [b, a](?mu)
+    ;         :rml ![b,a](rml)
+    ;         :type add
+    ;     )
+    ; )
     (:predicates
         (secret ?agent)
         {AK}(at ?agent - agent ?l - loc)

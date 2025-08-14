@@ -65,14 +65,14 @@
 		)
 		:consequent
 		(
-			:negcond { !(r) for r in ?pos }
+			:negcond { !(r) for r in ?pos } + ?neg
 			:rml !(rml)
 			:type del
 		)
 	)
 	(:predicates
-		{AK}(connected ?l1 - loc ?l2 - loc)
 		{AK}(at ?agent - agent ?l - loc)
+		{AK}(connected ?l1 - loc ?l2 - loc)
 		(secret ?agent)
 	)
 	(:action move
