@@ -1,4 +1,5 @@
 # adapted from the PDDL library
+import re
 import pddl
 import pddl.core
 import pddl.logic
@@ -6,7 +7,8 @@ from pddl.logic.terms import Constant
 from pddl.parser import domain
 from pddl.parser import problem
 from pddl.parser.domain import DomainParser
-from pddl.logic.predicates import Predicate
+from pddl.logic.predicates import Predicate, _check_terms_consistency
+from pddl.logic.terms import Term
 from pddl.formatter import (
     print_constants,
     print_function_skeleton,
@@ -15,9 +17,10 @@ from pddl.formatter import (
     remove_empty_lines,
     sort_and_print_collection,
 )
+from pddl.custom_types import namelike, _check_not_a_keyword, name
 from pddl.action import Action
 from pddl._validation import Types
-from pddl.helpers.base import _typed_parameters
+from pddl.helpers.base import _typed_parameters, RegexConstrainedString
 from lark.lexer import Token
 from textwrap import indent
 
@@ -84,6 +87,30 @@ def atomic_formula_skeleton(self, args):
     p.always_known = True if ak else False
     return p
 
+@staticmethod
+class name(RegexConstrainedString):
+    """
+    This type represents a 'name' in a PDDL file.
+
+    It must match the following regex: "[A-Za-z][-_A-Za-z0-9]*".
+    """
+
+    REGEX = re.compile("[?][A-Za-z][-_A-Za-z0-9]*")
+
+@staticmethod
+def parse_name(s: str) -> name:
+    _check_not_a_keyword(s, "name", ignore=set())
+    return name(s)
+
+class VariablePredicate(Predicate):
+    def __init__(self, predicate_name: namelike, *terms: Term):
+        """Initialize the variable predicate."""
+        self._name = parse_name(predicate_name)
+        self._terms = tuple(terms)
+        _check_terms_consistency(self._terms)
+
+
+
 def atomic_formula_term(self, args):
     # adapted from the PDDL DomainTransformer class atomic_formula_term method
     # figure out where the BDI term ends, e.g. (!)[?agent] or (!)<?agent>
@@ -98,18 +125,21 @@ def atomic_formula_term(self, args):
     if args[after_bdi + 1]:
         if args[after_bdi + 1].type == "EXC":
             negated = True
-    predicate_name = args[after_bdi + 2] # add 2 to skip the EXC space
-    if type(predicate_name) == list:
-        predicate_name =  Token("ANY_STR", "".join(p.value for p in predicate_name))
+    name = args[after_bdi + 2] # add 2 to skip the EXC space
+    var_pred = False
+    if type(name) == list:
+        # indicates that we are dealing with a variable predicate instead of a predicate
+        # e.g. (?mu)
+        name =  Token("NAME", "".join(p.value for p in name))
+        var_pred = True        
     terms = list(map(self._constant_or_variable, args[after_bdi + 3:-1]))
-    p = Predicate(predicate_name, *terms)
+    if var_pred:
+        p = VariablePredicate(name, *terms)
+    else:
+        p = Predicate(name, *terms)
     p.bdi = args[:after_bdi]  # store the BDI term
     p.negated = negated # store the negated term, e.g. (!term ?a ?b)
     return p
-
-def list_comp_transformer(self, args):
-    atomic_formula_term(self, args)
-    print()
 
 def basic_tokens_transformer(self, args, print_type=None):
     if not args or args is None:
@@ -358,6 +388,7 @@ def construct_domain_grammar():
     inject_domain_grammar("NEGCOND", "\":negcond\"", basic_token_transformer)
     inject_domain_grammar("RML_TYPE", "\":rml\"", basic_token_transformer)
     inject_domain_grammar("COND_TYPE", "\":type\"", basic_token_transformer)
+    inject_domain_grammar("CONDITION", "\":condition\"", basic_token_transformer)
     # define basic names for ancillary effects
     inject_domain_grammar("LCRL", "\"{\"", basic_token_transformer)
     inject_domain_grammar("RCRL", "\"}\"", basic_token_transformer)
@@ -372,15 +403,18 @@ def construct_domain_grammar():
     inject_domain_grammar("var", "QMRK NAME", basic_tokens_transformer)
     inject_domain_grammar("atomic_formula_term_rml", "[EXC] bdi* LPAR [EXC] RML_NAME RPAR", atomic_formula_term)
     inject_domain_grammar("anceff_params", "PARAMETERS action_parameters", basic_tokens_transformer)
-    inject_domain_grammar("poscond", "POSCOND condition", basic_tokens_transformer)
-    inject_domain_grammar("negcond", "NEGCOND condition", basic_tokens_transformer)
+    inject_domain_grammar("poscond", "POSCOND pos_or_neg_cond", basic_tokens_transformer)
+    inject_domain_grammar("negcond", "NEGCOND pos_or_neg_cond", basic_tokens_transformer)
     inject_domain_grammar("atomic_formula_term_list_comp_r", "[EXC] bdi* LPAR [EXC] R RPAR", atomic_formula_term)
     inject_domain_grammar("list_comp", "LCRL atomic_formula_term_list_comp_r FOR R IN var RCRL", compound_term_transformer)
-    inject_domain_grammar("condition", "var | list_comp (PLUS condition)*", basic_tokens_transformer)
+    inject_domain_grammar("pos_or_neg_cond_options", "var | list_comp | atomic_formula_term_condition", basic_tokens_transformer)
+    inject_domain_grammar("pos_or_neg_cond", "pos_or_neg_cond_options (PLUS pos_or_neg_cond_options)*", basic_tokens_transformer)
     inject_domain_grammar("rml_def", "RML_TYPE atomic_formula_term_rml", basic_tokens_transformer)
     inject_domain_grammar("cond_type_def", "COND_TYPE cond_types", basic_tokens_transformer)
-    inject_domain_grammar("ant_def", "ANT LPAR [poscond] [negcond] rml_def cond_type_def RPAR", basic_tokens_transformer)
+    inject_domain_grammar("ant_def", "ANT LPAR [poscond] [negcond] [condition] rml_def cond_type_def RPAR", basic_tokens_transformer)
     inject_domain_grammar("cons_def", "CONS LPAR [poscond] [negcond] rml_def cond_type_def RPAR", basic_tokens_transformer)
+    inject_domain_grammar("atomic_formula_term_condition", "[EXC] bdi* LPAR [EXC] var RPAR", atomic_formula_term)
+    inject_domain_grammar("condition", "CONDITION atomic_formula_term_condition", basic_tokens_transformer)
     inject_domain_grammar("anceff", "LPAR ANCEFF_NAME NAME [anceff_params] ant_def cons_def RPAR", anc_effs_transformer)
 
     domain._domain_parser_lark = domain._domain_parser_lark.replace(

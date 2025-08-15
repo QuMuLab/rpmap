@@ -70,9 +70,43 @@
 			:type del
 		)
 	)
+	(:anceff mutual-awareness-pos
+		:parameters (?a - agent ?mu - rml)
+		:antecedent
+		(
+			:poscond ?pos
+			:negcond ?neg
+			:condition [b, ?a](?mu)
+			:rml (rml)
+			:type add
+		)
+		:consequent
+		(
+			:poscond { [b, ?a](r) for r in ?pos } + { ![b, ?a](r) for r in ?neg } + [b, ?a](?mu)
+			:rml [b, ?a](rml)
+			:type add
+		)
+	)
+	(:anceff mutual-awareness-neg
+		:parameters (?a - agent ?mu - rml)
+		:antecedent
+		(
+			:poscond ?pos
+			:negcond ?neg
+			:condition [b, ?a](?mu)
+			:rml (rml)
+			:type del
+		)
+		:consequent
+		(
+			:poscond { [b, ?a](r) for r in ?pos } + { ![b, ?a](r) for r in ?neg } + [b, ?a](?mu)
+			:rml ![b, ?a](rml)
+			:type add
+		)
+	)
 	(:predicates
-		(secret ?agent)
 		{AK}(at ?agent - agent ?l - loc)
+		(secret ?agent)
 		{AK}(connected ?l1 - loc ?l2 - loc)
 	)
 	(:action move
