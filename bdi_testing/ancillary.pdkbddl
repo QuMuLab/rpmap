@@ -1,13 +1,13 @@
 (:anceff kd45closure
     :parameters (?a - agent)
-    :cond1 
+    :antecedent 
     (
         :poscond ?pos1
         :negcond ?neg1
         :rml [b, ?a](rml)
         :type add
     )
-    :cond2 
+    :consequent 
     (
         :poscond ?pos2
         :negcond ?neg2
@@ -16,13 +16,13 @@
     )
 )
 (:anceff negation-removal
-    :cond1 (
+    :antecedent (
         :poscond ?pos1
         :negcond ?neg1
         :rml (rml)
         :type add
     )
-    :cond2 (
+    :consequent (
         :poscond ?pos2
         :negcond ?neg2
         :rml !(rml)
@@ -31,13 +31,13 @@
 )
 (:anceff kd45-un-closure
     :parameters (?a - agent)
-    :cond1 (
+    :antecedent (
         :poscond ?pos1
         :negcond ?neg1
         :rml <b, ?a>(rml)
         :type del
     )
-    :cond2 (
+    :consequent (
         :poscond ?pos2
         :negcond ?neg2
         :rml [b, ?a](rml)
@@ -45,43 +45,45 @@
     )
 )
 (:anceff uncertain-firing
-    :cond1 (
+    :antecedent (
         :poscond ?pos
         :negcond ?neg
-        :rml rml
+        :rml (rml)
         :type add
     )
-    :cond2 (
-        :negcond {!r for r in ?pos} + ?neg
+    :consequent (
+        :negcond {!(r) for r in ?pos} + ?neg
         :rml !(rml)
         :type del
     )
 )
 (:anceff mutual-awareness-pos
-    :cond1 (
+    :parameters (?a - agent ?mu - rml)
+    :antecedent (
         :poscond ?pos
         :negcond ?neg
-        :condition [b, a](?mu)
-        :rml rml
+        :condition [b, ?a](?mu)
+        :rml (rml)
         :type add
     )
-    :cond2 (
-        :poscond {[b, a](r) for r in ?pos} + {![b, a](r) for r in ?neg} + [b, a](?mu)
-        :rml [b, a](rml)
+    :consequent (
+        :poscond {[b, ?a](r) for r in ?pos} + {![b, ?a](r) for r in ?neg} + [b, ?a](?mu)
+        :rml [b, ?a](rml)
         :type add
     )
 )
 (:anceff mutual-awareness-neg
-    :cond1 (
+    :parameters (?a - agent ?mu - rml)
+    :antecedent (
         :poscond ?pos
         :negcond ?neg
-        :condition [b, a](?mu)
-        :rml ?rml
-        :type neg
+        :condition [b, ?a](?mu)
+        :rml (rml)
+        :type del
     )
-    :cond2 (
-        :poscond {[b, a](?r) for r in ?pos} + {![b, a](?r) for r in ?neg} + [b, a](?mu)
-        :rml ![b,a](?rml)
+    :consequent (
+        :poscond {[b, ?a](r) for r in ?pos} + {![b, ?a](r) for r in ?neg} + [b, ?a](?mu)
+        :rml ![b, ?a](rml)
         :type add
     )
 )
