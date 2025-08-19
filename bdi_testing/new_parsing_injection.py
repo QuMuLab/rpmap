@@ -7,6 +7,7 @@ from pddl.logic.terms import Constant
 from pddl.parser import domain
 from pddl.parser import problem
 from pddl.parser.domain import DomainParser
+from pddl.parser.problem import ProblemParser
 from pddl.logic.predicates import Predicate, _check_terms_consistency
 from pddl.logic.terms import Term
 from pddl.formatter import (
@@ -22,13 +23,50 @@ from pddl.action import Action
 from pddl._validation import Types
 from pddl.helpers.base import _typed_parameters, RegexConstrainedString
 from lark.lexer import Token
+# from lark import Transformer
 from textwrap import indent
+
+NL = "\n"
+NL_AND_TAB = "\n" + "\t"
+NL_AND_TABS = "\n" + "\t" * 2
+NL_AND_3_TABS = "\n" + "\t" * 3
+
+class AncillaryEffects:
+    def __init__(self, anc_effs) -> None:
+        """Initialize the ancillary effect transformer."""
+        self._anceffs = anc_effs
+
+    def __str__(self):
+        body = f"({self._anceffs[1]}"
+        anceffs = self._anceffs[2:-1]
+        # loop through all ancillary effects
+        for anc_eff in anceffs: 
+            anc_eff = anc_eff[2:-1]
+            # add name
+            body += f"{NL_AND_TAB}(:anceff {anc_eff[0]}"
+            # add parameters (if any)
+            if anc_eff[1]:
+                body += f"{NL_AND_TABS}:parameters ({_typed_parameters(*anc_eff[1][1:])})"
+            # add conditions
+            for cond in anc_eff[2:4]:
+                body += f"{NL_AND_TABS}{cond[0]}{NL_AND_TABS}("
+                cond = cond[2:-1]
+                # add each of the condition items
+                for item in cond:
+                    if item:
+                        if type(item[1]) == list:
+                            body += f"{NL_AND_3_TABS}{item[0].value} {recursive_print(item[1], ' ')}"
+                        else:
+                            body += f"{NL_AND_3_TABS}{recursive_print(item, ' ')}"
+                body += f"{NL_AND_TABS})"
+            body += f"{NL_AND_TAB})"
+        body += f"{NL})\n"
+        return body
+
 
 # pretty print PDDL collection
 def pprint_pddl_collection(prefix, collection,):
-    nl = "\n"
-    nl_and_tab = nl + "\t"
-    return f"{prefix} {nl_and_tab}{nl_and_tab.join(map(str, collection))}{nl})\n"
+    return f"{prefix} {NL_AND_TAB}{NL_AND_TAB.join(map(str, collection))}{NL})\n"
 
 # general function for recursive printing of Tokens/lists of Tokens
 def recursive_print(tree, outer_sep=""):
@@ -69,10 +107,7 @@ def agent_transformer(self, args):
     return args[0].value
 
 def anc_effs_transformer(self, args):
-    if not hasattr(self, "_anceffs"):
-        self._anceffs = []
-    self._anceffs.append(args[2:-1])
-    return {"ancillary effects": self._anceffs}
+    return AncillaryEffects(args)
 
 def atomic_formula_skeleton(self, args):   
     # adapted from the PDDL DomainTransformer class atomic_formula_skeleton method
@@ -108,8 +143,6 @@ class VariablePredicate(Predicate):
         self._name = parse_name(predicate_name)
         self._terms = tuple(terms)
         _check_terms_consistency(self._terms)
-
-
 
 def atomic_formula_term(self, args):
     # adapted from the PDDL DomainTransformer class atomic_formula_term method
@@ -198,23 +231,19 @@ def new_predicate_str(self):
 def new_action_str(self):
     # TODO: add support for derived conditions
     # adapted from the PDDL Action class __str__ method
-    nl_and_tabs = "\n" + "\t" * 2
-    nl_and_tab = "\n" + "\t"
     operator_str = "(:action {0}\n".format(self.name)
     if self.derive_condition:
         operator_str += f"    :derive-condition {recursive_print(self.derive_condition)}\n"
     operator_str += f"    :parameters ({_typed_parameters(self.parameters)})\n"
     if self.precondition is not None:
-        operator_str += f"    :precondition ({self.precondition.SYMBOL}{nl_and_tabs}{nl_and_tabs.join(map(str, self.precondition.operands))}{nl_and_tab})\n"
+        operator_str += f"    :precondition ({self.precondition.SYMBOL}{NL_AND_TABS}{NL_AND_TABS.join(map(str, self.precondition.operands))}{NL_AND_TAB})\n"
     if self.effect is not None:
-        operator_str += f"    :effect ({self.effect.SYMBOL}{nl_and_tabs}{nl_and_tabs.join(map(str, self.effect.operands))}{nl_and_tab})\n"
+        operator_str += f"    :effect ({self.effect.SYMBOL}{NL_AND_TABS}{NL_AND_TABS.join(map(str, self.effect.operands))}{NL_AND_TAB})\n"
     operator_str += ")"
     return operator_str
 
 # for Domain class
 def new_domain_str(self):
-    nl_and_tab = "\n" + "\t"
-    nl_and_tabs = "\n" + "\t" * 2
     # adapted from the PDDL Domain class __str__ method
     result = f"(define (domain {self.name})"
     body = ""
@@ -223,33 +252,10 @@ def new_domain_str(self):
     del self.types["agent"]  # remove agents from types
     self._types = Types(self.types, self._requirements)
     body += print_types_or_functions_with_parents("(:types", self.types, ")\n")
-    if self._anceffs:
-        # loop through all ancillary effects
-        for anc_eff in self._anceffs: 
-            # add name
-            body += f"(:anceff {anc_eff[0]}"
-            # add parameters (if any)
-            if anc_eff[1]:
-                body += f"{nl_and_tab}:parameters ({_typed_parameters(*anc_eff[1][1:])})"
-            # add conditions
-            for cond in anc_eff[2:4]:
-                body += f"{nl_and_tab}{cond[0]}{nl_and_tab}(\n"
-                cond = cond[2:-1]
-                # add each of the condition items
-                for item in cond:
-                    if item:
-                        if type(item[1]) == list:
-                            body += f"{nl_and_tabs}{item[0].value} {recursive_print(item[1], ' ')}"
-                        else:
-                            body += f"{nl_and_tabs}{recursive_print(item, ' ')}"
-                body += f"{nl_and_tab})\n"
-            body += ")\n"
-
-
     body += print_constants("(:constants", self.constants, ")\n")
     if self.predicates:
-        predicates_str = nl_and_tab.join([f"{p.get_predicate_prefix()}{print_predicates_with_types([p])}" for p in self.predicates])
-        body += f"(:predicates{nl_and_tab}{predicates_str}\n)\n"
+        predicates_str = NL_AND_TAB.join([f"{p.get_predicate_prefix()}{print_predicates_with_types([p])}" for p in self.predicates])
+        body += f"(:predicates{NL_AND_TAB}{predicates_str}\n)\n"
     if self.functions:
         body += print_types_or_functions_with_parents(
             "(:functions", self.functions, ")\n", print_function_skeleton
@@ -273,10 +279,8 @@ def new_domain_str(self):
 
 def new_init_domain(self, *args, **kwargs):
     self._agents = kwargs["agents"]
-    self._anceffs = kwargs["ancillary effects"]
     kwargs["types"]["agent"] = None
     kwargs.pop("agents")
-    kwargs.pop("ancillary effects")
     self.orig_init(*args, **kwargs)
 
 # FOR THE PROBLEM FILE
@@ -376,17 +380,17 @@ def new_predicate_hash(self):
 def construct_domain_grammar():
     # TODO: move ancillary effect parsing to a separate file?
     # domain._domain_parser_lark += "%import .ancillary_effects -> anc_effs"
-    # domain._domain_parser_lark = domain._domain_parser_lark.replace(
-    #     "start: domain",
-    #     "start: [domain] [anc_effs]",
-    # ) 
-    # print(domain._domain_parser_lark)
+    domain._domain_parser_lark = domain._domain_parser_lark.replace(
+        "start: domain",
+        "start: anceffs_and_domain",
+    ) 
 
     # inject rules for defining agents
     inject_domain_grammar("agents", "LPAR \":agents\" agent+ RPAR", agents_transformer)
     inject_domain_grammar("agent", "/[a-zA-Z_][a-zA-Z0-9_]*/", agent_transformer)
 
     # define PDDL terms for ancillary effects
+    inject_domain_grammar("ANCEFFS_NAME", "\":ancillary_effects\"", basic_token_transformer) 
     inject_domain_grammar("ANCEFF_NAME", "\":anceff\"", basic_token_transformer)  
     inject_domain_grammar("ANT", "\":antecedent\"", basic_token_transformer)
     inject_domain_grammar("CONS", "\":consequent\"", basic_token_transformer)
@@ -421,11 +425,13 @@ def construct_domain_grammar():
     inject_domain_grammar("cons_def", "CONS LPAR [poscond] [negcond] rml_def cond_type_def RPAR", basic_tokens_transformer)
     inject_domain_grammar("atomic_formula_term_condition", "[EXC] bdi* LPAR [EXC] var RPAR", atomic_formula_term)
     inject_domain_grammar("condition", "CONDITION atomic_formula_term_condition", basic_tokens_transformer)
-    inject_domain_grammar("anceff", "LPAR ANCEFF_NAME NAME [anceff_params] ant_def cons_def RPAR", anc_effs_transformer)
+    inject_domain_grammar("anceff", "LPAR ANCEFF_NAME NAME [anceff_params] ant_def cons_def RPAR", basic_tokens_transformer)
+    inject_domain_grammar("anceffs", "LPAR ANCEFFS_NAME anceff* RPAR", anc_effs_transformer)
+    inject_domain_grammar("anceffs_and_domain", "[anceffs] domain", basic_tokens_transformer)
 
     domain._domain_parser_lark = domain._domain_parser_lark.replace(
         "LPAR DEFINE domain_def [requirements] [types] [constants] [predicates] [functions] structure_def* RPAR",
-        "LPAR DEFINE domain_def agents [requirements] [types] [constants] anceff* [predicates] [functions] structure_def* RPAR"
+        "LPAR DEFINE domain_def agents [requirements] [types] [constants] [predicates] [functions] structure_def* RPAR"
     )   
     # inject rules for always known predicates
     inject_domain_grammar("AK", "\"{AK}\"", basic_token_transformer)
@@ -472,6 +478,10 @@ def construct_domain_grammar():
     # Similar monkey patching for the string representation of the Domain class
     pddl.core.Domain.orig_str = pddl.core.Domain.__str__
     pddl.core.Domain.__str__ = new_domain_str
+
+    pddl.core.AncillaryEffects = AncillaryEffects
+
+    print(domain._domain_parser_lark)
 
 def construct_problem_grammar():
     # replace overall structure
@@ -535,12 +545,15 @@ if __name__ == "__main__":
         d_pddl = f.read()
     result = parser(d_pddl)
     with open("bdi_testing/parsing_results/parsed_domain.pddl", "w") as f:
-        f.write(f"\n{result}\n")
+        anc_effs = result[0]
+        domain = result [1]
+        for r in result:
+            f.write(f"{r}\n")
 
-    # construct_problem_grammar()
-    # parser = ProblemParser()
-    # with open("bdi_testing/bdi_pdkbddl_files/bdi_mvex_problem.pdkbddl", "r") as f:
-    #     p_pddl = f.read()
-    # result = parser(p_pddl)
-    # with open("bdi_testing/parsing_results/parsed_problem.pddl", "w") as f:
-    #     f.write(f"\n{result}\n")
+    construct_problem_grammar()
+    parser = ProblemParser()
+    with open("bdi_testing/bdi_pdkbddl_files/bdi_mvex_problem.pdkbddl", "r") as f:
+        p_pddl = f.read()
+    result = parser(p_pddl)
+    with open("bdi_testing/parsing_results/parsed_problem.pddl", "w") as f:
+        f.write(f"\n{result}\n")

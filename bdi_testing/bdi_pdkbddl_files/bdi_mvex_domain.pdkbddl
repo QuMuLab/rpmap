@@ -1,7 +1,4 @@
-(define (domain bdi)
-    (:agents a b)
-    (:requirements :typing)
-    (:types loc)
+(:ancillary_effects
     (:anceff kd45closure
         :parameters (?a - agent)
         :antecedent 
@@ -91,6 +88,11 @@
             :type add
         )
     )
+)
+(define (domain bdi)
+    (:agents a b)
+    (:requirements :typing)
+    (:types loc)
     (:predicates
         (secret ?agent)
         {AK}(at ?agent - agent ?l - loc)

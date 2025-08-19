@@ -6,13 +6,13 @@
 	(:task valid_generation)
 	(:init-type complete)
 	(:init 
-		(connected l1 l2)
 		(connected l3 l2)
-		(connected l2 l3)
-		(at a l1)
 		![d, a](!secret a)
-		(at b l1)
+		(connected l1 l2)
 		(connected l2 l1)
+		(at a l1)
+		(at b l1)
+		(connected l2 l3)
 	)
 	(:goal [i, b](secret a))
 	(:plan 

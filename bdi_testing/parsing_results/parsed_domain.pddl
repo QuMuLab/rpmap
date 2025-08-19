@@ -1,10 +1,4 @@
-
-(define (domain bdi)
-	(:requirements :typing)
-	(:agents )
-	(:types
-	    loc - object
-	)
+(:ancillary_effects
 	(:anceff kd45closure
 		:parameters (?a - agent)
 		:antecedent
@@ -104,10 +98,18 @@
 			:type add
 		)
 	)
+)
+
+(define (domain bdi)
+	(:requirements :typing)
+	(:agents )
+	(:types
+	    loc - object
+	)
 	(:predicates
-		{AK}(at ?agent - agent ?l - loc)
-		{AK}(connected ?l1 - loc ?l2 - loc)
 		(secret ?agent)
+		{AK}(connected ?l1 - loc ?l2 - loc)
+		{AK}(at ?agent - agent ?l - loc)
 	)
 	(:action move
 	    :derive-condition always
