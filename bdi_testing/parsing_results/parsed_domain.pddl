@@ -106,8 +106,8 @@
 	)
 	(:predicates
 		{AK}(at ?agent - agent ?l - loc)
-		(secret ?agent)
 		{AK}(connected ?l1 - loc ?l2 - loc)
+		(secret ?agent)
 	)
 	(:action move
 	    :derive-condition always

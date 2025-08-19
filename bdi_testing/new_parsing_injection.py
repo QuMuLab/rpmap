@@ -374,7 +374,13 @@ def new_predicate_hash(self):
 
 # to build the domain grammar via Python magic
 def construct_domain_grammar():
-    inject_domain_grammar("ANY_STR", "/.*/", basic_token_transformer)
+    # TODO: move ancillary effect parsing to a separate file?
+    # domain._domain_parser_lark += "%import .ancillary_effects -> anc_effs"
+    # domain._domain_parser_lark = domain._domain_parser_lark.replace(
+    #     "start: domain",
+    #     "start: [domain] [anc_effs]",
+    # ) 
+    # print(domain._domain_parser_lark)
 
     # inject rules for defining agents
     inject_domain_grammar("agents", "LPAR \":agents\" agent+ RPAR", agents_transformer)

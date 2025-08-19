@@ -1,4 +1,4 @@
-;{include:domain.pdkbddl}
+{include:bdi_mvex_domain.pdkbddl}
 
 (define (problem bdi-item)
     (:domain bdi)
