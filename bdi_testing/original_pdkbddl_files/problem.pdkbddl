@@ -1,0 +1,51 @@
+{include:domain.pdkbddl}
+
+(define (problem burn-the-witch-2)
+
+    (:domain suspicious_witches)
+
+    (:objects 
+        l1 - loc
+        eye_of_newt toe_of_frog item3 item4 item5 - item
+    )
+
+    (:projection )
+    (:depth 2)
+    (:task valid_generation)
+
+    (:init-type complete)
+    (:init
+        ; locations + connections
+        (at alice l1)
+        (at cindy l1)
+        (item-at eye_of_newt l1)
+        (item-at toe_of_frog l1)
+        (item-at item3 l1)
+        (item-at item4 l1)
+        (item-at item5 l1)
+
+        ; identities
+        (civilian alice)
+        (witch cindy)
+        
+        ; diff hack since equality is currently bugged in the planner
+        (diff alice cindy)
+
+        (diff cindy alice)
+
+        ; beliefs
+        ![alice](witch cindy)
+   
+    )
+
+    (:goal (and 
+            (executed cindy)
+        )
+    )
+
+    (:plan 
+        (collect-item_cindy_eye_of_newt_l1)
+        (hunt-witch-strong-belief_alice_cindy)
+        (burn-the-witch-one-civ_alice_cindy_l1)
+    )
+)
