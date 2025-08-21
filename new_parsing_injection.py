@@ -1,13 +1,13 @@
 # adapted from the PDDL library
 import re
+from lark import Lark
 import pddl
 import pddl.core
 import pddl.logic
 from pddl.logic.terms import Constant
-from pddl.parser import domain
-from pddl.parser import problem
-from pddl.parser.domain import DomainParser
-from pddl.parser.problem import ProblemParser
+from pddl.parser import domain, problem, PARSERS_DIRECTORY
+from pddl.parser.domain import DomainTransformer
+from pddl.parser.problem import ProblemParser, ProblemTransformer
 from pddl.logic.predicates import Predicate, _check_terms_consistency
 from pddl.logic.terms import Term
 from pddl.formatter import (
@@ -21,10 +21,11 @@ from pddl.formatter import (
 from pddl.custom_types import namelike, _check_not_a_keyword, name
 from pddl.action import Action
 from pddl._validation import Types
-from pddl.helpers.base import _typed_parameters, RegexConstrainedString
+from pddl.helpers.base import _typed_parameters, RegexConstrainedString, call_parser
 from lark.lexer import Token
-# from lark import Transformer
+from lark.visitors import Transformer, merge_transformers
 from textwrap import indent
+from pdkb.problems import read_pdkbddl_file
 
 NL = "\n"
 NL_AND_TAB = "\n" + "\t"
@@ -93,8 +94,12 @@ def recursive_print_bdi(tree):
 
 # FOR THE DOMAIN FILE
 def inject_domain_grammar(label, rule, function):
-    domain._domain_parser_lark += f"\n{label}: {rule}\n"
-    setattr(domain.DomainTransformer, label, function)
+    # TODO: have to check that it's not already defined
+    new_rule = f"\n{label}: {rule}\n"
+    if new_rule not in domain._domain_parser_lark:
+        domain._domain_parser_lark += new_rule
+        setattr(domain.DomainTransformer, label, function)
+    
 
 # transformers for the new grammar rules
 def agents_transformer(self, args):
@@ -285,8 +290,10 @@ def new_init_domain(self, *args, **kwargs):
 
 # FOR THE PROBLEM FILE
 def inject_problem_grammar(label, rule, function):
-    problem._problem_parser_lark += f"\n{label}: {rule}\n"
-    setattr(problem.ProblemTransformer, label, function)
+    new_rule = f"\n{label}: {rule}\n"
+    if new_rule not in problem._problem_parser_lark:
+        problem._problem_parser_lark += new_rule
+        setattr(problem.ProblemTransformer, label, function)
 
 def atomic_formula_name(self, args):
     # adapted from the PDDL ProblemTransformer class atomic_formula_name method
@@ -378,8 +385,18 @@ def new_predicate_hash(self):
 
 # to build the domain grammar via Python magic
 def construct_domain_grammar():
-    # TODO: move ancillary effect parsing to a separate file?
-    # domain._domain_parser_lark += "%import .ancillary_effects -> anc_effs"
+    pddl.logic.predicates.Predicate.orig_str = pddl.logic.predicates.Predicate.__str__
+    pddl.logic.predicates.Predicate.__str__ = new_predicate_str
+    pddl.logic.predicates.Predicate.__eq__ = new_predicate_eq
+    pddl.logic.predicates.Predicate.__hash__ = new_predicate_hash
+    pddl.logic.predicates.Predicate.get_predicate_prefix = get_predicate_prefix
+    pddl.logic.predicates.Predicate.always_known = None
+    pddl.logic.predicates.Predicate.bdi = None
+    pddl.logic.predicates.Predicate.negated = None
+    pddl.action.Action.orig_str = pddl.action.Action.__str__
+    pddl.action.Action.__str__ = new_action_str
+    pddl.action.Action.derive_condition = None
+
     domain._domain_parser_lark = domain._domain_parser_lark.replace(
         "start: domain",
         "start: anceffs_and_domain",
@@ -481,9 +498,13 @@ def construct_domain_grammar():
 
     pddl.core.AncillaryEffects = AncillaryEffects
 
-    print(domain._domain_parser_lark)
-
 def construct_problem_grammar():
+    if "%import .domain.anceffs_and_domain -> anceffs_and_domain" not in problem._problem_parser_lark:
+        problem._problem_parser_lark += "%import .domain.anceffs_and_domain -> anceffs_and_domain"
+    problem._problem_parser_lark = problem._problem_parser_lark.replace(
+        "start: problem",
+        "start: [anceffs_and_domain] problem",
+    )
     # replace overall structure
     problem._problem_parser_lark = problem._problem_parser_lark.replace(
         "LPAR DEFINE problem_def problem_domain [problem_requirements] [objects] init goal [metric_spec] RPAR",
@@ -526,34 +547,57 @@ def construct_problem_grammar():
     pddl.core.Problem.init_type = None
     pddl.core.Problem.plan = None
 
+def rewrite_file(file_path, content):
+    with open(file_path, "w") as file:
+        file.write(content)
+
+class DomainProblemTransformer(Transformer):
+    """A transformer for domain + problems
+    Taken from the fond-utils library"""
+
+    def start(self, children):
+        return children
+
+    def domain_start(self, children):
+        return children[0]
+
+    def problem_start(self, children):
+        return children[0]
+
+class DomProbParser:
+    """Domain and/or problem PDDL domain parser class.
+    Taken from the fond-utils library"""
+
+    def __init__(self, lark):
+        """Initialize."""
+        self._transformer = merge_transformers(
+            DomainProblemTransformer(),
+            domain=DomainTransformer(),
+            problem=ProblemTransformer(),
+        )
+        # need to use earley; lalr will not be able to recognise files with just problems (no left)
+        self._parser = Lark(
+            lark, parser="earley", import_paths=[PARSERS_DIRECTORY]
+        )
+
+    def __call__(self, text):
+        """Call the object as a function
+        Will return the object representing the parsed text/file which is an object
+        of class pddl_parser.app_problem.APPProblem
+
+        The call_parser() function is part of pddl package: will build a Tree from text and then an object pddl_parser.app_problem.APPProblem from the Tree
+        """
+        return call_parser(text, self._parser, self._transformer)
+
 if __name__ == "__main__":
-    pddl.logic.predicates.Predicate.orig_str = pddl.logic.predicates.Predicate.__str__
-    pddl.logic.predicates.Predicate.__str__ = new_predicate_str
-    pddl.logic.predicates.Predicate.__eq__ = new_predicate_eq
-    pddl.logic.predicates.Predicate.__hash__ = new_predicate_hash
-    pddl.logic.predicates.Predicate.get_predicate_prefix = get_predicate_prefix
-    pddl.logic.predicates.Predicate.always_known = None
-    pddl.logic.predicates.Predicate.bdi = None
-    pddl.logic.predicates.Predicate.negated = None
-    pddl.action.Action.orig_str = pddl.action.Action.__str__
-    pddl.action.Action.__str__ = new_action_str
-    pddl.action.Action.derive_condition = None
-
     construct_domain_grammar()
-    parser = DomainParser()
-    with open("bdi_testing/bdi_pdkbddl_files/bdi_mvex_domain.pdkbddl", "r") as f:
-        d_pddl = f.read()
-    result = parser(d_pddl)
-    with open("bdi_testing/parsing_results/parsed_domain.pddl", "w") as f:
-        anc_effs = result[0]
-        domain = result [1]
-        for r in result:
-            f.write(f"{r}\n")
-
     construct_problem_grammar()
-    parser = ProblemParser()
-    with open("bdi_testing/bdi_pdkbddl_files/bdi_mvex_problem.pdkbddl", "r") as f:
-        p_pddl = f.read()
-    result = parser(p_pddl)
+    rewrite_file(str(domain.DOMAIN_GRAMMAR_FILE), domain._domain_parser_lark)
+    rewrite_file(str(problem.PROBLEM_GRAMMAR_FILE), problem._problem_parser_lark)
+    pddl = "\n".join(read_pdkbddl_file("bdi_testing/bdi_pdkbddl_files/bdi_mvex_problem.pdkbddl"))
+    with open("bdi_testing/parsing_results/joined.pdkbddl", "w") as f:
+        f.write(f"{pddl}\n")
+    parser = DomProbParser(problem._problem_parser_lark)
+    result = parser(pddl)
     with open("bdi_testing/parsing_results/parsed_problem.pddl", "w") as f:
         f.write(f"\n{result}\n")
