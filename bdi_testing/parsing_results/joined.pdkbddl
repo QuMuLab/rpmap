@@ -5,14 +5,14 @@
 (
 :poscond ?pos1
 :negcond ?neg1
-:rml ({b, ?a}(rml))
+:rml [b, ?a](rml)
 :type add
 )
 :consequent
 (
 :poscond ?pos2
 :negcond ?neg2
-:rml (P{b, ?a}(rml))
+:rml <b, ?a>(rml)
 :type add
 )
 )
@@ -35,13 +35,13 @@
 :antecedent (
 :poscond ?pos1
 :negcond ?neg1
-:rml (P{b, ?a}(rml))
+:rml <b, ?a>(rml)
 :type del
 )
 :consequent (
 :poscond ?pos2
 :negcond ?neg2
-:rml ({b, ?a}(rml))
+:rml [b, ?a](rml)
 :type del
 )
 )
@@ -63,13 +63,13 @@
 :antecedent (
 :poscond ?pos
 :negcond ?neg
-:condition ({b, ?a}(?mu))
+:condition [b, ?a](?mu)
 :rml (rml)
 :type add
 )
 :consequent (
-:poscond {({b, ?a}(r)) for r in ?pos} + {(!{b, ?a}(r)) for r in ?neg} + ({b, ?a}(?mu))
-:rml ({b, ?a}(rml))
+:poscond {[b, ?a](r) for r in ?pos} + {![b, ?a](r) for r in ?neg} + [b, ?a](?mu)
+:rml [b, ?a](rml)
 :type add
 )
 )
@@ -78,13 +78,13 @@
 :antecedent (
 :poscond ?pos
 :negcond ?neg
-:condition ({b, ?a}(?mu))
+:condition [b, ?a](?mu)
 :rml (rml)
 :type del
 )
 :consequent (
-:poscond {({b, ?a}(r)) for r in ?pos} + {(!{b, ?a}(r)) for r in ?neg} + ({b, ?a}(?mu))
-:rml (!{b, ?a}(rml))
+:poscond {[b, ?a](r) for r in ?pos} + {![b, ?a](r) for r in ?neg} + [b, ?a](?mu)
+:rml ![b, ?a](rml)
 :type add
 )
 )
@@ -95,8 +95,8 @@
 (:types loc)
 (:predicates
 (secret ?agent)
-(AK{}(at ?agent - agent ?l - loc))
-(AK{}(connected ?l1 ?l2 - loc))
+{AK}(at ?agent - agent ?l - loc)
+{AK}(connected ?l1 ?l2 - loc)
 )
 (:action move
 :derive-condition   always
@@ -107,100 +107,11 @@
 (:action share
 :derive-condition   never
 :parameters         (?a1 ?a2 - agent ?l - loc)
-:precondition       (and (at ?a1 ?l) (at ?a2 ?l) (!{b, ?a1}(!secret ?a1)))
+:precondition       (and (at ?a1 ?l) (at ?a2 ?l) ![b, ?a1](!secret ?a1))
 :effect             (and
-({d, ?a2}(secret ?a2))
-({i, ?a2}(secret ?a2))
+[d, ?a2](secret ?a2)
+[i, ?a2](secret ?a2)
 )
-)
-)
-(:anceff kd45closure
-:parameters (?a - agent)
-:antecedent
-(
-:poscond ?pos1
-:negcond ?neg1
-:rml ({b, ?a}(rml))
-:type add
-)
-:consequent
-(
-:poscond ?pos2
-:negcond ?neg2
-:rml (P{b, ?a}(rml))
-:type add
-)
-)
-(:anceff negation-removal
-:antecedent (
-:poscond ?pos1
-:negcond ?neg1
-:rml (rml)
-:type add
-)
-:consequent (
-:poscond ?pos2
-:negcond ?neg2
-:rml !(rml)
-:type del
-)
-)
-(:anceff kd45-un-closure
-:parameters (?a - agent)
-:antecedent (
-:poscond ?pos1
-:negcond ?neg1
-:rml (P{b, ?a}(rml))
-:type del
-)
-:consequent (
-:poscond ?pos2
-:negcond ?neg2
-:rml ({b, ?a}(rml))
-:type del
-)
-)
-(:anceff uncertain-firing
-:antecedent (
-:poscond ?pos
-:negcond ?neg
-:rml (rml)
-:type add
-)
-:consequent (
-:negcond {!(r) for r in ?pos} + ?neg
-:rml !(rml)
-:type del
-)
-)
-(:anceff mutual-awareness-pos
-:parameters (?a - agent ?mu - rml)
-:antecedent (
-:poscond ?pos
-:negcond ?neg
-:condition ({b, ?a}(?mu))
-:rml (rml)
-:type add
-)
-:consequent (
-:poscond {({b, ?a}(r)) for r in ?pos} + {(!{b, ?a}(r)) for r in ?neg} + ({b, ?a}(?mu))
-:rml ({b, ?a}(rml))
-:type add
-)
-)
-(:anceff mutual-awareness-neg
-:parameters (?a - agent ?mu - rml)
-:antecedent (
-:poscond ?pos
-:negcond ?neg
-:condition ({b, ?a}(?mu))
-:rml (rml)
-:type del
-)
-:consequent (
-:poscond {({b, ?a}(r)) for r in ?pos} + {(!{b, ?a}(r)) for r in ?neg} + ({b, ?a}(?mu))
-:rml (!{b, ?a}(rml))
-:type add
 )
 )
 (define (problem bdi-item)
@@ -218,14 +129,14 @@ l1 l2 l3 - loc
 (connected l3 l2)
 (at a l1)
 (at b l1)
-(!{d, a}(!secret a))
+![d, a](!secret a)
 )
 (:goal (and
-({i, b}(secret a))
+[i, b](secret a)
 )
 )
 (:plan
-(!{d, a}(!secret a))
-(!{d, a}(!secret a))
+![d, a](!secret a)
+![d, a](!secret a)
 )
 )
