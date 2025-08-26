@@ -10,7 +10,6 @@ from pddl.parser.domain import DomainTransformer
 from pddl.parser.problem import ProblemTransformer
 import anc_eff
 from pddl.logic.predicates import Predicate, _check_terms_consistency
-from pddl.logic.terms import Term
 from pddl.formatter import (
     print_constants,
     print_function_skeleton,
@@ -20,7 +19,6 @@ from pddl.formatter import (
     sort_and_print_collection,
 )
 from pddl.requirements import Requirements
-from pddl.custom_types import namelike, _check_not_a_keyword, name
 from pddl.action import Action
 from pddl._validation import Types
 from pddl.helpers.base import _typed_parameters, RegexConstrainedString, assert_
@@ -85,27 +83,19 @@ def atomic_formula_skeleton(self, args):
     p.always_known = True if ak else False
     return p
 
-@staticmethod
-class name(RegexConstrainedString):
-    """
-    This type represents a 'name' in a PDDL file.
+def action_transformer(self, args):
+    # adapted from the PDDL DomainTransformer class action_def method
+    action_name = args[2]
+    variables = args[6]
 
-    It must match the following regex: "[A-Za-z][-_A-Za-z0-9]*".
-    """
-
-    REGEX = re.compile("[?][A-Za-z][-_A-Za-z0-9]*")
-
-@staticmethod
-def parse_name(s: str) -> name:
-    _check_not_a_keyword(s, "name", ignore=set())
-    return name(s)
-
-class VariablePredicate(Predicate):
-    def __init__(self, predicate_name: namelike, *terms: Term):
-        """Initialize the variable predicate."""
-        self._name = parse_name(predicate_name)
-        self._terms = tuple(terms)
-        _check_terms_consistency(self._terms)
+    # process action body
+    _children = args[7].children
+    action_body = {
+        _children[i][1:]: _children[i + 1] for i in range(0, len(_children), 2)
+    }
+    a = Action(action_name, variables, **action_body)
+    a.derive_condition = args[4]
+    return a
 
 def atomic_formula_term(self, args):
     # adapted from the PDDL DomainTransformer class atomic_formula_term method
@@ -137,30 +127,6 @@ def atomic_formula_term(self, args):
     p.bdi = args[:after_bdi]  # store the BDI term
     p.negated = negated # store the negated term, e.g. (!term ?a ?b)
     return p
-
-def basic_tokens_transformer(self, args):
-    if not args or args is None:
-        raise ValueError(f"Invalid definition of tokens: {args}")
-    return args
-
-def basic_token_transformer(self, args):
-    if type(args) is not Token:
-        raise ValueError(f"Invalid token definition: {args}")
-    return args
-
-def action_transformer(self, args):
-    # adapted from the PDDL DomainTransformer class action_def method
-    action_name = args[2]
-    variables = args[6]
-
-    # process action body
-    _children = args[7].children
-    action_body = {
-        _children[i][1:]: _children[i + 1] for i in range(0, len(_children), 2)
-    }
-    a = Action(action_name, variables, **action_body)
-    a.derive_condition = args[4]
-    return a
 
 # for Predicate class
 def get_predicate_prefix(self):
@@ -284,18 +250,18 @@ def init_type_transformer(self, args):
     return ("init_type", args) 
 
 def plan_transformer(self, args):
-    args = basic_tokens_transformer(self, args)
-    return ("plan", args) 
+    args = self.init(args)
+    return ("plan", args[1]) 
 
 def goal_transformer(self, args):
-    args = basic_tokens_transformer(self, args)
-    return ("goal", args) 
+    args = self.init(args)
+    return ("goal", args[1]) 
 
 def new_init_problem(self, *args, **kwargs):
     self.depth = int(kwargs["depth"][2].value)  # store the depth
     self.task = kwargs["task"][2].value  # store the task
     self.init_type = kwargs["init_type"][2].value  # store the init type
-    self.plan = kwargs["plan"][2:-1]  # store the plan
+    self.plan = kwargs["plan"] # store the plan
     kwargs.pop("depth")
     kwargs.pop("task")
     kwargs.pop("init_type")
@@ -314,7 +280,7 @@ def new_problem_str(self):
     body += f"(:init-type {self.init_type})\n"
     
     body += pprint_pddl_collection("(:init", self.init)
-    body += f"{'(:goal ' + str(self.goal) + ')'}\n"
+    body += f"(:goal {recursive_print(self.goal, ' ')})" + "\n"
     body += f"{'(:metric ' + str(self.metric) + ')'}\n" if self.metric else ""
     body += pprint_pddl_collection("(:plan", self.plan)
     result = result + "\n" + indent(body, "\t") + "\n)"

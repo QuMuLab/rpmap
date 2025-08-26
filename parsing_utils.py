@@ -1,3 +1,10 @@
+import re
+from lark.lexer import Token
+from pddl.custom_types import namelike, _check_not_a_keyword, name
+from pddl.logic.terms import Term
+from pddl.logic.predicates import Predicate, _check_terms_consistency
+from pddl.helpers.base import RegexConstrainedString
+
 NL = "\n"
 NL_AND_TAB = "\n" + "\t"
 NL_AND_TABS = "\n" + "\t" * 2
@@ -20,3 +27,35 @@ def recursive_print(tree, outer_sep=""):
         return outer_sep.join(new_str)
     else:
         return str(tree) if tree else ""
+    
+def basic_tokens_transformer(self, args):
+    if not args or args is None:
+        raise ValueError(f"Invalid definition of tokens: {args}")
+    return args
+
+def basic_token_transformer(self, args):
+    if type(args) is not Token:
+        raise ValueError(f"Invalid token definition: {args}")
+    return args
+
+@staticmethod
+class name(RegexConstrainedString):
+    """
+    This type represents a 'name' in a PDDL file.
+
+    It must match the following regex: "[A-Za-z][-_A-Za-z0-9]*".
+    """
+
+    REGEX = re.compile("[?][A-Za-z][-_A-Za-z0-9]*")
+
+@staticmethod
+def parse_name(s: str) -> name:
+    _check_not_a_keyword(s, "name", ignore=set())
+    return name(s)
+
+class VariablePredicate(Predicate):
+    def __init__(self, predicate_name: namelike, *terms: Term):
+        """Initialize the variable predicate."""
+        self._name = parse_name(predicate_name)
+        self._terms = tuple(terms)
+        _check_terms_consistency(self._terms)

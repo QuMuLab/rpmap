@@ -1,0 +1,163 @@
+
+(:ancillary_effects
+	(:anceff kd45closure
+		:parameters (?a - agent)
+		:antecedent
+		(
+			:poscond ?pos1
+			:negcond ?neg1
+			:rml [b, ?a](rml)
+			:type add
+		)
+		:consequent
+		(
+			:poscond ?pos2
+			:negcond ?neg2
+			:rml <b, ?a>(rml)
+			:type add
+		)
+	)
+	(:anceff negation-removal
+		:antecedent
+		(
+			:poscond ?pos1
+			:negcond ?neg1
+			:rml (rml)
+			:type add
+		)
+		:consequent
+		(
+			:poscond ?pos2
+			:negcond ?neg2
+			:rml !(rml)
+			:type del
+		)
+	)
+	(:anceff kd45-un-closure
+		:parameters (?a - agent)
+		:antecedent
+		(
+			:poscond ?pos1
+			:negcond ?neg1
+			:rml <b, ?a>(rml)
+			:type del
+		)
+		:consequent
+		(
+			:poscond ?pos2
+			:negcond ?neg2
+			:rml [b, ?a](rml)
+			:type del
+		)
+	)
+	(:anceff uncertain-firing
+		:antecedent
+		(
+			:poscond ?pos
+			:negcond ?neg
+			:rml (rml)
+			:type add
+		)
+		:consequent
+		(
+			:negcond { !(r) for r in ?pos } + ?neg
+			:rml !(rml)
+			:type del
+		)
+	)
+	(:anceff mutual-awareness-pos
+		:parameters (?a - agent ?mu - rml)
+		:antecedent
+		(
+			:poscond ?pos
+			:negcond ?neg
+			:condition [b, ?a](?mu)
+			:rml (rml)
+			:type add
+		)
+		:consequent
+		(
+			:poscond { [b, ?a](r) for r in ?pos } + { ![b, ?a](r) for r in ?neg } + [b, ?a](?mu)
+			:rml [b, ?a](rml)
+			:type add
+		)
+	)
+	(:anceff mutual-awareness-neg
+		:parameters (?a - agent ?mu - rml)
+		:antecedent
+		(
+			:poscond ?pos
+			:negcond ?neg
+			:condition [b, ?a](?mu)
+			:rml (rml)
+			:type del
+		)
+		:consequent
+		(
+			:poscond { [b, ?a](r) for r in ?pos } + { ![b, ?a](r) for r in ?neg } + [b, ?a](?mu)
+			:rml ![b, ?a](rml)
+			:type add
+		)
+	)
+)
+
+
+(define (domain bdi)
+	(:requirements :typing)
+	(:agents )
+	(:types
+	    loc - object
+	)
+	(:predicates
+		{AK}(connected ?l1 - loc ?l2 - loc)
+		{AK}(at ?agent - agent ?l - loc)
+		(secret ?agent)
+	)
+	(:action move
+	    :derive-condition always
+	    :parameters (?a - agent ?l1 - loc ?l2 - loc)
+	    :precondition (and
+			(at ?a ?l1)
+			(connected ?l1 ?l2)
+		)
+	    :effect (and
+			(at ?a ?l2)
+			(not (at ?a ?l1))
+		)
+	)
+	 (:action share
+	    :derive-condition never
+	    :parameters (?a1 - agent ?a2 - agent ?l - loc)
+	    :precondition (and
+			(at ?a1 ?l)
+			(at ?a2 ?l)
+			![b, ?a1](!secret ?a1)
+		)
+	    :effect (and
+			[d, ?a2](secret ?a2)
+			[i, ?a2](secret ?a2)
+		)
+	)
+)
+
+(define (problem bdi-item)
+	(:domain bdi)
+	(:objects l1 l2 l3 - loc)
+	(:depth 2)
+	(:task valid_generation)
+	(:init-type complete)
+	(:init 
+		(connected l2 l3)
+		![d, a](!secret a)
+		(connected l3 l2)
+		(at a l1)
+		(connected l2 l1)
+		(connected l1 l2)
+		(at b l1)
+	)
+	(:goal ( and [i, b](secret a) ))
+	(:plan 
+		![d, a](!secret a)
+		![d, a](!secret a)
+	)
+)
