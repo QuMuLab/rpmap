@@ -1,0 +1,67 @@
+QMRK: "?"
+LSQB: "["
+RSQB: "]"
+BELIEF: "b"
+DESIRE: "d"
+INTENTION: "i"
+COMMA: ","
+EXC: "!"
+ANCEFFS_NAME: ":ancillary_effects"
+ANCEFF_NAME: ":anceff"
+ANT: ":antecedent"
+CONS: ":consequent"
+POSCOND: ":poscond"
+NEGCOND: ":negcond"
+RML_TYPE: ":rml"
+COND_TYPE: ":type"
+CONDITION: ":condition"
+LCRL: "{"
+RCRL: "}"
+FOR: "for"
+IN: "in"
+R: "r"
+RML_NAME: "rml"
+ADD: "add"
+DEL: "del"
+
+start: [anceffs] [domain] [problem]
+
+cond_types: ADD | DEL
+
+var: QMRK NAME
+
+bdi_term: BELIEF | DESIRE | INTENTION
+
+bdi: LSQB bdi_term COMMA var RSQB | LESSER_OP bdi_term COMMA var GREATER_OP
+
+atomic_formula_term_rml: [EXC] bdi* LPAR [EXC] RML_NAME RPAR
+
+anceff_params: PARAMETERS action_parameters
+
+poscond: POSCOND pos_or_neg_cond
+
+negcond: NEGCOND pos_or_neg_cond
+
+atomic_formula_term_list_comp_r: [EXC] bdi* LPAR [EXC] R RPAR
+
+list_comp: LCRL atomic_formula_term_list_comp_r FOR R IN var RCRL
+
+pos_or_neg_cond_options: var | list_comp | atomic_formula_term_condition
+
+pos_or_neg_cond: pos_or_neg_cond_options (PLUS pos_or_neg_cond_options)*
+
+rml_def: RML_TYPE atomic_formula_term_rml
+
+cond_type_def: COND_TYPE cond_types
+
+ant_def: ANT LPAR [poscond] [negcond] [condition] rml_def cond_type_def RPAR
+
+cons_def: CONS LPAR [poscond] [negcond] rml_def cond_type_def RPAR
+
+atomic_formula_term_condition: [EXC] bdi* LPAR [EXC] var RPAR
+
+condition: CONDITION atomic_formula_term_condition
+
+anceff: LPAR ANCEFF_NAME NAME [anceff_params] ant_def cons_def RPAR
+
+anceffs: LPAR ANCEFFS_NAME anceff* RPAR

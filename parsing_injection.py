@@ -5,9 +5,10 @@ import pddl
 import pddl.core
 import pddl.logic
 from pddl.logic.terms import Constant
-from pddl.parser import domain, problem, PARSERS_DIRECTORY
-from pddl.parser.domain import DomainParser, DomainTransformer
-from pddl.parser.problem import ProblemParser, ProblemTransformer
+from pddl.parser import domain, problem, GRAMMAR_FILE
+from pddl.parser.domain import DomainTransformer
+from pddl.parser.problem import ProblemTransformer
+import anc_eff
 from pddl.logic.predicates import Predicate, _check_terms_consistency
 from pddl.logic.terms import Term
 from pddl.formatter import (
@@ -18,129 +19,48 @@ from pddl.formatter import (
     remove_empty_lines,
     sort_and_print_collection,
 )
+from pddl.requirements import Requirements
 from pddl.custom_types import namelike, _check_not_a_keyword, name
 from pddl.action import Action
 from pddl._validation import Types
-from pddl.helpers.base import _typed_parameters, RegexConstrainedString, call_parser
+from pddl.helpers.base import _typed_parameters, RegexConstrainedString, assert_
 from lark.lexer import Token
-from lark.visitors import Transformer, merge_transformers
+from lark.visitors import Transformer
 from textwrap import indent
 from pdkb.problems import read_file
 import os
-import anc_eff
-from anc_eff import AncEffTransformer
-
-NL = "\n"
-NL_AND_TAB = "\n" + "\t"
-NL_AND_TABS = "\n" + "\t" * 2
-NL_AND_3_TABS = "\n" + "\t" * 3
-
-class AncillaryEffects:
-    def __init__(self, anc_effs) -> None:
-        """Initialize the ancillary effect transformer."""
-        self._anceffs = anc_effs
-
-    def __str__(self):
-        body = f"({self._anceffs[1]}"
-        anceffs = self._anceffs[2:-1]
-        # loop through all ancillary effects
-        for anc_eff in anceffs: 
-            anc_eff = anc_eff[2:-1]
-            # add name
-            body += f"{NL_AND_TAB}(:anceff {anc_eff[0]}"
-            # add parameters (if any)
-            if anc_eff[1]:
-                body += f"{NL_AND_TABS}:parameters ({_typed_parameters(*anc_eff[1][1:])})"
-            # add conditions
-            for cond in anc_eff[2:4]:
-                body += f"{NL_AND_TABS}{cond[0]}{NL_AND_TABS}("
-                cond = cond[2:-1]
-                # add each of the condition items
-                for item in cond:
-                    if item:
-                        if type(item[1]) == list:
-                            body += f"{NL_AND_3_TABS}{item[0].value} {recursive_print(item[1], ' ')}"
-                        else:
-                            body += f"{NL_AND_3_TABS}{recursive_print(item, ' ')}"
-                body += f"{NL_AND_TABS})"
-            body += f"{NL_AND_TAB})"
-        body += f"{NL})\n"
-        return body
+import sys
+from parsing_utils import *
 
 
 # pretty print PDDL collection
 def pprint_pddl_collection(prefix, collection,):
     return f"{prefix} {NL_AND_TAB}{NL_AND_TAB.join(map(str, collection))}{NL})\n"
-
-# general function for recursive printing of Tokens/lists of Tokens
-def recursive_print(tree, outer_sep=""):
-    new_str = []
-    if type(tree) == list:
-        for child in tree:
-            if type(child) == list:
-                # other printing type is defined
-                if type(child[0]) == str:
-                    if child[0] == "COMPOUND": # printing a list comp 
-                        new_str.append(recursive_print(child[1:], " "))
-                else:
-                    new_str.append(recursive_print(child, ""))
-            else:
-                new_str.append(recursive_print(child, ""))
-        return outer_sep.join(new_str)
-    else:
-        return str(tree) if tree else ""
     
 # recursive print for the BDI function
 def recursive_print_bdi(tree):
     tree_str = recursive_print(tree)
     return tree_str if "," not in tree_str else f"{', '.join(tree_str.split(','))}"
 
-def inject_anceff_grammar(label, rule, function):
-    new_rule = f"\n{label}: {rule}\n"
-    if new_rule not in anc_eff._anceff_parser_lark:
-        anc_eff._anceff_parser_lark += new_rule
-    setattr(AncEffTransformer, label, function)
-
-def add_common_imports(import_strs: list, file):
-    """Add imports to the given file."""
-    import_strs = "\n" + "\n".join(import_strs)
-    with open(file, "a+") as f:
+def write_no_duplicate(content, filename):
+    with open(filename, "r") as f:
         grammar = f.read()
-        if import_strs not in grammar:
-            f.write(import_strs)
+    if content not in grammar:
+        with open(filename, "a+") as f:
+            f.write(content)
 
-def add_domain_imports(import_strs: list):
-    import_strs = "\n" + "\n".join(import_strs)
-    if import_strs not in domain._domain_parser_lark:
-        domain._domain_parser_lark += import_strs
-
-def add_problem_imports(import_strs: list):
-    import_strs = "\n" + "\n".join(import_strs)
-    if import_strs not in problem._problem_parser_lark:
-        problem._problem_parser_lark += import_strs
-
-def add_anceff_imports(import_strs: list):
-    import_strs = "\n" + "\n".join(import_strs)
-    if import_strs not in anc_eff._anceff_parser_lark:
-        anc_eff._anceff_parser_lark += import_strs
-
-def inject_common_grammar(label, rule):
-    # TODO: use a variable instead?
+def inject_domain_grammar(label, rule, function, grammar_file=GRAMMAR_FILE):
     new_rule = f"\n{label}: {rule}\n"
-    # read common.lark file
-    common_file = os.path.join(PARSERS_DIRECTORY, "common.lark")
-    with open(common_file, "r") as f:
-        common_grammar = f.read()
-    with open(common_file, "a+") as f:
-        if new_rule not in common_grammar:
-            f.write(new_rule)
-
-# FOR THE DOMAIN FILE
-def inject_domain_grammar(label, rule, function):
-    new_rule = f"\n{label}: {rule}\n"
-    if new_rule not in domain._domain_parser_lark:
-        domain._domain_parser_lark += new_rule
+    write_no_duplicate(new_rule, grammar_file)
     setattr(domain.DomainTransformer, label, function)
+
+def replace_in_grammar(old, new, grammar_file=GRAMMAR_FILE):
+    with open(grammar_file, "r") as f:
+        grammar = f.read()
+    if old in grammar:
+        grammar = grammar.replace(old, new)
+        with open(grammar_file, "w") as f:
+            f.write(grammar)
 
 # transformers for the new grammar rules
 def agents_transformer(self, args):
@@ -151,9 +71,6 @@ def agent_transformer(self, args):
     if len(args) != 1:
         raise ValueError(f"Invalid agent definition: {args}")
     return args[0].value
-
-def anc_effs_transformer(self, args):
-    return AncillaryEffects(args)
 
 def atomic_formula_skeleton(self, args):   
     # adapted from the PDDL DomainTransformer class atomic_formula_skeleton method
@@ -221,13 +138,9 @@ def atomic_formula_term(self, args):
     p.negated = negated # store the negated term, e.g. (!term ?a ?b)
     return p
 
-def basic_tokens_transformer(self, args, print_type=None):
+def basic_tokens_transformer(self, args):
     if not args or args is None:
         raise ValueError(f"Invalid definition of tokens: {args}")
-    if print_type:
-        if type(args) == list:
-            return [print_type] + args
-        return [print_type, args]
     return args
 
 def basic_token_transformer(self, args):
@@ -248,10 +161,6 @@ def action_transformer(self, args):
     a = Action(action_name, variables, **action_body)
     a.derive_condition = args[4]
     return a
-
-def compound_term_transformer(self, args):
-    # need to be able to identify list comps for printing :P
-    return basic_tokens_transformer(self, args, "COMPOUND")
 
 # for Predicate class
 def get_predicate_prefix(self):
@@ -331,10 +240,9 @@ def new_init_domain(self, *args, **kwargs):
     self.orig_init(*args, **kwargs)
 
 # FOR THE PROBLEM FILE
-def inject_problem_grammar(label, rule, function):
+def inject_problem_grammar(label, rule, function, grammar_file=GRAMMAR_FILE):
     new_rule = f"\n{label}: {rule}\n"
-    if new_rule not in problem._problem_parser_lark:
-        problem._problem_parser_lark += new_rule
+    write_no_duplicate(new_rule, grammar_file)
     setattr(problem.ProblemTransformer, label, function)
 
 def atomic_formula_name(self, args):
@@ -378,6 +286,10 @@ def init_type_transformer(self, args):
 def plan_transformer(self, args):
     args = basic_tokens_transformer(self, args)
     return ("plan", args) 
+
+def goal_transformer(self, args):
+    args = basic_tokens_transformer(self, args)
+    return ("goal", args) 
 
 def new_init_problem(self, *args, **kwargs):
     self.depth = int(kwargs["depth"][2].value)  # store the depth
@@ -425,80 +337,6 @@ def new_predicate_hash(self):
     bdi_str = recursive_print_bdi(self.bdi) if self.bdi else ""
     return hash((self.name, self.arity, self.terms, self.always_known, bdi_str, self.negated))
 
-def construct_common_grammar():
-    inject_common_grammar("QMRK", "\"?\"")
-    inject_common_grammar("LSQB", "\"[\"")
-    inject_common_grammar("RSQB", "\"]\"")
-    inject_common_grammar("BELIEF", "\"b\"")
-    inject_common_grammar("DESIRE", "\"d\"")
-    inject_common_grammar("INTENTION", "\"i\"")
-    inject_common_grammar("COMMA", "\",\"")
-    inject_common_grammar("EXC", "\"!\"")
-
-def construct_anceff_grammar():
-    imports = [
-        "%import .common.QMRK -> QMRK",
-        "%import .common.NAME -> NAME",
-        "%import .common.EXC -> EXC",
-        "%import .common.LPAR -> LPAR",
-        "%import .common.RPAR -> RPAR",
-        "%import .domain.action_parameters -> action_parameters",
-        "%import .domain.PARAMETERS -> PARAMETERS",
-        "%import .common.PLUS -> PLUS",
-        "%import .common.LESSER_OP -> LESSER_OP",
-        "%import .common.LSQB -> LSQB",
-        "%import .common.RSQB -> RSQB",
-        "%import .common.GREATER_OP -> GREATER_OP",
-        "%import .common.COMMA -> COMMA",
-        "%import .common.BELIEF -> BELIEF",
-        "%import .common.DESIRE -> DESIRE",
-        "%import .common.INTENTION -> INTENTION",
-    ]
-    add_anceff_imports(imports)
-
-    # define PDDL terms for ancillary effects
-    inject_anceff_grammar("ANCEFFS_NAME", "\":ancillary_effects\"", basic_token_transformer) 
-    inject_anceff_grammar("ANCEFF_NAME", "\":anceff\"", basic_token_transformer)  
-    inject_anceff_grammar("ANT", "\":antecedent\"", basic_token_transformer)
-    inject_anceff_grammar("CONS", "\":consequent\"", basic_token_transformer)
-    inject_anceff_grammar("POSCOND", "\":poscond\"", basic_token_transformer)
-    inject_anceff_grammar("NEGCOND", "\":negcond\"", basic_token_transformer)
-    inject_anceff_grammar("RML_TYPE", "\":rml\"", basic_token_transformer)
-    inject_anceff_grammar("COND_TYPE", "\":type\"", basic_token_transformer)
-    inject_anceff_grammar("CONDITION", "\":condition\"", basic_token_transformer)
-    # define basic names for ancillary effects
-    inject_anceff_grammar("LCRL", "\"{\"", basic_token_transformer)
-    inject_anceff_grammar("RCRL", "\"}\"", basic_token_transformer)
-    inject_anceff_grammar("FOR", "\"for\"", basic_token_transformer)
-    inject_anceff_grammar("IN", "\"in\"", basic_token_transformer)
-    inject_anceff_grammar("R", "\"r\"", basic_token_transformer)
-    inject_anceff_grammar("RML_NAME", "\"rml\"", basic_token_transformer)
-    inject_anceff_grammar("ADD", "\"add\"", basic_token_transformer)
-    inject_anceff_grammar("DEL", "\"del\"", basic_token_transformer)
-    # define compound rules for ancillary effects
-    inject_anceff_grammar("cond_types", "ADD | DEL", basic_tokens_transformer)
-    inject_anceff_grammar("atomic_formula_term_rml", "[EXC] bdi* LPAR [EXC] RML_NAME RPAR", atomic_formula_term)
-    inject_anceff_grammar("anceff_params", "PARAMETERS action_parameters", basic_tokens_transformer)
-    inject_anceff_grammar("poscond", "POSCOND pos_or_neg_cond", basic_tokens_transformer)
-    inject_anceff_grammar("negcond", "NEGCOND pos_or_neg_cond", basic_tokens_transformer)
-    inject_anceff_grammar("atomic_formula_term_list_comp_r", "[EXC] bdi* LPAR [EXC] R RPAR", atomic_formula_term)
-    inject_anceff_grammar("list_comp", "LCRL atomic_formula_term_list_comp_r FOR R IN var RCRL", compound_term_transformer)
-    inject_anceff_grammar("pos_or_neg_cond_options", "var | list_comp | atomic_formula_term_condition", basic_tokens_transformer)
-    inject_anceff_grammar("pos_or_neg_cond", "pos_or_neg_cond_options (PLUS pos_or_neg_cond_options)*", basic_tokens_transformer)
-    inject_anceff_grammar("rml_def", "RML_TYPE atomic_formula_term_rml", basic_tokens_transformer)
-    inject_anceff_grammar("cond_type_def", "COND_TYPE cond_types", basic_tokens_transformer)
-    inject_anceff_grammar("ant_def", "ANT LPAR [poscond] [negcond] [condition] rml_def cond_type_def RPAR", basic_tokens_transformer)
-    inject_anceff_grammar("cons_def", "CONS LPAR [poscond] [negcond] rml_def cond_type_def RPAR", basic_tokens_transformer)
-    inject_anceff_grammar("atomic_formula_term_condition", "[EXC] bdi* LPAR [EXC] var RPAR", atomic_formula_term)
-    inject_anceff_grammar("condition", "CONDITION atomic_formula_term_condition", basic_tokens_transformer)
-    inject_anceff_grammar("anceff", "LPAR ANCEFF_NAME NAME [anceff_params] ant_def cons_def RPAR", basic_tokens_transformer)
-    inject_anceff_grammar("anceffs", "LPAR ANCEFFS_NAME anceff* RPAR", anc_effs_transformer)
-    inject_anceff_grammar("start", "anceffs", basic_token_transformer)
-    inject_anceff_grammar("var", "QMRK NAME", basic_tokens_transformer)
-    inject_anceff_grammar("bdi", "LSQB bdi_term COMMA var RSQB | LESSER_OP bdi_term COMMA var GREATER_OP", basic_tokens_transformer)
-    inject_anceff_grammar("bdi_term", "BELIEF | DESIRE | INTENTION", basic_tokens_transformer)
-
-
 # to build the domain grammar via Python magic
 def construct_domain_grammar():
     pddl.logic.predicates.Predicate.orig_str = pddl.logic.predicates.Predicate.__str__
@@ -513,37 +351,20 @@ def construct_domain_grammar():
     pddl.action.Action.__str__ = new_action_str
     pddl.action.Action.derive_condition = None
 
-    # domain._domain_parser_lark = domain._domain_parser_lark.replace(
-    #     "start: domain",
-    #     "start: anceffs_and_domain",
-    # ) 
-    imports = [
-        "%import .common.var -> var",
-        "%import .common.QMRK -> QMRK",
-        "%import .common.NAME -> NAME",
-        "%import .common.EXC -> EXC",
-        "%import .common.BELIEF -> BELIEF",
-        "%import .common.DESIRE -> DESIRE",
-        "%import .common.INTENTION -> INTENTION",
-        "%import .common.LSQB -> LSQB",
-        "%import .common.RSQB -> RSQB",
-        "%import .common.COMMA -> COMMA",        
-    ]
-    add_domain_imports(imports)
-
     # inject rules for defining agents
     inject_domain_grammar("agents", "LPAR \":agents\" agent+ RPAR", agents_transformer)
     inject_domain_grammar("agent", "/[a-zA-Z_][a-zA-Z0-9_]*/", agent_transformer)
 
     # inject_domain_grammar("anceffs_and_domain", "[anceffs] domain", basic_tokens_transformer)
 
-    domain._domain_parser_lark = domain._domain_parser_lark.replace(
+    replace_in_grammar(
         "LPAR DEFINE domain_def [requirements] [types] [constants] [predicates] [functions] structure_def* RPAR",
         "LPAR DEFINE domain_def agents [requirements] [types] [constants] [predicates] [functions] structure_def* RPAR"
     )   
+
     # inject rules for always known predicates
     inject_domain_grammar("AK", "\"{AK}\"", basic_token_transformer)
-    domain._domain_parser_lark = domain._domain_parser_lark.replace(
+    replace_in_grammar(
         "atomic_formula_skeleton:   LPAR NAME typed_list_variable RPAR",
         ""
     )
@@ -556,23 +377,19 @@ def construct_domain_grammar():
     inject_domain_grammar("NEVER", "\"never\"", basic_token_transformer)
     inject_domain_grammar("derived_conditions", "ALWAYS | NEVER | LPAR predicate derived_term* RPAR", basic_tokens_transformer)
     inject_domain_grammar("DERIVE_CONDITION", "\":derive-condition\"", basic_tokens_transformer)
-    domain._domain_parser_lark = domain._domain_parser_lark.replace(
+    replace_in_grammar(
         "action_def:        LPAR ACTION NAME PARAMETERS action_parameters action_body_def RPAR",
         ""
     )
+
     inject_domain_grammar("action_def", "LPAR ACTION NAME [DERIVE_CONDITION derived_conditions] PARAMETERS action_parameters action_body_def RPAR", action_transformer)
 
-    # inject rules for BDI terms
-    inject_domain_grammar("domain_bdi", "LSQB bdi_term COMMA var RSQB | LESSER_OP bdi_term COMMA var GREATER_OP", basic_tokens_transformer)
-    domain._domain_parser_lark = domain._domain_parser_lark.replace(
+    # inject rules for BDI terms    
+    replace_in_grammar(
         "atomic_formula_term:   LPAR predicate term* RPAR",
         ""
     )
     inject_domain_grammar("atomic_formula_term", "[EXC] bdi* LPAR [EXC] predicate term* RPAR", atomic_formula_term)
-    inject_domain_grammar("bdi_term", "BELIEF | DESIRE | INTENTION", basic_tokens_transformer)
-    inject_domain_grammar("bdi", "LSQB bdi_term COMMA var RSQB | LESSER_OP bdi_term COMMA var GREATER_OP", basic_tokens_transformer)
-
-    inject_domain_grammar("var", "QMRK NAME", basic_tokens_transformer)
 
     # Monkey patching to add agents to the Domain class
     pddl.core.Domain.orig_init = pddl.core.Domain.__init__
@@ -582,32 +399,18 @@ def construct_domain_grammar():
     pddl.core.Domain.orig_str = pddl.core.Domain.__str__
     pddl.core.Domain.__str__ = new_domain_str
 
-    pddl.core.AncillaryEffects = AncillaryEffects
+    delattr(domain.DomainTransformer, "start")
+
+def problem__constant(self, args):
+    """Process the 'constant' rule."""
+    assert_(len(args) == 1, "Unexpected parsing error.")
+    return Constant(args[0])
 
 def construct_problem_grammar():
-    # if "%import .domain.anceffs_and_domain -> anceffs_and_domain" not in problem._problem_parser_lark:
-    #     problem._problem_parser_lark += "%import .domain.anceffs_and_domain -> anceffs_and_domain"
-    # problem._problem_parser_lark = problem._problem_parser_lark.replace(
-    #     "start: problem",
-    #     "start: [anceffs_and_domain] problem",
-    # )
-    imports = [
-            "%import .common.QMRK -> QMRK",
-            "%import .common.NAME -> NAME",
-            "%import .common.EXC -> EXC",
-            "%import .common.BELIEF -> BELIEF",
-            "%import .common.DESIRE -> DESIRE",
-            "%import .common.INTENTION -> INTENTION",
-            "%import .common.LSQB -> LSQB",
-            "%import .common.RSQB -> RSQB",
-            "%import .common.COMMA -> COMMA",
-        ]
-    add_problem_imports(imports)
-
     # replace overall structure
-    problem._problem_parser_lark = problem._problem_parser_lark.replace(
-        "LPAR DEFINE problem_def problem_domain [problem_requirements] [objects] init goal [metric_spec] RPAR",
-        "LPAR DEFINE problem_def problem_domain [problem_requirements] [objects] depth task init_type init goal [metric_spec] [plan] RPAR"
+    replace_in_grammar(
+        "LPAR DEFINE problem_def problem_domain [requirements] [objects] init goal [metric_spec] RPAR",
+        "LPAR DEFINE problem_def problem_domain [objects] depth task init_type init goal [metric_spec] [plan] RPAR"
     )    
     inject_problem_grammar("DEPTH", "\":depth\"", basic_token_transformer)
     inject_problem_grammar("TASK", "\":task\"", basic_token_transformer)
@@ -617,21 +420,24 @@ def construct_problem_grammar():
     inject_problem_grammar("PLAN", "\":plan\"", basic_token_transformer)
     inject_problem_grammar("COMPLETE", "\"complete\"", basic_token_transformer)
     inject_problem_grammar("?require_task_key", "VALID | ASSESS", basic_tokens_transformer)
-    inject_problem_grammar("problem_bdi", "LSQB bdi_term COMMA NAME RSQB | LESSER_OP bdi_term COMMA NAME GREATER_OP", basic_tokens_transformer)
 
-    problem._problem_parser_lark = problem._problem_parser_lark.replace(
+    replace_in_grammar(
         "atomic_formula_name:   LPAR predicate NAME* RPAR",
         ""
     )
-    inject_problem_grammar("atomic_formula_name", "[EXC] bdi* LPAR [EXC] predicate NAME* RPAR", atomic_formula_name)
+    replace_in_grammar(
+        "goal:  LPAR GOAL gd RPAR",
+        ""
+    )
+    inject_problem_grammar("atomic_formula_name", "[EXC] problem_bdi* LPAR [EXC] predicate NAME* RPAR", atomic_formula_name)
+    inject_problem_grammar("problem_bdi", "LSQB bdi_term COMMA NAME RSQB | LESSER_OP bdi_term COMMA NAME GREATER_OP", basic_tokens_transformer)
+
     inject_problem_grammar("depth", "LPAR DEPTH NUMBER RPAR", depth_transformer)
     inject_problem_grammar("task", "LPAR TASK require_task_key RPAR", task_transformer)
     inject_problem_grammar("init_type", "LPAR INIT_TYPE COMPLETE RPAR", init_type_transformer)
     inject_problem_grammar("plan", "LPAR PLAN gd_name* RPAR", plan_transformer)
-
-    inject_problem_grammar("bdi_term", "BELIEF | DESIRE | INTENTION", basic_tokens_transformer)
-    inject_problem_grammar("bdi", "LSQB bdi_term COMMA NAME RSQB | LESSER_OP bdi_term COMMA NAME GREATER_OP", basic_tokens_transformer)
-
+    inject_problem_grammar("goal", "LPAR GOAL gd_name* RPAR", goal_transformer)
+    inject_problem_grammar("gd_name", "atomic_formula_name | LPAR NOT atomic_formula_name RPAR | LPAR AND gd_name* RPAR | LPAR binary_comp metric_f_exp metric_f_exp RPAR", basic_tokens_transformer)
 
     pddl.core.Problem.orig_init = pddl.core.Problem.__init__
     pddl.core.Problem.__init__ = new_init_problem
@@ -641,6 +447,19 @@ def construct_problem_grammar():
     pddl.core.Problem.task = None
     pddl.core.Problem.init_type = None
     pddl.core.Problem.plan = None
+
+    delattr(problem.ProblemTransformer, "start")
+    delattr(problem.ProblemTransformer, "atomic_formula_term")
+    delattr(problem.ProblemTransformer, "typed_list_name")
+    delattr(problem.ProblemTransformer, "f_exp")
+    delattr(problem.ProblemTransformer, "f_head")
+    delattr(problem.ProblemTransformer, "gd")
+
+    # have to remove duplicates with the domain file
+    delattr(problem.ProblemTransformer, "constant")
+    inject_problem_grammar("problem__constant", "NAME", problem__constant)
+    # don't need to define requirements twice
+    delattr(problem.ProblemTransformer, "requirements")
 
 def write(file_path, content):
     with open(file_path, "w") as file:
@@ -680,8 +499,8 @@ class AncEffDomainProblemTransformer(Transformer):
     """A transformer for domain + problems
     Taken from the fond-utils library"""
 
-    def start(self, children):
-        return children
+    # def start(self, children):
+    #     return children
     
     def anceff_start(self, children):
         return children[0]
@@ -692,21 +511,64 @@ class AncEffDomainProblemTransformer(Transformer):
     def problem_start(self, children):
         return children[0]
 
+def call_parser(text: str, parser: Lark, transformer: Transformer):
+    """
+    Parse a text with a Lark parser and transformer.
+
+    To produce a better traceback in case of an error, the function will temporarily overwrite the sys.tracebacklimit
+    value of the current interpreter.
+
+    :param text: the text to parse
+    :param parser: the Lark parser object
+    :param transformer: the Lark transformer object
+    :return: the object returned by the parser
+    """
+    old_tracebacklimit = getattr(sys, "tracebacklimit", None)
+    try:
+        sys.tracebacklimit = 0  # noqa
+        tree = parser.parse(text)
+        sys.tracebacklimit = None  # type: ignore
+        result = transformer.transform(tree)
+    finally:
+        if old_tracebacklimit is not None:
+            sys.tracebacklimit = old_tracebacklimit
+    return result
+
+def merge_transformers_modified(base_transformer=None, **transformers_to_merge):
+    """Adapted from the LARK merge_transformers function.
+    We don't want to change the function names in this merging as they
+    all use the same LARK file."""
+    if base_transformer is None:
+        base_transformer = Transformer()
+    for prefix, transformer in transformers_to_merge.items():
+        for method_name in dir(transformer):
+            method = getattr(transformer, method_name)
+            if not callable(method):
+                continue
+            if method_name.startswith("_") or method_name == "transform":
+                continue
+            if hasattr(base_transformer, method_name):
+                raise AttributeError("Cannot merge: method '%s' appears more than once" % method_name)
+
+            setattr(base_transformer, method_name, method)
+
+    return base_transformer
+
 class AncEffDomProbParser:
     """Domain and/or problem PDDL domain parser class.
     Taken from the fond-utils library"""
 
-    def __init__(self):
+    def __init__(self, grammar, import_paths=GRAMMAR_FILE):
         """Initialize."""
-        self._transformer = merge_transformers(
+        self._transformer = merge_transformers_modified(
             AncEffDomainProblemTransformer(),
-            anceff=AncEffTransformer(),
+            anceff=anc_eff.AncEffTransformer(),
             domain=DomainTransformer(),
             problem=ProblemTransformer(),
         )
         # need to use earley; lalr will not be able to recognise files with just problems (no left)
         self._parser = Lark(
-            DOMPROB_GRAMMAR, parser="earley", import_paths=[PARSERS_DIRECTORY]
+            grammar, parser="earley", import_paths=[import_paths]
         )
 
     def __call__(self, text):
@@ -718,36 +580,25 @@ class AncEffDomProbParser:
         """
         return call_parser(text, self._parser, self._transformer)
 
-DOMPROB_GRAMMAR = r"""
-    start: [anceff_start] [domain_start] [problem_start]
-
-    %ignore /\s+/
-    %ignore COMMENT
-
-    %import .ancillary_effects.start -> anceff_start
-    %import .domain.start -> domain_start
-    %import .problem.start -> problem_start
-
-    %import common.COMMENT -> COMMENT
-    %import common.WS -> WS
-
-"""
-
 if __name__ == "__main__":
-    # create ancillary effect lark file
-    write(os.path.join(domain.DOMAIN_GRAMMAR_FILE.parent, "ancillary_effects.lark"), anc_eff._anceff_parser_lark)
-    construct_anceff_grammar()
-    construct_common_grammar()
+    # read the ancillary effects grammar file and add to the main grammar file
+    with open("bdi_testing/ancillary_effects.lark", "r") as f:
+        anceff_grammar = f.read()
+    write_no_duplicate("\n" + anceff_grammar, GRAMMAR_FILE)
+    # modify the domain and problem grammar files to add in the new rules
     construct_domain_grammar()
     construct_problem_grammar()
-    write(os.path.join(domain.DOMAIN_GRAMMAR_FILE.parent, "ancillary_effects.lark"), anc_eff._anceff_parser_lark)
-    write(str(domain.DOMAIN_GRAMMAR_FILE), domain._domain_parser_lark)
-    write(str(problem.PROBLEM_GRAMMAR_FILE), problem._problem_parser_lark)
+
     pddl = "\n".join(read_pdkbddl_file("bdi_testing/bdi_pdkbddl_files/bdi_mvex_problem.pdkbddl"))
-    # pddl = "\n".join(read_pdkbddl_file("bdi_testing/original_pddl_files/blocksworld_prob.pddl"))
+    # # pddl = "\n".join(read_pdkbddl_file("bdi_testing/original_pddl_files/blocksworld_prob.pddl"))
     with open("bdi_testing/parsing_results/joined.pdkbddl", "w") as f:
         f.write(f"{pddl}\n")
-    parser = AncEffDomProbParser()
+
+    with open(GRAMMAR_FILE, "r") as f:
+        grammar = f.read()
+
+    parser = AncEffDomProbParser(grammar)
     result = parser(pddl)
-    with open("bdi_testing/parsing_results/parsed_problem.pddl", "w") as f:
-        f.write(f"\n{result}\n")
+    with open("bdi_testing/parsing_results/parsed.pdkbddl", "w") as f:
+        for r in result:
+            f.write(f"\n{r}\n")
