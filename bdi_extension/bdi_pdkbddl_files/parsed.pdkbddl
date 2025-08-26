@@ -1,4 +1,3 @@
-
 (:ancillary_effects
 	(:anceff kd45closure
 		:parameters (?a - agent)
@@ -101,7 +100,6 @@
 	)
 )
 
-
 (define (domain bdi)
 	(:requirements :typing)
 	(:agents )
@@ -109,9 +107,9 @@
 	    loc - object
 	)
 	(:predicates
-		{AK}(connected ?l1 - loc ?l2 - loc)
 		{AK}(at ?agent - agent ?l - loc)
 		(secret ?agent)
+		{AK}(connected ?l1 - loc ?l2 - loc)
 	)
 	(:action move
 	    :derive-condition always
@@ -139,7 +137,6 @@
 		)
 	)
 )
-
 (define (problem bdi-item)
 	(:domain bdi)
 	(:objects l1 l2 l3 - loc)
@@ -148,12 +145,12 @@
 	(:init-type complete)
 	(:init 
 		(connected l2 l3)
-		![d, a](!secret a)
-		(connected l3 l2)
-		(at a l1)
-		(connected l2 l1)
 		(connected l1 l2)
+		![d, a](!secret a)
+		(at a l1)
 		(at b l1)
+		(connected l3 l2)
+		(connected l2 l1)
 	)
 	(:goal ( and [i, b](secret a) ))
 	(:plan 

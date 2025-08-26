@@ -1,5 +1,4 @@
 # adapted from the PDDL library
-import re
 from lark import Lark
 import pddl
 import pddl.core
@@ -8,8 +7,8 @@ from pddl.logic.terms import Constant
 from pddl.parser import domain, problem, GRAMMAR_FILE
 from pddl.parser.domain import DomainTransformer
 from pddl.parser.problem import ProblemTransformer
-import anc_eff
-from pddl.logic.predicates import Predicate, _check_terms_consistency
+import anc_eff as anc_eff
+from pddl.logic.predicates import Predicate
 from pddl.formatter import (
     print_constants,
     print_function_skeleton,
@@ -18,14 +17,12 @@ from pddl.formatter import (
     remove_empty_lines,
     sort_and_print_collection,
 )
-from pddl.requirements import Requirements
 from pddl.action import Action
 from pddl._validation import Types
-from pddl.helpers.base import _typed_parameters, RegexConstrainedString, assert_
+from pddl.helpers.base import _typed_parameters, assert_
 from lark.lexer import Token
 from lark.visitors import Transformer
 from textwrap import indent
-from pdkb.problems import read_file
 import os
 import sys
 from parsing_utils import *
@@ -432,9 +429,12 @@ def write(file_path, content):
         file.write(content)
 
 def read_pdkbddl_file(fname):
-    """Adapted from the pdkb.problems.read_pdkbddl_file function."""
+    """Adapted from the pdkb.problems.read_pdkbddl_file function
+    and the pdkb.test.utils.read_file function."""
 
-    lines = read_file(fname)
+    lines = []
+    with open(fname, 'r') as f:
+        lines = [line.strip() for line in f.readlines()]
 
     found = True
     count = 0
@@ -548,23 +548,19 @@ class AncEffDomProbParser:
 
 if __name__ == "__main__":
     # read the ancillary effects grammar file and add to the main grammar file
-    with open("bdi_testing/ancillary_effects.lark", "r") as f:
+    with open("bdi_extension/ancillary_effects.lark", "r") as f:
         anceff_grammar = f.read()
     write_no_duplicate("\n" + anceff_grammar, GRAMMAR_FILE)
     # modify the domain and problem grammar files to add in the new rules
     construct_domain_grammar()
     construct_problem_grammar()
 
-    pddl = "\n".join(read_pdkbddl_file("bdi_testing/bdi_pdkbddl_files/bdi_mvex_problem.pdkbddl"))
-    # # pddl = "\n".join(read_pdkbddl_file("bdi_testing/original_pddl_files/blocksworld_prob.pddl"))
-    with open("bdi_testing/parsing_results/joined.pdkbddl", "w") as f:
-        f.write(f"{pddl}\n")
-
+    pddl = "\n".join(read_pdkbddl_file("bdi_extension/bdi_pdkbddl_files/bdi_mvex_problem.pdkbddl"))
     with open(GRAMMAR_FILE, "r") as f:
         grammar = f.read()
 
     parser = AncEffDomProbParser(grammar)
     result = parser(pddl)
-    with open("bdi_testing/parsing_results/parsed.pdkbddl", "w") as f:
+    with open("bdi_extension/bdi_pdkbddl_files/parsed.pdkbddl", "w") as f:
         for r in result:
-            f.write(f"\n{r}\n")
+            f.write(f"{r}\n")

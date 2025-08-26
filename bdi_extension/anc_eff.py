@@ -1,6 +1,5 @@
 from lark.visitors import Transformer
 from pddl.helpers.base import _typed_parameters
-from pddl.logic.terms import Constant, Variable
 from parsing_utils import *
 
 def anceff_atomic_formula_term(self, args):
