@@ -4,11 +4,20 @@ from pddl.custom_types import namelike, _check_not_a_keyword, name
 from pddl.logic.terms import Term
 from pddl.logic.predicates import Predicate, _check_terms_consistency
 from pddl.helpers.base import RegexConstrainedString
+from pddl.parser import GRAMMAR_FILE
 
 NL = "\n"
 NL_AND_TAB = "\n" + "\t"
 NL_AND_TABS = "\n" + "\t" * 2
 NL_AND_3_TABS = "\n" + "\t" * 3
+
+
+def write_no_duplicate(content, filename):
+    with open(filename, "r") as f:
+        grammar = f.read()
+    if content not in grammar:
+        with open(filename, "a+") as f:
+            f.write(content)
 
 # general function for recursive printing of Tokens/lists of Tokens
 def recursive_print(tree, outer_sep=""):
@@ -37,6 +46,14 @@ def basic_token_transformer(self, args):
     if type(args) is not Token:
         raise ValueError(f"Invalid token definition: {args}")
     return args
+
+def replace_in_grammar(old, new, grammar_file=GRAMMAR_FILE):
+    with open(grammar_file, "r") as f:
+        grammar = f.read()
+    if old in grammar:
+        grammar = grammar.replace(old, new)
+        with open(grammar_file, "w") as f:
+            f.write(grammar)
 
 @staticmethod
 class name(RegexConstrainedString):
