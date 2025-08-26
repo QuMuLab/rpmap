@@ -1,16 +1,15 @@
-# adapted from the PDDL library
-from lark import Lark
-import pddl
 import anc_eff as anc_eff
+import os
+import pddl
+import sys
+from domain import construct_domain_grammar
+from lark import Lark
 from lark.visitors import Transformer
+from parsing_utils import *
+from pddl.parser import GRAMMAR_FILE
 from pddl.parser.domain import DomainTransformer
 from pddl.parser.problem import ProblemTransformer
-from pddl.parser import GRAMMAR_FILE
-from domain import construct_domain_grammar
 from problem import construct_problem_grammar
-import os
-import sys
-from parsing_utils import *
 
 
 def write(file_path, content):

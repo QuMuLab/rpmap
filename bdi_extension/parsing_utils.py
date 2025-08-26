@@ -1,9 +1,9 @@
 import re
 from lark.lexer import Token
 from pddl.custom_types import namelike, _check_not_a_keyword, name
-from pddl.logic.terms import Term
-from pddl.logic.predicates import Predicate, _check_terms_consistency
 from pddl.helpers.base import RegexConstrainedString
+from pddl.logic.predicates import Predicate, _check_terms_consistency
+from pddl.logic.terms import Term
 from pddl.parser import GRAMMAR_FILE
 
 NL = "\n"

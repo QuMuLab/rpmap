@@ -1,4 +1,8 @@
+import pddl.core
+import pddl.logic
+from lark.lexer import Token
 from parsing_utils import *
+from pddl.action import Action
 from pddl.formatter import (
     print_constants,
     print_function_skeleton,
@@ -7,15 +11,12 @@ from pddl.formatter import (
     remove_empty_lines,
     sort_and_print_collection,
 )
-from pddl.logic.predicates import Predicate
-from pddl.action import Action
-from pddl._validation import Types
 from pddl.helpers.base import _typed_parameters
-from lark.lexer import Token
-from textwrap import indent
+from pddl.logic.predicates import Predicate
 from pddl.parser import domain, GRAMMAR_FILE
-import pddl.core
-import pddl.logic
+from pddl._validation import Types
+from textwrap import indent
+
 
 def inject_domain_grammar(label, rule, function, grammar_file=GRAMMAR_FILE):
     new_rule = f"\n{label}: {rule}\n"

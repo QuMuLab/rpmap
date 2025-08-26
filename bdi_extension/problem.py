@@ -1,3 +1,4 @@
+import pddl.core
 from parsing_utils import *
 from pddl.formatter import (
     print_constants,
@@ -5,9 +6,8 @@ from pddl.formatter import (
     sort_and_print_collection,
 )
 from pddl.helpers.base import assert_
-from pddl.parser import problem, GRAMMAR_FILE
 from pddl.logic.terms import Constant
-import pddl.core
+from pddl.parser import problem, GRAMMAR_FILE
 from textwrap import indent
 
 # pretty print PDDL collection

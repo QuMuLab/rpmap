@@ -1,6 +1,7 @@
 from lark.visitors import Transformer
-from pddl.helpers.base import _typed_parameters
 from parsing_utils import *
+from pddl.helpers.base import _typed_parameters
+
 
 def anceff_atomic_formula_term(self, args):
     # adapted from the PDDL DomainTransformer class atomic_formula_term method
