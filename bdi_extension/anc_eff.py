@@ -41,6 +41,37 @@ def anceff_atomic_formula_term(self, args):
     p.negated = negated # store the negated term, e.g. (!term ?a ?b)
     return p
 
+class AncillaryEffects:
+    def __init__(self, anc_effs) -> None:
+        """Initialize the ancillary effect transformer."""
+        self._anceffs = anc_effs
+
+    def __str__(self):
+        body = f"(:ancillary_effects"
+        # loop through all ancillary effects
+        for anc_eff in self._anceffs: 
+            anc_eff = anc_eff[2:-1]
+            # add name
+            body += f"{NL_AND_TAB}(:anceff {anc_eff[0]}"
+            # add parameters (if any)
+            if anc_eff[1]:
+                body += f"{NL_AND_TABS}:parameters ({_typed_parameters(*anc_eff[1][1:])})"
+            # add conditions
+            for cond in anc_eff[2:4]:
+                body += f"{NL_AND_TABS}{cond[0]}{NL_AND_TABS}("
+                cond = cond[2:-1]
+                # add each of the condition items
+                for item in cond:
+                    if item:
+                        if type(item[1]) == list:
+                            body += f"{NL_AND_3_TABS}{item[0].value} {recursive_print(item[1], ' ')}"
+                        else:
+                            body += f"{NL_AND_3_TABS}{recursive_print(item, ' ')}"
+                body += f"{NL_AND_TABS})"
+            body += f"{NL_AND_TAB})"
+        body += f"{NL})\n"
+        return body
+
 class AncEffTransformer(Transformer):
     def __init__(self):
         """Initialize the AncEffTransformer."""
@@ -111,35 +142,3 @@ class AncEffTransformer(Transformer):
         ]
         for f in for_aft:
             setattr(AncEffTransformer, f, anceff_atomic_formula_term)
-
-
-class AncillaryEffects:
-    def __init__(self, anc_effs) -> None:
-        """Initialize the ancillary effect transformer."""
-        self._anceffs = anc_effs
-
-    def __str__(self):
-        body = f"(:ancillary_effects"
-        # loop through all ancillary effects
-        for anc_eff in self._anceffs: 
-            anc_eff = anc_eff[2:-1]
-            # add name
-            body += f"{NL_AND_TAB}(:anceff {anc_eff[0]}"
-            # add parameters (if any)
-            if anc_eff[1]:
-                body += f"{NL_AND_TABS}:parameters ({_typed_parameters(*anc_eff[1][1:])})"
-            # add conditions
-            for cond in anc_eff[2:4]:
-                body += f"{NL_AND_TABS}{cond[0]}{NL_AND_TABS}("
-                cond = cond[2:-1]
-                # add each of the condition items
-                for item in cond:
-                    if item:
-                        if type(item[1]) == list:
-                            body += f"{NL_AND_3_TABS}{item[0].value} {recursive_print(item[1], ' ')}"
-                        else:
-                            body += f"{NL_AND_3_TABS}{recursive_print(item, ' ')}"
-                body += f"{NL_AND_TABS})"
-            body += f"{NL_AND_TAB})"
-        body += f"{NL})\n"
-        return body

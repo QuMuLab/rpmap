@@ -17,33 +17,7 @@ from pddl.parser import domain, GRAMMAR_FILE
 from pddl._validation import Types
 from textwrap import indent
 
-
-def inject_domain_grammar(label, rule, function, grammar_file=GRAMMAR_FILE):
-    new_rule = f"\n{label}: {rule}\n"
-    write_no_duplicate(new_rule, grammar_file)
-    setattr(domain.DomainTransformer, label, function)
-
-def agents_transformer(self, args):
-    self._agents = set(args[1:-1])
-    return {"agents": self._agents}
-
-def agent_transformer(self, args):
-    if len(args) != 1:
-        raise ValueError(f"Invalid agent definition: {args}")
-    return args[0].value
-
-def atomic_formula_skeleton(self, args):   
-    # adapted from the PDDL DomainTransformer class atomic_formula_skeleton method
-    predicate_name = args[2] # get name of the predicate
-    ak = False
-    # have an "always known"
-    ak = True if args[0] else False
-    # remove "always known" so variable is are in the correct position
-    args = args[1:]
-    variables = self._formula_skeleton(args)
-    p = Predicate(predicate_name, *variables)
-    p.always_known = True if ak else False
-    return p
+# ----- TRANSFORMER FUNCTIONS -----
 
 def action_transformer(self, args):
     # adapted from the PDDL DomainTransformer class action_def method
@@ -58,6 +32,28 @@ def action_transformer(self, args):
     a = Action(action_name, variables, **action_body)
     a.derive_condition = args[4]
     return a
+
+def agent_transformer(self, args):
+    if len(args) != 1:
+        raise ValueError(f"Invalid agent definition: {args}")
+    return args[0].value
+
+def agents_transformer(self, args):
+    self._agents = set(args[1:-1])
+    return {"agents": self._agents}
+
+def atomic_formula_skeleton(self, args):   
+    # adapted from the PDDL DomainTransformer class atomic_formula_skeleton method
+    predicate_name = args[2] # get name of the predicate
+    ak = False
+    # have an "always known"
+    ak = True if args[0] else False
+    # remove "always known" so variable is are in the correct position
+    args = args[1:]
+    variables = self._formula_skeleton(args)
+    p = Predicate(predicate_name, *variables)
+    p.always_known = True if ak else False
+    return p
 
 def atomic_formula_term(self, args):
     # adapted from the PDDL DomainTransformer class atomic_formula_term method
@@ -90,6 +86,27 @@ def atomic_formula_term(self, args):
     p.negated = negated # store the negated term, e.g. (!term ?a ?b)
     return p
 
+# ----- STRING AND PRINT FUNCTIONS -----
+
+# recursive print for the BDI function
+def recursive_print_bdi(tree):
+    tree_str = recursive_print(tree)
+    return tree_str if "," not in tree_str else f"{', '.join(tree_str.split(','))}"
+
+def new_action_str(self):
+    # TODO: add support for derived conditions
+    # adapted from the PDDL Action class __str__ method
+    operator_str = "(:action {0}\n".format(self.name)
+    if self.derive_condition:
+        operator_str += f"    :derive-condition {recursive_print(self.derive_condition)}\n"
+    operator_str += f"    :parameters ({_typed_parameters(self.parameters)})\n"
+    if self.precondition is not None:
+        operator_str += f"    :precondition ({self.precondition.SYMBOL}{NL_AND_TABS}{NL_AND_TABS.join(map(str, self.precondition.operands))}{NL_AND_TAB})\n"
+    if self.effect is not None:
+        operator_str += f"    :effect ({self.effect.SYMBOL}{NL_AND_TABS}{NL_AND_TABS.join(map(str, self.effect.operands))}{NL_AND_TAB})\n"
+    operator_str += ")"
+    return operator_str
+
 def get_predicate_prefix(self):
     p_str = ""
     if self.always_known:
@@ -109,21 +126,6 @@ def new_predicate_str(self):
         return f"{p_str})"
     else:
         return f"{p_str} {' '.join(map(str, self.terms))})"   
-    
-# for Action class
-def new_action_str(self):
-    # TODO: add support for derived conditions
-    # adapted from the PDDL Action class __str__ method
-    operator_str = "(:action {0}\n".format(self.name)
-    if self.derive_condition:
-        operator_str += f"    :derive-condition {recursive_print(self.derive_condition)}\n"
-    operator_str += f"    :parameters ({_typed_parameters(self.parameters)})\n"
-    if self.precondition is not None:
-        operator_str += f"    :precondition ({self.precondition.SYMBOL}{NL_AND_TABS}{NL_AND_TABS.join(map(str, self.precondition.operands))}{NL_AND_TAB})\n"
-    if self.effect is not None:
-        operator_str += f"    :effect ({self.effect.SYMBOL}{NL_AND_TABS}{NL_AND_TABS.join(map(str, self.effect.operands))}{NL_AND_TAB})\n"
-    operator_str += ")"
-    return operator_str
 
 def new_domain_str(self):
     # adapted from the PDDL Domain class __str__ method
@@ -159,6 +161,8 @@ def new_domain_str(self):
 
     return result
 
+# ----- OTHER CLASS MODIFICATIONS -----
+
 def new_init_domain(self, *args, **kwargs):
     self._agents = kwargs["agents"]
     kwargs["types"]["agent"] = None
@@ -180,10 +184,12 @@ def new_predicate_hash(self):
     bdi_str = recursive_print_bdi(self.bdi) if self.bdi else ""
     return hash((self.name, self.arity, self.terms, self.always_known, bdi_str, self.negated))
 
-# recursive print for the BDI function
-def recursive_print_bdi(tree):
-    tree_str = recursive_print(tree)
-    return tree_str if "," not in tree_str else f"{', '.join(tree_str.split(','))}"
+# ----- GRAMMAR CONSTRUCTION -----
+
+def inject_domain_grammar(label, rule, function, grammar_file=GRAMMAR_FILE):
+    new_rule = f"\n{label}: {rule}\n"
+    write_no_duplicate(new_rule, grammar_file)
+    setattr(domain.DomainTransformer, label, function)
 
 # to build the domain grammar via Python magic
 def construct_domain_grammar():

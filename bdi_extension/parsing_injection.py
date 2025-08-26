@@ -94,7 +94,7 @@ def merge_transformers_modified(base_transformer=None, **transformers_to_merge):
     all use the same LARK file."""
     if base_transformer is None:
         base_transformer = Transformer()
-    for prefix, transformer in transformers_to_merge.items():
+    for _, transformer in transformers_to_merge.items():
         for method_name in dir(transformer):
             method = getattr(transformer, method_name)
             if not callable(method):

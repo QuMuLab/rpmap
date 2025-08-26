@@ -10,15 +10,7 @@ from pddl.logic.terms import Constant
 from pddl.parser import problem, GRAMMAR_FILE
 from textwrap import indent
 
-# pretty print PDDL collection
-def pprint_pddl_collection(prefix, collection,):
-    return f"{prefix} {NL_AND_TAB}{NL_AND_TAB.join(map(str, collection))}{NL})\n"
-
-def inject_problem_grammar(label, rule, function, grammar_file=GRAMMAR_FILE):
-    new_rule = f"\n{label}: {rule}\n"
-    write_no_duplicate(new_rule, grammar_file)
-    setattr(problem.ProblemTransformer, label, function)
-
+# ----- TRANSFORMER FUNCTIONS -----
 def atomic_formula_name(self, args):
     # adapted from the PDDL ProblemTransformer class atomic_formula_name method
     # figure out where the BDI term ends, e.g. (!)[?agent] or (!)<?agent>
@@ -49,9 +41,9 @@ def depth_transformer(self, args):
     args = basic_tokens_transformer(self, args)
     return ("depth", args)
 
-def task_transformer(self, args):
-    args = basic_tokens_transformer(self, args)
-    return ("task", args)
+def goal_transformer(self, args):
+    args = self.init(args)
+    return ("goal", args[1])
 
 def init_type_transformer(self, args):
     args = basic_tokens_transformer(self, args)
@@ -61,20 +53,15 @@ def plan_transformer(self, args):
     args = self.init(args)
     return ("plan", args[1]) 
 
-def goal_transformer(self, args):
-    args = self.init(args)
-    return ("goal", args[1]) 
+def task_transformer(self, args):
+    args = basic_tokens_transformer(self, args)
+    return ("task", args)
 
-def new_init_problem(self, *args, **kwargs):
-    self.depth = int(kwargs["depth"][2].value)  # store the depth
-    self.task = kwargs["task"][2].value  # store the task
-    self.init_type = kwargs["init_type"][2].value  # store the init type
-    self.plan = kwargs["plan"] # store the plan
-    kwargs.pop("depth")
-    kwargs.pop("task")
-    kwargs.pop("init_type")
-    kwargs.pop("plan")
-    self.orig_init(*args, **kwargs)
+# ----- STRING AND PRINT FUNCTIONS -----
+
+# pretty print PDDL collection
+def pprint_pddl_collection(prefix, collection,):
+    return f"{prefix} {NL_AND_TAB}{NL_AND_TAB.join(map(str, collection))}{NL})\n"
 
 def new_problem_str(self):
     # adapted from the PDDL Problem class __str__ method
@@ -95,10 +82,30 @@ def new_problem_str(self):
     result = remove_empty_lines(result)
     return result
 
+# ----- OTHER CLASS MODIFICATIONS -----
+
+def new_init_problem(self, *args, **kwargs):
+    self.depth = int(kwargs["depth"][2].value)  # store the depth
+    self.task = kwargs["task"][2].value  # store the task
+    self.init_type = kwargs["init_type"][2].value  # store the init type
+    self.plan = kwargs["plan"] # store the plan
+    kwargs.pop("depth")
+    kwargs.pop("task")
+    kwargs.pop("init_type")
+    kwargs.pop("plan")
+    self.orig_init(*args, **kwargs)
+
 def problem__constant(self, args):
     """Process the 'constant' rule."""
     assert_(len(args) == 1, "Unexpected parsing error.")
     return Constant(args[0])
+
+# ----- GRAMMAR CONSTRUCTION -----
+
+def inject_problem_grammar(label, rule, function, grammar_file=GRAMMAR_FILE):
+    new_rule = f"\n{label}: {rule}\n"
+    write_no_duplicate(new_rule, grammar_file)
+    setattr(problem.ProblemTransformer, label, function)
 
 def construct_problem_grammar():
     # replace overall structure

@@ -11,13 +11,7 @@ NL_AND_TAB = "\n" + "\t"
 NL_AND_TABS = "\n" + "\t" * 2
 NL_AND_3_TABS = "\n" + "\t" * 3
 
-
-def write_no_duplicate(content, filename):
-    with open(filename, "r") as f:
-        grammar = f.read()
-    if content not in grammar:
-        with open(filename, "a+") as f:
-            f.write(content)
+# ----- PRINT AND FILE WRITE FUNCTIONS -----
 
 # general function for recursive printing of Tokens/lists of Tokens
 def recursive_print(tree, outer_sep=""):
@@ -37,16 +31,6 @@ def recursive_print(tree, outer_sep=""):
     else:
         return str(tree) if tree else ""
     
-def basic_tokens_transformer(self, args):
-    if not args or args is None:
-        raise ValueError(f"Invalid definition of tokens: {args}")
-    return args
-
-def basic_token_transformer(self, args):
-    if type(args) is not Token:
-        raise ValueError(f"Invalid token definition: {args}")
-    return args
-
 def replace_in_grammar(old, new, grammar_file=GRAMMAR_FILE):
     with open(grammar_file, "r") as f:
         grammar = f.read()
@@ -54,6 +38,27 @@ def replace_in_grammar(old, new, grammar_file=GRAMMAR_FILE):
         grammar = grammar.replace(old, new)
         with open(grammar_file, "w") as f:
             f.write(grammar)
+
+def write_no_duplicate(content, filename):
+    with open(filename, "r") as f:
+        grammar = f.read()
+    if content not in grammar:
+        with open(filename, "a+") as f:
+            f.write(content)
+
+# ----- GENERAL TRANSFORMERS -----
+    
+def basic_token_transformer(self, args):
+    if type(args) is not Token:
+        raise ValueError(f"Invalid token definition: {args}")
+    return args
+
+def basic_tokens_transformer(self, args):
+    if not args or args is None:
+        raise ValueError(f"Invalid definition of tokens: {args}")
+    return args
+
+# ----- GENERAL CLASSES -----
 
 @staticmethod
 class name(RegexConstrainedString):
