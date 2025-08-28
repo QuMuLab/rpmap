@@ -13,12 +13,15 @@ from problem import construct_problem_grammar
 
 
 def write(file_path, content):
+    """Write content to a file."""
     with open(file_path, "w") as file:
         file.write(content)
 
 def read_pdkbddl_file(fname):
     """Adapted from the pdkb.problems.read_pdkbddl_file function
-    and the pdkb.test.utils.read_file function."""
+    and the pdkb.test.utils.read_file function.
+    
+    Reads a pdkbddl file to a list of lines."""
 
     lines = []
     with open(fname, 'r') as f:
@@ -52,9 +55,6 @@ def read_pdkbddl_file(fname):
 class AncEffDomainProblemTransformer(Transformer):
     """A transformer for domain + problems
     Taken from the fond-utils library"""
-
-    # def start(self, children):
-    #     return children
     
     def anceff_start(self, children):
         return children[0]
@@ -142,13 +142,15 @@ if __name__ == "__main__":
     # modify the domain and problem grammar files to add in the new rules
     construct_domain_grammar()
     construct_problem_grammar()
-
+    # grab the PDDL
     pddl = "\n".join(read_pdkbddl_file("bdi_extension/bdi_pdkbddl_files/bdi_mvex_problem.pdkbddl"))
+    # read the lark file
     with open(GRAMMAR_FILE, "r") as f:
         grammar = f.read()
-
+    # set up the parser with the lark and parse the PDDL
     parser = AncEffDomProbParser(grammar)
     result = parser(pddl)
     with open("bdi_extension/bdi_pdkbddl_files/parsed.pdkbddl", "w") as f:
+        # one result for the ancillary effects, one for the domain, and one for the problem
         for r in result:
             f.write(f"{r}\n")

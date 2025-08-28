@@ -102,13 +102,13 @@
 
 (define (domain bdi)
 	(:requirements :typing)
-	(:agents )
+	(:agents a b)
 	(:types
 	    loc - object
 	)
 	(:predicates
-		{AK}(at ?agent - agent ?l - loc)
 		(secret ?agent)
+		{AK}(at ?agent - agent ?l - loc)
 		{AK}(connected ?l1 - loc ?l2 - loc)
 	)
 	(:action move
@@ -144,13 +144,13 @@
 	(:task valid_generation)
 	(:init-type complete)
 	(:init 
-		(connected l1 l2)
-		![d, a](!secret a)
-		(connected l2 l3)
-		(at a l1)
 		(at b l1)
-		(connected l2 l1)
+		(at a l1)
+		(connected l2 l3)
 		(connected l3 l2)
+		![d, a](!secret a)
+		(connected l1 l2)
+		(connected l2 l1)
 	)
 	(:goal ( and [i, b](secret a) ))
 	(:plan 

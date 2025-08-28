@@ -20,7 +20,7 @@ from textwrap import indent
 # ----- TRANSFORMER FUNCTIONS -----
 
 def action_transformer(self, args):
-    # adapted from the PDDL DomainTransformer class action_def method
+    """Adapted from the pddl.parser.domain.DomainTransformer.action_def method."""
     action_name = args[2]
     variables = args[6]
 
@@ -34,16 +34,19 @@ def action_transformer(self, args):
     return a
 
 def agent_transformer(self, args):
+    """Transformer for a single agent."""
     if len(args) != 1:
         raise ValueError(f"Invalid agent definition: {args}")
     return args[0].value
 
 def agents_transformer(self, args):
+    """Transformer for agents."""
+    # assign the agents
     self._agents = set(args[1:-1])
     return {"agents": self._agents}
 
 def atomic_formula_skeleton(self, args):   
-    # adapted from the PDDL DomainTransformer class atomic_formula_skeleton method
+    """Adapted from the pddl.parser.domain.DomainTransformer.atomic_formula_skeleton method."""
     predicate_name = args[2] # get name of the predicate
     ak = False
     # have an "always known"
@@ -56,8 +59,8 @@ def atomic_formula_skeleton(self, args):
     return p
 
 def atomic_formula_term(self, args):
-    # adapted from the PDDL DomainTransformer class atomic_formula_term method
-    # figure out where the BDI term ends, e.g. (!)[?agent] or (!)<?agent>
+    """Adapted from the pddl.parser.domain.DomainTransformer.atomic_formula_term method"""
+    # figure out where the BDI term ends, e.g. (!)[b, ?agent]{index} or (!)<b, ?agent>{index}.
     # (if there's no BDI term, we just skip over None)
     after_bdi = None
     for i in range(len(args)):
@@ -88,14 +91,15 @@ def atomic_formula_term(self, args):
 
 # ----- STRING AND PRINT FUNCTIONS -----
 
-# recursive print for the BDI function
 def recursive_print_bdi(tree):
+    """Recursive print for the BDI function."""
     tree_str = recursive_print(tree)
+    # add a space after the comma
     return tree_str if "," not in tree_str else f"{', '.join(tree_str.split(','))}"
 
 def new_action_str(self):
+    """New action string adapted from the pddl.action.Action.__str__ method."""
     # TODO: add support for derived conditions
-    # adapted from the PDDL Action class __str__ method
     operator_str = "(:action {0}\n".format(self.name)
     if self.derive_condition:
         operator_str += f"    :derive-condition {recursive_print(self.derive_condition)}\n"
@@ -108,6 +112,7 @@ def new_action_str(self):
     return operator_str
 
 def get_predicate_prefix(self):
+    """Return the string version of a predicate previx (with AK and BDI terms if necessary)."""
     p_str = ""
     if self.always_known:
         p_str += "{AK}"
@@ -116,7 +121,7 @@ def get_predicate_prefix(self):
     return p_str
 
 def new_predicate_str(self):
-    # adapted from the PDDL Predicate class __str__ method
+    """New predicate string adapted from the pddl.logic.Predicate.__str__ method."""
     p_str = self.get_predicate_prefix()
     if self.negated:
         p_str += f"(!{self.name}"
@@ -128,11 +133,12 @@ def new_predicate_str(self):
         return f"{p_str} {' '.join(map(str, self.terms))})"   
 
 def new_domain_str(self):
+    """New domain string adapted from the pddl.core.Domain.__str__ method."""
     # adapted from the PDDL Domain class __str__ method
     result = f"(define (domain {self.name})"
     body = ""
     body += sort_and_print_collection("(:requirements ", self.requirements, ")\n")
-    body += f"(:agents {' '.join(sorted(self.agents)) if self.agents else ''})\n"
+    body += f"(:agents {' '.join(sorted(self._agents)) if self._agents else ''})\n"
     del self.types["agent"]  # remove agents from types
     self._types = Types(self.types, self._requirements)
     body += print_types_or_functions_with_parents("(:types", self.types, ")\n")
@@ -164,12 +170,15 @@ def new_domain_str(self):
 # ----- OTHER CLASS MODIFICATIONS -----
 
 def new_init_domain(self, *args, **kwargs):
+    """New init function for the pddl.core.Domain that takes into account agents."""
     self._agents = kwargs["agents"]
+    # adds an agent type so agent variables are recognized
     kwargs["types"]["agent"] = None
     kwargs.pop("agents")
     self.orig_init(*args, **kwargs)
 
 def new_predicate_eq(self, other):
+    """New predicate equality check that takes into account the new always_known, bdi, and negated terms."""
     # adapted from the PDDL Predicate class __eq__ method
     return (
             isinstance(other, Predicate)
@@ -181,19 +190,23 @@ def new_predicate_eq(self, other):
         )
 
 def new_predicate_hash(self):
+    """New predicate hash that takes into account the new always_known, bdi, and negated terms."""
     bdi_str = recursive_print_bdi(self.bdi) if self.bdi else ""
     return hash((self.name, self.arity, self.terms, self.always_known, bdi_str, self.negated))
 
 # ----- GRAMMAR CONSTRUCTION -----
 
 def inject_domain_grammar(label, rule, function, grammar_file=GRAMMAR_FILE):
+    """Inject the new rule and its rule into the .lark file and assign the rule
+    to a function in the transformer."""
     new_rule = f"\n{label}: {rule}\n"
     write_no_duplicate(new_rule, grammar_file)
     setattr(domain.DomainTransformer, label, function)
 
 # to build the domain grammar via Python magic
 def construct_domain_grammar():
-    pddl.logic.predicates.Predicate.orig_str = pddl.logic.predicates.Predicate.__str__
+    """Construct the entire domain grammar."""
+    # reassign these predicate functions
     pddl.logic.predicates.Predicate.__str__ = new_predicate_str
     pddl.logic.predicates.Predicate.__eq__ = new_predicate_eq
     pddl.logic.predicates.Predicate.__hash__ = new_predicate_hash
@@ -201,29 +214,24 @@ def construct_domain_grammar():
     pddl.logic.predicates.Predicate.always_known = None
     pddl.logic.predicates.Predicate.bdi = None
     pddl.logic.predicates.Predicate.negated = None
-    pddl.action.Action.orig_str = pddl.action.Action.__str__
     pddl.action.Action.__str__ = new_action_str
     pddl.action.Action.derive_condition = None
-
     # inject rules for defining agents
     inject_domain_grammar("agents", "LPAR \":agents\" agent+ RPAR", agents_transformer)
     inject_domain_grammar("agent", "/[a-zA-Z_][a-zA-Z0-9_]*/", agent_transformer)
-
-    # inject_domain_grammar("anceffs_and_domain", "[anceffs] domain", basic_tokens_transformer)
-
+    # replace the overall structure
     replace_in_grammar(
         "LPAR DEFINE domain_def [requirements] [types] [constants] [predicates] [functions] structure_def* RPAR",
         "LPAR DEFINE domain_def agents [requirements] [types] [constants] [predicates] [functions] structure_def* RPAR"
     )   
-
     # inject rules for always known predicates
     inject_domain_grammar("AK", "\"{AK}\"", basic_token_transformer)
+    # replace the atomic formula skeleton
     replace_in_grammar(
         "atomic_formula_skeleton:   LPAR NAME typed_list_variable RPAR",
         ""
     )
     inject_domain_grammar("atomic_formula_skeleton", "[AK] LPAR NAME typed_list_variable RPAR", atomic_formula_skeleton)
-    
     # inject rules for derived conditions
     inject_domain_grammar("DLR", "\"$\"", basic_token_transformer)
     inject_domain_grammar("derived_term", "var | DLR NAME DLR", basic_tokens_transformer)
@@ -231,26 +239,21 @@ def construct_domain_grammar():
     inject_domain_grammar("NEVER", "\"never\"", basic_token_transformer)
     inject_domain_grammar("derived_conditions", "ALWAYS | NEVER | LPAR predicate derived_term* RPAR", basic_tokens_transformer)
     inject_domain_grammar("DERIVE_CONDITION", "\":derive-condition\"", basic_tokens_transformer)
+    # replace the action definition
     replace_in_grammar(
         "action_def:        LPAR ACTION NAME PARAMETERS action_parameters action_body_def RPAR",
         ""
     )
-
     inject_domain_grammar("action_def", "LPAR ACTION NAME [DERIVE_CONDITION derived_conditions] PARAMETERS action_parameters action_body_def RPAR", action_transformer)
-
-    # inject rules for BDI terms    
+    # inject the rule for a BDI version of the atomic_formula_term
     replace_in_grammar(
         "atomic_formula_term:   LPAR predicate term* RPAR",
         ""
     )
     inject_domain_grammar("atomic_formula_term", "[EXC] bdi* LPAR [EXC] predicate term* RPAR", atomic_formula_term)
-
-    # Monkey patching to add agents to the Domain class
+    # replace the init and string functions
     pddl.core.Domain.orig_init = pddl.core.Domain.__init__
     pddl.core.Domain.__init__ = new_init_domain
-    pddl.core.Domain.agents = None
-    # Similar monkey patching for the string representation of the Domain class
-    pddl.core.Domain.orig_str = pddl.core.Domain.__str__
     pddl.core.Domain.__str__ = new_domain_str
-
+    # delete the start attribute (a new start rule will be made)
     delattr(domain.DomainTransformer, "start")

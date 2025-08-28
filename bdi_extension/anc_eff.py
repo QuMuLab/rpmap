@@ -4,8 +4,10 @@ from pddl.helpers.base import _typed_parameters
 
 
 def anceff_atomic_formula_term(self, args):
-    # adapted from the PDDL DomainTransformer class atomic_formula_term method
-    # figure out where the BDI term ends, e.g. (!)[?agent] or (!)<?agent>
+    """Create a modification of the atomic formula term transformer for ancillary effects.
+    Adapted from the pddl.parser.domain.DomainTransformer.atomic_formula_term method.
+    """
+    # figure out where the BDI term ends, e.g. (!)[b, ?agent]{index} or (!)<b, ?agent>{index}.
     # (if there's no BDI term, we just skip over None)
     after_bdi = None
     for i in range(len(args)):
@@ -15,12 +17,15 @@ def anceff_atomic_formula_term(self, args):
                 after_bdi = i
                 break
     negated = False
+    # check for EXC (negation)
     if args[after_bdi + 1]:
         if "EXC" in args[after_bdi + 1].type:
             negated = True        
     raw_name = args[after_bdi + 2:-1]
     name = []
     var_pred = False
+    # we get either a simple name like (rml) or a variable name like (?mu).
+    # we just treat it like the string name of a predicate.
     for t in raw_name:
         if type(t) == list:
             var_pred = True
@@ -34,6 +39,7 @@ def anceff_atomic_formula_term(self, args):
             raise ValueError(f"Dealing with an unknown ancillary effect atomic formula term type {t}.")
     name = "".join(str(name)) if len(name) > 1 else name[0]
     if var_pred:
+        # need this so the regex can allow a question mark.
         p = VariablePredicate(name)
     else:
         p = Predicate(name)
@@ -42,11 +48,13 @@ def anceff_atomic_formula_term(self, args):
     return p
 
 class AncillaryEffects:
+    """Class for Ancillary Effects, analogous to the pddl.core.Domain and pddl.core.Problem classes."""
     def __init__(self, anc_effs) -> None:
-        """Initialize the ancillary effect transformer."""
+        """Initialize the Ancillary Effects by just saving the passed ancillary effects."""
         self._anceffs = anc_effs
 
     def __str__(self):
+        """String function for Ancillary Effects."""
         body = f"(:ancillary_effects"
         # loop through all ancillary effects
         for anc_eff in self._anceffs: 
@@ -83,15 +91,19 @@ class AncEffTransformer(Transformer):
         return children
     
     def list_comp(self, args):
+        """Transformer for list comprehension."""
         if not args or args is None:
             raise ValueError(f"Invalid definition of tokens: {args}")
+        # "COMPOUND" is a print tag so we can know to print these differently.
         return ["COMPOUND", *args]
     
     def anceffs(self, args):
+        """Transformer for ancillary effects which strips the brackets and ancillary effects name."""
         return AncillaryEffects(args[2:-1])
     
     def set_up_transformers(self):
-        # use basic token transformers
+        """Assign the names of rules to functions in the AncEffTransformer."""
+        # use the basic token transformer
         for_bt = [
             "ANCEFFS_NAME",
             "ANCEFF_NAME",
@@ -113,7 +125,7 @@ class AncEffTransformer(Transformer):
         ]
         for f in for_bt:
             setattr(AncEffTransformer, f, basic_token_transformer)
-
+        # use the basic tokens transformer
         for_bts = [
             "cond_types",
             "anceff_params",
@@ -134,7 +146,7 @@ class AncEffTransformer(Transformer):
         ]
         for f in for_bts:
             setattr(AncEffTransformer, f, basic_tokens_transformer)
-
+        # use the anceff atomic formula transformer
         for_aft = [
             "atomic_formula_term_rml",
             "atomic_formula_term_list_comp_r",
