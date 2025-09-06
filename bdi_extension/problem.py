@@ -1,5 +1,5 @@
 import pddl.core
-from parsing_utils import *
+from .parsing_utils import *
 from pddl.formatter import (
     print_constants,
     remove_empty_lines,
@@ -38,6 +38,11 @@ def atomic_formula_name(self, args):
     p.negated = negated # store the negated term, e.g. (!term ?a ?b)
     return p
 
+def projection_transformer(self, args):
+    """Transformer for the problem depth."""
+    args = basic_tokens_transformer(self, args)
+    return ("projection", args)
+
 def depth_transformer(self, args):
     """Transformer for the problem depth."""
     args = basic_tokens_transformer(self, args)
@@ -75,6 +80,8 @@ def new_problem_str(self):
     body += sort_and_print_collection("(:requirements ", self.requirements, ")\n")
     if self.objects:
         body += print_constants("(:objects", self.objects, ")\n")
+    # TODO: handle projection later
+    body += f"(:projection )\n"
     body += f"(:depth {self.depth})\n"
     body += f"(:task {self.task})\n"
     body += f"(:init-type {self.init_type})\n"
@@ -94,6 +101,8 @@ def new_init_problem(self, *args, **kwargs):
     self.task = kwargs["task"][2].value  # store the task
     self.init_type = kwargs["init_type"][2].value  # store the init type
     self.plan = kwargs["plan"] # store the plan
+    self.projection = kwargs["projection"]  # store the projection
+    kwargs.pop("projection")
     kwargs.pop("depth")
     kwargs.pop("task")
     kwargs.pop("init_type")
@@ -128,9 +137,10 @@ def construct_problem_grammar():
     # replace overall structure
     replace_in_grammar(
         "LPAR DEFINE problem_def problem_domain [requirements] [objects] init goal [metric_spec] RPAR",
-        "LPAR DEFINE problem_def problem_domain [objects] depth task init_type init goal [metric_spec] [plan] RPAR"
+        "LPAR DEFINE problem_def problem_domain [objects] projection depth task init_type init goal [metric_spec] [plan] RPAR"
     )
     # inject the basic problem tokens
+    inject_problem_grammar("PROJECTION", "\":projection\"", basic_token_transformer)
     inject_problem_grammar("DEPTH", "\":depth\"", basic_token_transformer)
     inject_problem_grammar("TASK", "\":task\"", basic_token_transformer)
     inject_problem_grammar("INIT_TYPE", "\":init-type\"", basic_token_transformer)
@@ -151,7 +161,9 @@ def construct_problem_grammar():
     # inject BDI capability into the atomic_formula_name transformer
     inject_problem_grammar("atomic_formula_name", "[EXC] problem_bdi* LPAR [EXC] predicate NAME* RPAR", atomic_formula_name)
     inject_problem_grammar("problem_bdi", "LSQB bdi_term COMMA NAME RSQB | LESSER_OP bdi_term COMMA NAME GREATER_OP", basic_tokens_transformer)
-    # transformers for depth, task, init type, and goal
+    # transformers for projection, depth, task, init type, and goal
+    # TODO: handle projection later
+    inject_problem_grammar("projection", "LPAR PROJECTION RPAR", projection_transformer)
     inject_problem_grammar("depth", "LPAR DEPTH NUMBER RPAR", depth_transformer)
     inject_problem_grammar("task", "LPAR TASK require_task_key RPAR", task_transformer)
     inject_problem_grammar("init_type", "LPAR INIT_TYPE COMPLETE RPAR", init_type_transformer)

@@ -1,15 +1,18 @@
-import anc_eff as anc_eff
+import bdi_extension.anc_eff as anc_eff
 import os
 import pddl
 import sys
-from domain import construct_domain_grammar
+from bdi_extension.domain import construct_domain_grammar
 from lark import Lark
 from lark.visitors import Transformer
-from parsing_utils import *
+from bdi_extension.parsing_utils import *
 from pddl.parser import GRAMMAR_FILE
 from pddl.parser.domain import DomainTransformer
 from pddl.parser.problem import ProblemTransformer
-from problem import construct_problem_grammar
+import pdkb.pddl.grounder as grounder
+from pdkb.rml import parse_rml
+from pdkb.problems import Domain, convert_action, parse_problem
+from bdi_extension.problem import construct_problem_grammar
 
 
 def write(file_path, content):
@@ -133,6 +136,38 @@ class AncEffDomProbParser:
         The call_parser() function is part of pddl package: will build a Tree from text and then an object pddl_parser.app_problem.APPProblem from the Tree
         """
         return call_parser(text, self._parser, self._transformer)
+    
+def new_solve(parsed_pdkbddl_file):
+    with open(parsed_pdkbddl_file, "r") as f:
+        lines = f.readlines()
+    
+    dom_index = -1
+    prob_index = -1
+    for i in range(len(lines)):
+        if '(define (domain' in lines[i]:
+            assert -1 == dom_index
+            dom_index = i
+        if '(define (problem' in lines[i]:
+            assert -1 == prob_index
+            prob_index = i
+    assert dom_index != -1, "Error: No domain type defined"
+    assert prob_index != -1, "Error: No problem type defined"
+    prob = grounder.GroundProblem(lines[dom_index:prob_index], lines[prob_index:])
+
+    fluents = [x for x in prob.fluents if not x.always_known]
+    akfluents = [x for x in prob.fluents if x.always_known]
+
+    props = [parse_rml('_'.join(str(p)[1:-1].split())) for p in fluents]
+    akprops = [parse_rml('_'.join(str(p)[1:-1].split())) for p in akfluents]
+
+    domain = Domain(prob.agents, props, akprops,
+                    [convert_action(a, prob.depth, prob.agents, props, akprops) for a in prob.operators],
+                    prob.depth, prob.types, prob.domain_name)
+
+    problem = parse_problem(prob, domain)
+    problem.preprocess()
+    problem.solve()
+    problem.output_solution()
 
 if __name__ == "__main__":
     # read the ancillary effects grammar file and add to the main grammar file
@@ -154,3 +189,4 @@ if __name__ == "__main__":
         # one result for the ancillary effects, one for the domain, and one for the problem
         for r in result:
             f.write(f"{r}\n")
+    new_solve("bdi_extension/bdi_pdkbddl_files/parsed.pdkbddl")

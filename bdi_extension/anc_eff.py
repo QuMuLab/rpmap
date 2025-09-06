@@ -1,5 +1,5 @@
 from lark.visitors import Transformer
-from parsing_utils import *
+from .parsing_utils import *
 from pddl.helpers.base import _typed_parameters
 
 

@@ -5,14 +5,14 @@
 		(
 			:poscond ?pos1
 			:negcond ?neg1
-			:rml [b, ?a](rml)
+			:rml (B{?a}(rml))
 			:type add
 		)
 		:consequent
 		(
 			:poscond ?pos2
 			:negcond ?neg2
-			:rml <b, ?a>(rml)
+			:rml (PB{?a}(rml))
 			:type add
 		)
 	)
@@ -38,14 +38,14 @@
 		(
 			:poscond ?pos1
 			:negcond ?neg1
-			:rml <b, ?a>(rml)
+			:rml (PB{?a}(rml))
 			:type del
 		)
 		:consequent
 		(
 			:poscond ?pos2
 			:negcond ?neg2
-			:rml [b, ?a](rml)
+			:rml (B{?a}(rml))
 			:type del
 		)
 	)
@@ -70,14 +70,14 @@
 		(
 			:poscond ?pos
 			:negcond ?neg
-			:condition [b, ?a](?mu)
+			:condition (B{?a}(?mu))
 			:rml (rml)
 			:type add
 		)
 		:consequent
 		(
-			:poscond { [b, ?a](r) for r in ?pos } + { ![b, ?a](r) for r in ?neg } + [b, ?a](?mu)
-			:rml [b, ?a](rml)
+			:poscond { (B{?a}(r)) for r in ?pos } + { (!B{?a}(r)) for r in ?neg } + (B{?a}(?mu))
+			:rml (B{?a}(rml))
 			:type add
 		)
 	)
@@ -87,14 +87,14 @@
 		(
 			:poscond ?pos
 			:negcond ?neg
-			:condition [b, ?a](?mu)
+			:condition (B{?a}(?mu))
 			:rml (rml)
 			:type del
 		)
 		:consequent
 		(
-			:poscond { [b, ?a](r) for r in ?pos } + { ![b, ?a](r) for r in ?neg } + [b, ?a](?mu)
-			:rml ![b, ?a](rml)
+			:poscond { (B{?a}(r)) for r in ?pos } + { (!B{?a}(r)) for r in ?neg } + (B{?a}(?mu))
+			:rml (!B{?a}(rml))
 			:type add
 		)
 	)
@@ -104,12 +104,12 @@
 	(:requirements :typing)
 	(:agents a b)
 	(:types
-	    loc - object
+	    loc
 	)
 	(:predicates
-		(secret ?agent)
-		{AK}(at ?agent - agent ?l - loc)
 		{AK}(connected ?l1 - loc ?l2 - loc)
+		{AK}(at ?agent - agent ?l - loc)
+		(secret ?agent)
 	)
 	(:action move
 	    :derive-condition always
@@ -129,32 +129,33 @@
 	    :precondition (and
 			(at ?a1 ?l)
 			(at ?a2 ?l)
-			![b, ?a1](!secret ?a1)
+			(!B{?a1}(!secret ?a1))
 		)
 	    :effect (and
-			[d, ?a2](secret ?a2)
-			[i, ?a2](secret ?a2)
+			(D{?a2}(secret ?a2))
+			(I{?a2}(secret ?a2))
 		)
 	)
 )
 (define (problem bdi-item)
 	(:domain bdi)
 	(:objects l1 l2 l3 - loc)
+	(:projection )
 	(:depth 2)
 	(:task valid_generation)
 	(:init-type complete)
 	(:init 
-		(at b l1)
 		(at a l1)
 		(connected l2 l3)
-		(connected l3 l2)
-		![d, a](!secret a)
-		(connected l1 l2)
+		(at b l1)
 		(connected l2 l1)
+		(connected l3 l2)
+		(!D{a}(!secret a))
+		(connected l1 l2)
 	)
-	(:goal ( and [i, b](secret a) ))
+	(:goal ( and (I{b}(secret a)) ))
 	(:plan 
-		![d, a](!secret a)
-		![d, a](!secret a)
+		(!D{a}(!secret a))
+		(!D{a}(!secret a))
 	)
 )

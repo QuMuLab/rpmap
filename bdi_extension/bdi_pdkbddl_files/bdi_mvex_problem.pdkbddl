@@ -7,7 +7,7 @@
     (:objects 
         l1 l2 l3 - loc
     )
-
+    (:projection)
     (:depth 2)
     (:task valid_generation)
 

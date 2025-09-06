@@ -1,7 +1,7 @@
 import pddl.core
 import pddl.logic
 from lark.lexer import Token
-from parsing_utils import *
+from .parsing_utils import *
 from pddl.action import Action
 from pddl.formatter import (
     print_constants,
@@ -131,6 +131,41 @@ def new_predicate_str(self):
         return f"{p_str})"
     else:
         return f"{p_str} {' '.join(map(str, self.terms))})"   
+    
+def new_predicate_str_rmls(self):
+    """New predicate string adapted from the pddl.logic.Predicate.__str__ method."""
+    p_str = self.get_predicate_prefix()
+    # replace the default prefix with RMLs
+    p_str = p_str.replace("{AK}", "AK{}")
+
+    p_str = p_str.replace("![b, ", "(!B{")
+    p_str = p_str.replace("![d, ", "(!D{")
+    p_str = p_str.replace("![i, ", "(!I{")
+    p_str = p_str.replace("!<b, ", "(!PB{")
+    p_str = p_str.replace("!<d, ", "(!PD{")
+    p_str = p_str.replace("!<i, ", "(!PI{")
+
+    p_str = p_str.replace("[b, ", "(B{")
+    p_str = p_str.replace("[d, ", "(D{")
+    p_str = p_str.replace("[i, ", "(I{")
+    p_str = p_str.replace("<b, ", "(PB{")
+    p_str = p_str.replace("<d, ", "(PD{")
+    p_str = p_str.replace("<i, ", "(PI{")
+
+    p_str = p_str.replace("]", "}")
+    p_str = p_str.replace(">", "}")
+
+    if self.negated:
+        p_str += f"(!{self.name}"
+    else:
+        p_str += f"({self.name}"
+    if self.arity == 0:
+        p_str = f"{p_str})"
+    else:
+        p_str = f"{p_str} {' '.join(map(str, self.terms))})"    
+    if "B{" in p_str or "D{" in p_str or "I{" in p_str or "PB{" in p_str or "PD{" in p_str or "PI{" in p_str:
+        p_str += ")"
+    return p_str
 
 def new_domain_str(self):
     """New domain string adapted from the pddl.core.Domain.__str__ method."""
@@ -141,7 +176,9 @@ def new_domain_str(self):
     body += f"(:agents {' '.join(sorted(self._agents)) if self._agents else ''})\n"
     del self.types["agent"]  # remove agents from types
     self._types = Types(self.types, self._requirements)
-    body += print_types_or_functions_with_parents("(:types", self.types, ")\n")
+    types_str = print_types_or_functions_with_parents("(:types", self.types, ")\n")
+    types_str = types_str.replace(" - object", "")  # remove the default object type
+    body += types_str
     body += print_constants("(:constants", self.constants, ")\n")
     if self.predicates:
         predicates_str = NL_AND_TAB.join([f"{p.get_predicate_prefix()}{print_predicates_with_types([p])}" for p in self.predicates])
@@ -204,10 +241,13 @@ def inject_domain_grammar(label, rule, function, grammar_file=GRAMMAR_FILE):
     setattr(domain.DomainTransformer, label, function)
 
 # to build the domain grammar via Python magic
-def construct_domain_grammar():
+def construct_domain_grammar(print_rml_style=True):
     """Construct the entire domain grammar."""
     # reassign these predicate functions
-    pddl.logic.predicates.Predicate.__str__ = new_predicate_str
+    if print_rml_style:
+        pddl.logic.predicates.Predicate.__str__ = new_predicate_str_rmls
+    else:
+        pddl.logic.predicates.Predicate.__str__ = new_predicate_str
     pddl.logic.predicates.Predicate.__eq__ = new_predicate_eq
     pddl.logic.predicates.Predicate.__hash__ = new_predicate_hash
     pddl.logic.predicates.Predicate.get_predicate_prefix = get_predicate_prefix
