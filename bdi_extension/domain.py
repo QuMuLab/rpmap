@@ -132,40 +132,101 @@ def new_predicate_str(self):
     else:
         return f"{p_str} {' '.join(map(str, self.terms))})"   
     
+def get_merged_token_value(token):
+    if token.type == "LSQB":
+        return ""
+    elif token.type == "RSQB":
+        return "_"
+    elif token.type == "LESSER_OP":
+        return "P"
+    elif token.type == "GREATER_OP":
+        return "_"
+    elif token.type == "COMMA":
+        return ""
+    elif token.type == "BELIEF":
+        return "B"
+    elif token.type == "DESIRE":
+        return "D"
+    elif token.type == "INTENTION":
+        return "I"
+    else:
+        return token.value
+    
 def new_predicate_str_rmls(self):
     """New predicate string adapted from the pddl.logic.Predicate.__str__ method."""
-    p_str = self.get_predicate_prefix()
+    # p_str = self.get_predicate_prefix()
     # replace the default prefix with RMLs
-    p_str = p_str.replace("{AK}", "AK{}")
+    # p_str = p_str.replace("{AK}", "AK{}")
 
-    p_str = p_str.replace("![b, ", "(!B{")
-    p_str = p_str.replace("![d, ", "(!D{")
-    p_str = p_str.replace("![i, ", "(!I{")
-    p_str = p_str.replace("!<b, ", "(!PB{")
-    p_str = p_str.replace("!<d, ", "(!PD{")
-    p_str = p_str.replace("!<i, ", "(!PI{")
+    # # # deal with nestings
+    # # p_str = p_str.replace("][", "})[")
+    # # p_str = p_str.replace(">[", "})[")
+    # # p_str = p_str.replace("]<", "})<")
+    # # p_str = p_str.replace("><", "})<")
 
-    p_str = p_str.replace("[b, ", "(B{")
-    p_str = p_str.replace("[d, ", "(D{")
-    p_str = p_str.replace("[i, ", "(I{")
-    p_str = p_str.replace("<b, ", "(PB{")
-    p_str = p_str.replace("<d, ", "(PD{")
-    p_str = p_str.replace("<i, ", "(PI{")
+    # p_str = p_str.replace("![b, ", "(!B{")
+    # p_str = p_str.replace("![d, ", "(!D{")
+    # p_str = p_str.replace("![i, ", "(!I{")
+    # p_str = p_str.replace("!<b, ", "(!PB{")
+    # p_str = p_str.replace("!<d, ", "(!PD{")
+    # p_str = p_str.replace("!<i, ", "(!PI{")
 
-    p_str = p_str.replace("]", "}")
-    p_str = p_str.replace(">", "}")
+    # p_str = p_str.replace("[b, ", "(B{")
+    # p_str = p_str.replace("[d, ", "(D{")
+    # p_str = p_str.replace("[i, ", "(I{")
+    # p_str = p_str.replace("<b, ", "(PB{")
+    # p_str = p_str.replace("<d, ", "(PD{")
+    # p_str = p_str.replace("<i, ", "(PI{")
 
-    if self.negated:
-        p_str += f"(!{self.name}"
+    
+    # p_str = p_str.replace("]", "}")
+    # p_str = p_str.replace(">", "}")
+
+    # if self.negated:
+    #     p_str += f"(!{self.name}"
+    # else:
+    #     p_str += f"({self.name}"
+    # if self.arity == 0:
+    #     p_str = f"{p_str})"
+    # else:
+    #     p_str = f"{p_str} {' '.join(map(str, self.terms))})"    
+    
+    # bdi_search = ["B{", "D{", "I{"]
+    # total = sum(p_str.count(word) for word in bdi_search)
+    # if total > 1:
+    #     print()
+    # for _ in range(total):
+    #     p_str += ")"
+    # return p_str
+
+    p_str = ""
+    if self.bdi != [None]:
+        bdi_str = "("
+        if self.bdi[0]:
+            if self.bdi[0].type == "EXC":
+                bdi_str += "not_"
+        for bdi_term in self.bdi[1:]:
+            for token in bdi_term:
+                if type(token) == list:
+                    for t in token:
+                        bdi_str += get_merged_token_value(t)
+                else:
+                    bdi_str += get_merged_token_value(token)
+        p_str += bdi_str
+        name = self.name
     else:
-        p_str += f"({self.name}"
+        name = f"({self.name}"
     if self.arity == 0:
-        p_str = f"{p_str})"
+        terms = f")"
     else:
-        p_str = f"{p_str} {' '.join(map(str, self.terms))})"    
-    if "B{" in p_str or "D{" in p_str or "I{" in p_str or "PB{" in p_str or "PD{" in p_str or "PI{" in p_str:
-        p_str += ")"
-    return p_str
+        terms = f"{'_'.join(map(str, self.terms))})" 
+    if self.negated:
+            p_str = f"(not {p_str}{name}_{terms})"
+    else:
+        p_str = f"{p_str}{name}_{terms}"
+    
+    return p_str   
+
 
 def new_domain_str(self):
     """New domain string adapted from the pddl.core.Domain.__str__ method."""
@@ -174,7 +235,7 @@ def new_domain_str(self):
     body = ""
     body += sort_and_print_collection("(:requirements ", self.requirements, ")\n")
     body += f"(:agents {' '.join(sorted(self._agents)) if self._agents else ''})\n"
-    del self.types["agent"]  # remove agents from types
+    # del self.types["agent"]  # remove agents from types
     self._types = Types(self.types, self._requirements)
     types_str = print_types_or_functions_with_parents("(:types", self.types, ")\n")
     types_str = types_str.replace(" - object", "")  # remove the default object type

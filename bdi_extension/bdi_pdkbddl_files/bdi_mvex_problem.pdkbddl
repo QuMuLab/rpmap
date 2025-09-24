@@ -22,7 +22,10 @@
         (at b l1)
 
         ; beliefs
-        ![d, a](!secret a)
+        ![d, a][b, b](!secret a)
+        !<b, b>[d, a](secret b)
+        [b, b]<d, a>(secret b)
+        <b, b><d, a>(secret a)
     )
 
     (:goal (and 
