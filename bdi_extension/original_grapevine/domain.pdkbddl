@@ -1,12 +1,12 @@
 
 (define (domain grapevine)
 
-    (:agents a b c d)
+    (:agents a b)
     (:types loc)
     (:constants )
 
     (:predicates
-            (secret ?agent)
+        (secret ?agent)
         {AK}(at ?agent - agent ?l - loc)
         {AK}(connected ?l1 ?l2 - loc)
     )
@@ -15,7 +15,7 @@
         :derive-condition   always
         :parameters         (?a - agent ?l1 ?l2 - loc)
         :precondition       (and (at ?a ?l1) (connected ?l1 ?l2))
-        :effect             (and (at ?a ?l2) (not(!at ?a ?l1)))
+        :effect             (and (at ?a ?l2) (not (at ?a ?l1)))
     )
 
     (:action share
@@ -25,7 +25,7 @@
         :effect             (and
                                 (forall ?a2 - agent
                                     (when     (at ?a2 ?l)
-                                         ![?a][?a2](!secret ?as)))
+                                         [?a2](secret ?as)))
                             )
     )
 )

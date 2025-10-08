@@ -1,40 +1,35 @@
 {include:ancillary_effects.pdkbddl}
 {include:bdi_mvex_domain.pdkbddl}
 
-(define (problem bdi-item)
-    (:domain bdi)
+(define (problem paper2)
 
-    (:objects 
-        l1 l2 l3 - loc
-    )
-    (:projection)
+    (:domain grapevine)
+
+    (:objects l1 l2 - loc)
+
+    (:projection )
     (:depth 2)
     (:task valid_generation)
 
     (:init-type complete)
     (:init
-        ; locations + connections
+
         (connected l1 l2)
         (connected l2 l1)
-        (connected l2 l3)
-        (connected l3 l2)
+
         (at a l1)
         (at b l1)
+        [b, a](secret a)
+        [b, b](secret b)
+        ; (forall (?ag - agent) (at ?ag l1))
 
-        ; beliefs
-        ![d, a][b, b](!secret a)
-        !<b, b>[d, a](secret b)
-        [b, b]<d, a>(secret b)
-        <b, b><d, a>(secret a)
+        ; (forall (?ag - agent)
+        ;     [b, ?ag](secret ?ag))
     )
 
-    (:goal (and 
-        [i, b](secret a)   
-        )
+    (:goal
+           [b, a](secret b)
     )
 
-    (:plan
-        ![d, a](!secret a)
-        ![d, a](!secret a)
-    )
+    (:plan )
 )

@@ -12,6 +12,7 @@ from pddl.formatter import (
     sort_and_print_collection,
 )
 from pddl.helpers.base import _typed_parameters
+from pddl.logic.base import And
 from pddl.logic.predicates import Predicate
 from pddl.parser import domain, GRAMMAR_FILE
 from pddl._validation import Types

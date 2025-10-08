@@ -11,6 +11,7 @@ from bdi_extension.parsing_utils import *
 from pddl.action import Action
 import pddl.core as pddl_core
 from pddl.logic.base import And
+from pddl.logic.effects import Forall, When
 from pddl.logic.terms import Constant, Variable
 from pddl.parser import GRAMMAR_FILE
 from pddl.parser.domain import DomainTransformer
@@ -19,7 +20,7 @@ import pdkb.pddl.grounder as grounder
 from pdkb.rml import parse_rml
 from pdkb.problems import Domain, convert_action, parse_problem
 from bdi_extension.problem import construct_problem_grammar
-
+from bdi_extension.apply_cond_effs import apply_cond_effs
 
 def write(file_path, content):
     """Write content to a file."""
@@ -199,7 +200,7 @@ def create_fluents(domain, problem):
             fluents.add(grounded_p)
     return fluents
 
-def predicates_to_fluents(predicates, assignment):
+def predicates_to_fluents(predicates: list[Predicate], assignment):
     fluents = []
     for p in predicates:
         new_terms = []
@@ -234,6 +235,26 @@ def predicates_to_fluents(predicates, assignment):
             fluents.append(f)
     return fluents
 
+def ground_formula(domain, problem, formula, assignment):
+    if type(formula) == Predicate:
+        return predicates_to_fluents([formula], assignment)[0]
+    elif type(formula) == And:
+        return And(*predicates_to_fluents(formula.operands, assignment))
+    elif type(formula) == Forall:
+        # need to get all values for this variable
+        grounded = []
+        var_names = [v.name for v in formula.variables]
+        val_generator = create_valuations(domain, problem, formula.variables)
+        for valuation in val_generator:
+            # need to add onto the existing assignment so we retain knowledge of outer variables
+            for var_name, val in zip(var_names, valuation):
+                assignment[var_name] = val
+            grounded.append(ground_formula(domain, problem, formula.effect, assignment))
+        return And(*grounded)
+    elif type(formula) == When:
+        return When(ground_formula(domain, problem, formula.condition, assignment), ground_formula(domain, problem, formula.effect, assignment))
+
+
 def create_operators(domain, problem, fluent_dict):
     """Create the set of operators by grounding the actions.
     Adapted from the pdkb.pddl.grounder.GroundProblem._create_operators method"""
@@ -252,7 +273,7 @@ def create_operators(domain, problem, fluent_dict):
                 op_name = a.name
             # TODO: handle other types of formulas?
             precondition = And(*predicates_to_fluents(a.precondition.operands, assignment))
-            effect = And(*predicates_to_fluents(a.effect.operands, assignment))      
+            effect = ground_formula(domain, problem, a.effect, assignment)      
             operators.add(
                 Action(
                     op_name,
@@ -284,6 +305,7 @@ def ground(domain, problem):
         agents=domain._agents)
     write("bdi_extension/bdi_pdkbddl_files/grounded_domain.pdkbddl", str(grounded_domain))
     print()
+    return grounded_domain, problem
     # self._ground_init(fluent_dict)
     # self._ground_goal(fluent_dict)
 
@@ -293,7 +315,7 @@ if __name__ == "__main__":
         anceff_grammar = f.read()
     write_no_duplicate("\n" + anceff_grammar, GRAMMAR_FILE)
     # modify the domain and problem grammar files to add in the new rules
-    construct_domain_grammar()
+    construct_domain_grammar(False)
     construct_problem_grammar()
     # grab the PDDL
     pddl = "\n".join(read_pdkbddl_file("bdi_extension/bdi_pdkbddl_files/bdi_mvex_problem.pdkbddl"))
@@ -311,4 +333,5 @@ if __name__ == "__main__":
     # new_solve("bdi_extension/bdi_pdkbddl_files/parsed.pdkbddl")
 
     # from pdkb.pddl.grounder.GroundProblem._ground
-    ground(result[1], result[2])
+    apply_cond_effs(result[0], *ground(result[1], result[2]))
+

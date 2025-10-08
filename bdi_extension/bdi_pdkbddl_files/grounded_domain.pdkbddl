@@ -5,358 +5,191 @@
 	    agent loc
 	)
 	(:predicates
-		{AK}(at ?a ?l2)
-		{AK}(connected ?l3 ?l2)
-		{AK}(connected ?l3 ?l3)
 		{AK}(connected ?l1 ?l1)
-		{AK}(connected ?l2 ?l2)
-		{AK}(connected ?l1 ?l2)
-		(secret ?a)
-		{AK}(connected ?l1 ?l3)
-		{AK}(connected ?l2 ?l3)
-		{AK}(at ?b ?l2)
-		{AK}(at ?a ?l3)
-		{AK}(at ?a ?l1)
-		{AK}(at ?b ?l3)
-		{AK}(connected ?l3 ?l1)
-		(secret ?b)
 		{AK}(connected ?l2 ?l1)
 		{AK}(at ?b ?l1)
+		{AK}(at ?b ?l2)
+		(secret ?b)
+		{AK}(connected ?l2 ?l2)
+		(secret ?a)
+		{AK}(at ?a ?l1)
+		{AK}(at ?a ?l2)
+		{AK}(connected ?l1 ?l2)
 	)
 	(:action move_a_l1_l1
 	    :parameters ()
 	    :precondition (and
-			(at_a_l1)
-			(connected_l1_l1)
+			(at a l1)
+			(connected l1 l1)
 		)
 	    :effect (and
-			(at_a_l1)
-			(not (at_a_l1))
+			(at a l1)
+			(!at a l1)
 		)
 	)
 	 (:action move_a_l1_l2
 	    :parameters ()
 	    :precondition (and
-			(at_a_l1)
-			(connected_l1_l2)
+			(at a l1)
+			(connected l1 l2)
 		)
 	    :effect (and
-			(at_a_l2)
-			(not (at_a_l1))
-		)
-	)
-	 (:action move_a_l1_l3
-	    :parameters ()
-	    :precondition (and
-			(at_a_l1)
-			(connected_l1_l3)
-		)
-	    :effect (and
-			(at_a_l3)
-			(not (at_a_l1))
+			(at a l2)
+			(!at a l1)
 		)
 	)
 	 (:action move_a_l2_l1
 	    :parameters ()
 	    :precondition (and
-			(at_a_l2)
-			(connected_l2_l1)
+			(at a l2)
+			(connected l2 l1)
 		)
 	    :effect (and
-			(at_a_l1)
-			(not (at_a_l2))
+			(at a l1)
+			(!at a l2)
 		)
 	)
 	 (:action move_a_l2_l2
 	    :parameters ()
 	    :precondition (and
-			(at_a_l2)
-			(connected_l2_l2)
+			(at a l2)
+			(connected l2 l2)
 		)
 	    :effect (and
-			(at_a_l2)
-			(not (at_a_l2))
-		)
-	)
-	 (:action move_a_l2_l3
-	    :parameters ()
-	    :precondition (and
-			(at_a_l2)
-			(connected_l2_l3)
-		)
-	    :effect (and
-			(at_a_l3)
-			(not (at_a_l2))
-		)
-	)
-	 (:action move_a_l3_l1
-	    :parameters ()
-	    :precondition (and
-			(at_a_l3)
-			(connected_l3_l1)
-		)
-	    :effect (and
-			(at_a_l1)
-			(not (at_a_l3))
-		)
-	)
-	 (:action move_a_l3_l2
-	    :parameters ()
-	    :precondition (and
-			(at_a_l3)
-			(connected_l3_l2)
-		)
-	    :effect (and
-			(at_a_l2)
-			(not (at_a_l3))
-		)
-	)
-	 (:action move_a_l3_l3
-	    :parameters ()
-	    :precondition (and
-			(at_a_l3)
-			(connected_l3_l3)
-		)
-	    :effect (and
-			(at_a_l3)
-			(not (at_a_l3))
+			(at a l2)
+			(!at a l2)
 		)
 	)
 	 (:action move_b_l1_l1
 	    :parameters ()
 	    :precondition (and
-			(at_b_l1)
-			(connected_l1_l1)
+			(at b l1)
+			(connected l1 l1)
 		)
 	    :effect (and
-			(at_b_l1)
-			(not (at_b_l1))
+			(at b l1)
+			(!at b l1)
 		)
 	)
 	 (:action move_b_l1_l2
 	    :parameters ()
 	    :precondition (and
-			(at_b_l1)
-			(connected_l1_l2)
+			(at b l1)
+			(connected l1 l2)
 		)
 	    :effect (and
-			(at_b_l2)
-			(not (at_b_l1))
-		)
-	)
-	 (:action move_b_l1_l3
-	    :parameters ()
-	    :precondition (and
-			(at_b_l1)
-			(connected_l1_l3)
-		)
-	    :effect (and
-			(at_b_l3)
-			(not (at_b_l1))
+			(at b l2)
+			(!at b l1)
 		)
 	)
 	 (:action move_b_l2_l1
 	    :parameters ()
 	    :precondition (and
-			(at_b_l2)
-			(connected_l2_l1)
+			(at b l2)
+			(connected l2 l1)
 		)
 	    :effect (and
-			(at_b_l1)
-			(not (at_b_l2))
+			(at b l1)
+			(!at b l2)
 		)
 	)
 	 (:action move_b_l2_l2
 	    :parameters ()
 	    :precondition (and
-			(at_b_l2)
-			(connected_l2_l2)
+			(at b l2)
+			(connected l2 l2)
 		)
 	    :effect (and
-			(at_b_l2)
-			(not (at_b_l2))
-		)
-	)
-	 (:action move_b_l2_l3
-	    :parameters ()
-	    :precondition (and
-			(at_b_l2)
-			(connected_l2_l3)
-		)
-	    :effect (and
-			(at_b_l3)
-			(not (at_b_l2))
-		)
-	)
-	 (:action move_b_l3_l1
-	    :parameters ()
-	    :precondition (and
-			(at_b_l3)
-			(connected_l3_l1)
-		)
-	    :effect (and
-			(at_b_l1)
-			(not (at_b_l3))
-		)
-	)
-	 (:action move_b_l3_l2
-	    :parameters ()
-	    :precondition (and
-			(at_b_l3)
-			(connected_l3_l2)
-		)
-	    :effect (and
-			(at_b_l2)
-			(not (at_b_l3))
-		)
-	)
-	 (:action move_b_l3_l3
-	    :parameters ()
-	    :precondition (and
-			(at_b_l3)
-			(connected_l3_l3)
-		)
-	    :effect (and
-			(at_b_l3)
-			(not (at_b_l3))
+			(at b l2)
+			(!at b l2)
 		)
 	)
 	 (:action share_a_a_l1
 	    :parameters ()
 	    :precondition (and
-			(at_a_l1)
-			(not (not_Bb_secret_a))
+			(at a l1)
+			[b, a](secret a)
 		)
 	    :effect (and
-			(Db_secret_a)
-			(Ib_secret_a)
+			(when (at a l1) [b, a2](secret a))
+			(when (at b l1) [b, a2](secret a))
 		)
 	)
 	 (:action share_a_a_l2
 	    :parameters ()
 	    :precondition (and
-			(at_a_l2)
-			(not (not_Bb_secret_a))
+			(at a l2)
+			[b, a](secret a)
 		)
 	    :effect (and
-			(Db_secret_a)
-			(Ib_secret_a)
-		)
-	)
-	 (:action share_a_a_l3
-	    :parameters ()
-	    :precondition (and
-			(at_a_l3)
-			(not (not_Bb_secret_a))
-		)
-	    :effect (and
-			(Db_secret_a)
-			(Ib_secret_a)
+			(when (at a l2) [b, a2](secret a))
+			(when (at b l2) [b, a2](secret a))
 		)
 	)
 	 (:action share_a_b_l1
 	    :parameters ()
 	    :precondition (and
-			(at_a_l1)
-			(at_b_l1)
-			(not (not_Bb_secret_a))
+			(at a l1)
+			[b, a](secret b)
 		)
 	    :effect (and
-			(Db_secret_b)
-			(Ib_secret_b)
+			(when (at a l1) [b, a2](secret b))
+			(when (at b l1) [b, a2](secret b))
 		)
 	)
 	 (:action share_a_b_l2
 	    :parameters ()
 	    :precondition (and
-			(at_a_l2)
-			(at_b_l2)
-			(not (not_Bb_secret_a))
+			(at a l2)
+			[b, a](secret b)
 		)
 	    :effect (and
-			(Db_secret_b)
-			(Ib_secret_b)
-		)
-	)
-	 (:action share_a_b_l3
-	    :parameters ()
-	    :precondition (and
-			(at_a_l3)
-			(at_b_l3)
-			(not (not_Bb_secret_a))
-		)
-	    :effect (and
-			(Db_secret_b)
-			(Ib_secret_b)
+			(when (at a l2) [b, a2](secret b))
+			(when (at b l2) [b, a2](secret b))
 		)
 	)
 	 (:action share_b_a_l1
 	    :parameters ()
 	    :precondition (and
-			(at_b_l1)
-			(at_a_l1)
-			(not (not_Bb_secret_b))
+			(at b l1)
+			[b, a](secret a)
 		)
 	    :effect (and
-			(Db_secret_a)
-			(Ib_secret_a)
+			(when (at a l1) [b, a2](secret a))
+			(when (at b l1) [b, a2](secret a))
 		)
 	)
 	 (:action share_b_a_l2
 	    :parameters ()
 	    :precondition (and
-			(at_b_l2)
-			(at_a_l2)
-			(not (not_Bb_secret_b))
+			(at b l2)
+			[b, a](secret a)
 		)
 	    :effect (and
-			(Db_secret_a)
-			(Ib_secret_a)
-		)
-	)
-	 (:action share_b_a_l3
-	    :parameters ()
-	    :precondition (and
-			(at_b_l3)
-			(at_a_l3)
-			(not (not_Bb_secret_b))
-		)
-	    :effect (and
-			(Db_secret_a)
-			(Ib_secret_a)
+			(when (at a l2) [b, a2](secret a))
+			(when (at b l2) [b, a2](secret a))
 		)
 	)
 	 (:action share_b_b_l1
 	    :parameters ()
 	    :precondition (and
-			(at_b_l1)
-			(not (not_Bb_secret_b))
+			(at b l1)
+			[b, a](secret b)
 		)
 	    :effect (and
-			(Db_secret_b)
-			(Ib_secret_b)
+			(when (at a l1) [b, a2](secret b))
+			(when (at b l1) [b, a2](secret b))
 		)
 	)
 	 (:action share_b_b_l2
 	    :parameters ()
 	    :precondition (and
-			(at_b_l2)
-			(not (not_Bb_secret_b))
+			(at b l2)
+			[b, a](secret b)
 		)
 	    :effect (and
-			(Db_secret_b)
-			(Ib_secret_b)
-		)
-	)
-	 (:action share_b_b_l3
-	    :parameters ()
-	    :precondition (and
-			(at_b_l3)
-			(not (not_Bb_secret_b))
-		)
-	    :effect (and
-			(Db_secret_b)
-			(Ib_secret_b)
+			(when (at a l2) [b, a2](secret b))
+			(when (at b l2) [b, a2](secret b))
 		)
 	)
 )
