@@ -16,7 +16,7 @@ def atomic_formula_name(self, args):
     # figure out where the BDI term ends, e.g. (!)[b, ?agent]{index} or (!)<b, ?agent>{index}.
     # (if there's no BDI term, we just skip over None)
     for i in range(len(args)):
-        if type(args[i]) == Token:
+        if type(args[i]) is Token:
             if "LPAR" in args[i].type:
                 # reached the end of the BDI terms
                 after_bdi = i

@@ -1,3 +1,4 @@
+from copy import deepcopy
 import itertools
 from typing import Sequence
 import bdi_extension.anc_eff as anc_eff
@@ -203,8 +204,9 @@ def create_fluents(domain, problem):
 def predicates_to_fluents(predicates: list[Predicate], assignment):
     fluents = []
     for p in predicates:
+        p = deepcopy(p)
         new_terms = []
-        if type(p) != Predicate:
+        if type(p) is not Predicate:
             outside_formula_type = type(p)
             terms = p.argument.terms
         else:
@@ -212,7 +214,7 @@ def predicates_to_fluents(predicates: list[Predicate], assignment):
         for t in terms:
             new_terms.append(Constant(assignment[t.name]))
         
-        if type(p) != Predicate:
+        if type(p) is not Predicate:
             f = Predicate(p.argument.name, *new_terms)
             f.bdi = p.argument.bdi
             f.negated = p.argument.negated
@@ -220,15 +222,16 @@ def predicates_to_fluents(predicates: list[Predicate], assignment):
             fluents.append(outside_formula_type(f))
         else:
             f = Predicate(p.name, *new_terms)
-            if p.bdi != [None]:
-                for bdi_term in p.bdi[1:]: #exclude the EXC token
-                    for i in range(len(bdi_term)):
-                        token = bdi_term[i]
-                        if type(token) == list:
-                            if token[0].type == "QMRK":
-                                if token[1] in assignment:
-                                    token[1].value = assignment[token[1].value]
-                                    bdi_term[i] = token[1]
+            if p.bdi != [None]:         
+                p.bdi[1][3] = Token("NAME", assignment[p.bdi[1][3][1].value]) 
+                # for bdi_term in p.bdi[1:]: #exclude the EXC token
+                #     for i in range(len(bdi_term)):
+                #         token = bdi_term[i]
+                #         if type(token) is list:
+                #             if token[0].type == "QMRK":
+                #                 if token[1] in assignment:
+                #                     token[1].value = assignment[token[1].value]
+                #                     bdi_term[i] = token[1]
             f.bdi = p.bdi
             f.negated = p.negated
             f.always_known = p.always_known
@@ -236,11 +239,11 @@ def predicates_to_fluents(predicates: list[Predicate], assignment):
     return fluents
 
 def ground_formula(domain, problem, formula, assignment):
-    if type(formula) == Predicate:
+    if type(formula) is Predicate:
         return predicates_to_fluents([formula], assignment)[0]
-    elif type(formula) == And:
+    elif type(formula) is And:
         return And(*predicates_to_fluents(formula.operands, assignment))
-    elif type(formula) == Forall:
+    elif type(formula) is Forall:
         # need to get all values for this variable
         grounded = []
         var_names = [v.name for v in formula.variables]
@@ -251,7 +254,7 @@ def ground_formula(domain, problem, formula, assignment):
                 assignment[var_name] = val
             grounded.append(ground_formula(domain, problem, formula.effect, assignment))
         return And(*grounded)
-    elif type(formula) == When:
+    elif type(formula) is When:
         return When(ground_formula(domain, problem, formula.condition, assignment), ground_formula(domain, problem, formula.effect, assignment))
 
 
@@ -333,5 +336,6 @@ if __name__ == "__main__":
     # new_solve("bdi_extension/bdi_pdkbddl_files/parsed.pdkbddl")
 
     # from pdkb.pddl.grounder.GroundProblem._ground
-    apply_cond_effs(result[0], *ground(result[1], result[2]))
-
+    anc_eff, domain, problem = (result[0], *ground(result[1], result[2]))
+    apply_cond_effs(anc_eff, domain, problem)
+    write("bdi_extension/bdi_pdkbddl_files/grounded_domain.pdkbddl", str(domain))

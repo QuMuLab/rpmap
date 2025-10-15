@@ -11,7 +11,7 @@ def anceff_atomic_formula_term(self, args):
     # (if there's no BDI term, we just skip over None)
     after_bdi = None
     for i in range(len(args)):
-        if type(args[i]) == Token:
+        if type(args[i]) is Token:
             if "LPAR" in args[i].type: #accounting for import being part of the type name
                 # reached the end of the BDI terms
                 after_bdi = i
@@ -27,13 +27,13 @@ def anceff_atomic_formula_term(self, args):
     # we get either a simple name like (rml) or a variable name like (?mu).
     # we just treat it like the string name of a predicate.
     for t in raw_name:
-        if type(t) == list:
+        if type(t) is list:
             var_pred = True
             if t[0].type == "QMRK":
                 name.append(f"{t[0]}{t[1]}")
             else:
                 raise ValueError(f"Dealing with an unknown ancillary effect atomic formula term type {t}.")
-        elif type(t) == Token:
+        elif type(t) is Token:
             name.append(t.value)
         else:
             raise ValueError(f"Dealing with an unknown ancillary effect atomic formula term type {t}.")
@@ -71,7 +71,7 @@ class AncillaryEffects:
                 # add each of the condition items
                 for item in cond:
                     if item:
-                        if type(item[1]) == list:
+                        if type(item[1]) is list:
                             body += f"{NL_AND_3_TABS}{item[0].value} {recursive_print(item[1], ' ')}"
                         else:
                             body += f"{NL_AND_3_TABS}{recursive_print(item, ' ')}"

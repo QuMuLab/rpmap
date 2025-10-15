@@ -3,29 +3,29 @@
         :parameters (?a - agent)
         :antecedent 
         (
-            :poscond ?pos1
-            :negcond ?neg1
+            :poscond ?pos
+            :negcond ?neg
             :rml [b, ?a](rml)
             :type add
         )
         :consequent 
         (
-            :poscond ?pos2
-            :negcond ?neg2
+            :poscond ?pos
+            :negcond ?neg
             :rml <b, ?a>(rml)
             :type add
         )
     )
     (:anceff negation-removal
         :antecedent (
-            :poscond ?pos1
-            :negcond ?neg1
+            :poscond ?pos
+            :negcond ?neg
             :rml (rml)
             :type add
         )
         :consequent (
-            :poscond ?pos2
-            :negcond ?neg2
+            :poscond ?pos
+            :negcond ?neg
             :rml !(rml)
             :type del
         )
@@ -33,14 +33,14 @@
     (:anceff kd45-un-closure
         :parameters (?a - agent)
         :antecedent (
-            :poscond ?pos1
-            :negcond ?neg1
+            :poscond ?pos
+            :negcond ?neg
             :rml <b, ?a>(rml)
             :type del
         )
         :consequent (
-            :poscond ?pos2
-            :negcond ?neg2
+            :poscond ?pos
+            :negcond ?neg
             :rml [b, ?a](rml)
             :type del
         )

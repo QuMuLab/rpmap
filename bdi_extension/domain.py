@@ -65,7 +65,7 @@ def atomic_formula_term(self, args):
     # (if there's no BDI term, we just skip over None)
     after_bdi = None
     for i in range(len(args)):
-        if type(args[i]) == Token:
+        if type(args[i]) is Token:
             if "LPAR" in args[i].type: #accounting for import being part of the type name
                 # reached the end of the BDI terms
                 after_bdi = i
@@ -76,7 +76,7 @@ def atomic_formula_term(self, args):
             negated = True
     name = args[after_bdi + 2] # add 2 to skip the EXC space
     var_pred = False
-    if type(name) == list:
+    if type(name) is list:
         # indicates that we are dealing with a variable predicate instead of a predicate
         # e.g. (?mu)
         name =  Token("NAME", "".join(p.value for p in name))
@@ -208,7 +208,7 @@ def new_predicate_str_rmls(self):
                 bdi_str += "not_"
         for bdi_term in self.bdi[1:]:
             for token in bdi_term:
-                if type(token) == list:
+                if type(token) is list:
                     for t in token:
                         bdi_str += get_merged_token_value(t)
                 else:

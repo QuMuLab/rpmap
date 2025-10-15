@@ -18,18 +18,20 @@ def recursive_print(tree, outer_sep=""):
     outer_sep: determines how to separate what is being parsed. 
         It's an empty space by default, or a space for "compound" type objects."""
     new_str = []
-    if type(tree) == list:
+    if type(tree) is list:
         for child in tree:
-            if type(child) == list:
+            if type(child) is list:
                 # other printing type is defined
-                if type(child[0]) == str:
-                    if child[0] == "COMPOUND": # printing a list comp 
+                if type(child[0]) is str:
+                    if child[0] is "COMPOUND": # printing a list comp 
                         new_str.append(recursive_print(child[1:], " "))
                 else:
                     new_str.append(recursive_print(child, ""))
             else:
                 new_str.append(recursive_print(child, ""))
         return outer_sep.join(new_str)
+    elif type(tree) is Token:
+        return tree.value
     else:
         return str(tree) if tree else ""
     
