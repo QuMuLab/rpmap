@@ -86,7 +86,10 @@ def atomic_formula_term(self, args):
         p = VariablePredicate(name, *terms)
     else:
         p = Predicate(name, *terms)
-    p.bdi = args[:after_bdi]  # store the BDI term
+    bdi = args[:after_bdi]  # store the BDI term
+    if bdi == [None]:
+        bdi = None
+    p.bdi = bdi
     p.negated = negated # store the negated term, e.g. (!term ?a ?b)
     return p
 
@@ -201,7 +204,7 @@ def new_predicate_str_rmls(self):
     # return p_str
 
     p_str = ""
-    if self.bdi != [None]:
+    if self.bdi:
         bdi_str = "("
         if self.bdi[0]:
             if self.bdi[0].type == "EXC":

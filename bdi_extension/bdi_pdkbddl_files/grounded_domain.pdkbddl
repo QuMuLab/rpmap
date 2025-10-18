@@ -7,14 +7,14 @@
 	(:predicates
 		(secret ?a)
 		{AK}(at ?a ?l2)
-		{AK}(at ?a ?l1)
-		(secret ?b)
 		{AK}(connected ?l2 ?l1)
 		{AK}(at ?b ?l1)
-		{AK}(connected ?l1 ?l2)
-		{AK}(connected ?l2 ?l2)
 		{AK}(at ?b ?l2)
+		{AK}(at ?a ?l1)
+		(secret ?b)
+		{AK}(connected ?l2 ?l2)
 		{AK}(connected ?l1 ?l1)
+		{AK}(connected ?l1 ?l2)
 	)
 	(:action move_a_l1_l1
 	    :parameters ()
@@ -119,10 +119,8 @@
 			[b, a](secret a)
 		)
 	    :effect (and
-			(when (at b l1) [b, b](secret a))
 			(when (at a l1) [b, a](secret a))
-			(when (at b l1) !(!secret a))
-			(when (at a l1) !(!secret a))
+			(when (at b l1) [b, b](secret a))
 		)
 	)
 	 (:action share_a_a_l2
@@ -132,10 +130,8 @@
 			[b, a](secret a)
 		)
 	    :effect (and
-			(when (at b l2) [b, b](secret a))
 			(when (at a l2) [b, a](secret a))
-			(when (at b l2) !(!secret a))
-			(when (at a l2) !(!secret a))
+			(when (at b l2) [b, b](secret a))
 		)
 	)
 	 (:action share_a_b_l1
@@ -145,10 +141,8 @@
 			[b, a](secret b)
 		)
 	    :effect (and
-			(when (at b l1) [b, b](secret b))
 			(when (at a l1) [b, a](secret b))
-			(when (at b l1) !(!secret b))
-			(when (at a l1) !(!secret b))
+			(when (at b l1) [b, b](secret b))
 		)
 	)
 	 (:action share_a_b_l2
@@ -158,10 +152,8 @@
 			[b, a](secret b)
 		)
 	    :effect (and
-			(when (at b l2) [b, b](secret b))
 			(when (at a l2) [b, a](secret b))
-			(when (at b l2) !(!secret b))
-			(when (at a l2) !(!secret b))
+			(when (at b l2) [b, b](secret b))
 		)
 	)
 	 (:action share_b_a_l1
@@ -171,10 +163,8 @@
 			[b, b](secret a)
 		)
 	    :effect (and
-			(when (at b l1) [b, b](secret a))
 			(when (at a l1) [b, a](secret a))
-			(when (at b l1) !(!secret a))
-			(when (at a l1) !(!secret a))
+			(when (at b l1) [b, b](secret a))
 		)
 	)
 	 (:action share_b_a_l2
@@ -184,10 +174,8 @@
 			[b, b](secret a)
 		)
 	    :effect (and
-			(when (at b l2) [b, b](secret a))
 			(when (at a l2) [b, a](secret a))
-			(when (at b l2) !(!secret a))
-			(when (at a l2) !(!secret a))
+			(when (at b l2) [b, b](secret a))
 		)
 	)
 	 (:action share_b_b_l1
@@ -197,10 +185,8 @@
 			[b, b](secret b)
 		)
 	    :effect (and
-			(when (at b l1) [b, b](secret b))
 			(when (at a l1) [b, a](secret b))
-			(when (at b l1) !(!secret b))
-			(when (at a l1) !(!secret b))
+			(when (at b l1) [b, b](secret b))
 		)
 	)
 	 (:action share_b_b_l2
@@ -210,10 +196,8 @@
 			[b, b](secret b)
 		)
 	    :effect (and
-			(when (at b l2) [b, b](secret b))
 			(when (at a l2) [b, a](secret b))
-			(when (at b l2) !(!secret b))
-			(when (at a l2) !(!secret b))
+			(when (at b l2) [b, b](secret b))
 		)
 	)
 )

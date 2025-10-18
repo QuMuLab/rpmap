@@ -43,7 +43,10 @@ def anceff_atomic_formula_term(self, args):
         p = VariablePredicate(name)
     else:
         p = Predicate(name)
-    p.bdi = args[:after_bdi]  # store the BDI term
+    bdi = args[:after_bdi]  # store the BDI term
+    if bdi == [None]:
+        bdi = None
+    p.bdi = bdi
     p.negated = negated # store the negated term, e.g. (!term ?a ?b)
     return p
 

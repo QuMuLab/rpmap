@@ -34,7 +34,10 @@ def atomic_formula_name(self, args):
         else:
             terms.append(self._objects_by_name.get(str(_term_name)))
     p = Predicate(predicate_name, *terms)
-    p.bdi = args[:after_bdi]  # store the BDI term
+    bdi = args[:after_bdi]  # store the BDI term
+    if bdi == [None]:
+        bdi = None
+    p.bdi = bdi
     p.negated = negated # store the negated term, e.g. (!term ?a ?b)
     return p
 

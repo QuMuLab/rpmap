@@ -222,7 +222,7 @@ def predicates_to_fluents(predicates: list[Predicate], assignment):
             fluents.append(outside_formula_type(f))
         else:
             f = Predicate(p.name, *new_terms)
-            if p.bdi != [None]:         
+            if p.bdi:         
                 p.bdi[1][3] = Token("NAME", assignment[p.bdi[1][3][1].value]) 
                 # for bdi_term in p.bdi[1:]: #exclude the EXC token
                 #     for i in range(len(bdi_term)):
