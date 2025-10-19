@@ -5,26 +5,26 @@ from pddl.logic.predicates import Predicate
 from pddl.logic.effects import When
 
 def handle_list_comp(list_comp_terms):
-    pass
+    print()
+
+def get_cond_preds(ant_pos_cond, ant_neg_cond, cons_cond):
+    # recursively iterate through the condition structure
+    if type(cons_cond) in [Token, Predicate]:        
+        return cons_cond
+
+    if type(cons_cond) is list:
+        first_term = cons_cond[0]
+        if type(first_term) is list:
+            if first_term[0] == "COMPOUND":
+                # we're dealing with a list comprehension
+                return handle_list_comp(cons_cond[2:-1])
+        return [get_cond_preds(ant_pos_cond, ant_neg_cond, term) for term in cons_cond]
 
 def create_cond(ant_pos_cond, ant_neg_cond, cons_cond):
-    # iterate through the positive consequent condition
-    new_cond = []
-    for term in cons_cond:
-        if type(term) is list:
-            for token in term:
-                if token == "COMPOUND":
-                    continue
-                if token.type == "LCRL":
-                    # we're in a list comp
-                    new_cond.extend(handle_list_comp(term[2:-1]))
-                    break
-        if type(term) is Token:
-            if term.type == "PLUS":
-                pass
-        if type(term) is Predicate:
-            new_cond.append(term)
-    return And(*new_cond)
+    if cons_cond:
+        new_cond_preds = get_cond_preds(ant_pos_cond, ant_neg_cond, cons_cond)
+        return And(*new_cond_preds)
+    return None
 
 def create_conds(ant_pos_cond, ant_neg_cond, cons_pos_cond, cons_neg_cond):
     new_pos_cond = create_cond(ant_pos_cond, ant_neg_cond, cons_pos_cond) if ant_pos_cond != cons_pos_cond else ant_pos_cond
@@ -34,7 +34,8 @@ def create_conds(ant_pos_cond, ant_neg_cond, cons_pos_cond, cons_neg_cond):
 def create_consequent(ant_pos_cond, ant_neg_cond, cons_pos_cond, cons_neg_cond, cons_rml, cons_cond_type, o):
     if type(o) is When:
         new_pos_cond, new_neg_cond = create_conds(ant_pos_cond, ant_neg_cond, cons_pos_cond, cons_neg_cond)
-        # TODO: create new condition from these, and return a When formula
+        # TODO: create new condition from these (check if any results are None),
+        # and return a When formula
         o = o.effect
         if type(o) is not Predicate:
             raise NotImplementedError("Handle complex when effects later?")
