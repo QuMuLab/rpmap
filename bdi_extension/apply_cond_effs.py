@@ -4,6 +4,13 @@ from pddl.logic.base import And
 from pddl.logic.predicates import Predicate
 from pddl.logic.effects import When
 
+
+def modify_predicate_apply_cond_type(old_p, mod_p, cond_type):
+    p = modify_predicate(old_p, mod_p)
+    if cond_type == 'del':
+        p.negated = not p.negated
+    return p
+
 def modify_predicate(old_p, mod_p):
     """ Assuming both predicates have the same "base,"
     modify the old predicate according to the attributes of the new predicate"""
@@ -28,16 +35,20 @@ def modify_predicate(old_p, mod_p):
                 new_pred.bdi = mod_p.bdi
         else:
             new_pred.bdi = mod_p.bdi
+            new_pred.bdi[1][3] = old_p.bdi[1][3]
+            # TODO: actually check parameters here?
+            # right now we're just assuming one agent
     return new_pred
 
 def get_pos_or_neg_cond_term(cond, term_type):
+    new_preds = []
     if term_type == 'pos':
         # note: since we have a condition, we assume we're working with a When
         # we need to grab all predicates that are not negated
         if type(cond) is list:
             new_preds = [p for p in cond if p.negated == False]
         else:
-            if cond.condition.negated == False:
+            if cond.negated == False:
                 new_preds = [cond]
     else:
         if type(cond) is list:
@@ -97,12 +108,14 @@ def get_cond_preds(ant_pos_cond, ant_neg_cond, cons_cond, o):
                         continue
                 # we're referencing an antecedent condition
                 if term == ant_pos_cond[0]:
-                    cond_preds.extend(get_pos_or_neg_cond_term(o.condition, 'pos'))  
+                    cond_preds.extend(get_pos_or_neg_cond_term(o.condition, 'pos')) 
+                    continue 
                 elif term == ant_neg_cond[0]:
-                    cond_preds.extend(get_pos_or_neg_cond_term(o.condition, 'neg'))                
+                    cond_preds.extend(get_pos_or_neg_cond_term(o.condition, 'neg')) 
+                    continue   
+            # regular recursion            
             cond_preds.extend(get_cond_preds(ant_pos_cond, ant_neg_cond, term, o))
-
-        return [get_cond_preds(ant_pos_cond, ant_neg_cond, term, o) for term in cons_cond]
+    return cond_preds
 
 def create_cond(ant_pos_cond, ant_neg_cond, cons_cond, o):
     if cons_cond:
@@ -110,8 +123,8 @@ def create_cond(ant_pos_cond, ant_neg_cond, cons_cond, o):
     return None
 
 def create_conds(ant_pos_cond, ant_neg_cond, cons_pos_cond, cons_neg_cond, o):
-    new_pos_cond = create_cond(ant_pos_cond, ant_neg_cond, cons_pos_cond, o) if ant_pos_cond != cons_pos_cond else ant_pos_cond
-    new_neg_cond = create_cond(ant_pos_cond, ant_neg_cond, cons_neg_cond, o) if ant_neg_cond != cons_neg_cond else ant_neg_cond
+    new_pos_cond = create_cond(ant_pos_cond, ant_neg_cond, cons_pos_cond, o)
+    new_neg_cond = create_cond(ant_pos_cond, ant_neg_cond, cons_neg_cond, o)
 
     new_cond = []
     if new_pos_cond:
@@ -130,8 +143,8 @@ def create_consequent(ant_pos_cond, ant_neg_cond, cons_pos_cond, cons_neg_cond, 
         # and return a When formula
         if type(o.effect) is not Predicate:
             raise NotImplementedError("Handle complex when effects later?")
-        return When(cond, modify_predicate(o.effect, cons_rml))    
-    return modify_predicate(o, cons_rml)
+        return When(cond, modify_predicate_apply_cond_type(o.effect, cons_rml, cons_cond_type))    
+    return modify_predicate_apply_cond_type(o, cons_rml, cons_cond_type)
 
 def check_ant_format(rml, cond_type, o) -> bool:
     """
@@ -187,7 +200,7 @@ def apply_cond_effs(anc_effs, domain, problem):
     for action in domain._actions:
         for anc_eff in anc_effs._anceffs:
             # first do negation removal
-            if anc_eff[2].value in ['uncertain-firing']:#['negation-removal', 'kd45closure', 'kd45-un-closure']:
+            if anc_eff[2].value in ['uncertain-firing', 'negation-removal', 'kd45closure', 'kd45-un-closure']:
                 print(anc_eff[2].value)
                 anc_eff = anc_eff[3:-1] # remove parentheses and anceff name    
                 # parameters are optional
@@ -212,6 +225,4 @@ def apply_cond_effs(anc_effs, domain, problem):
                     if check_ant_format(ant_rml, ant_cond_type, o):
                         new_pred = create_consequent(ant_pos_cond, ant_neg_cond, cons_pos_cond, cons_neg_cond, cons_rml, cons_cond_type, o)
                         # apply the consequent
-                        if cons_cond_type == 'del':
-                            new_pred.negated = not new_pred.negated
                         action.effect._operands.append(new_pred)

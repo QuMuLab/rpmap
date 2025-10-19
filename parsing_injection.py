@@ -318,7 +318,7 @@ if __name__ == "__main__":
         anceff_grammar = f.read()
     write_no_duplicate("\n" + anceff_grammar, GRAMMAR_FILE)
     # modify the domain and problem grammar files to add in the new rules
-    construct_domain_grammar(False)
+    construct_domain_grammar()
     construct_problem_grammar()
     # grab the PDDL
     pddl = "\n".join(read_pdkbddl_file("bdi_extension/bdi_pdkbddl_files/bdi_mvex_problem.pdkbddl"))

@@ -158,57 +158,9 @@ def get_merged_token_value(token):
     
 def new_predicate_str_rmls(self):
     """New predicate string adapted from the pddl.logic.Predicate.__str__ method."""
-    # p_str = self.get_predicate_prefix()
-    # replace the default prefix with RMLs
-    # p_str = p_str.replace("{AK}", "AK{}")
-
-    # # # deal with nestings
-    # # p_str = p_str.replace("][", "})[")
-    # # p_str = p_str.replace(">[", "})[")
-    # # p_str = p_str.replace("]<", "})<")
-    # # p_str = p_str.replace("><", "})<")
-
-    # p_str = p_str.replace("![b, ", "(!B{")
-    # p_str = p_str.replace("![d, ", "(!D{")
-    # p_str = p_str.replace("![i, ", "(!I{")
-    # p_str = p_str.replace("!<b, ", "(!PB{")
-    # p_str = p_str.replace("!<d, ", "(!PD{")
-    # p_str = p_str.replace("!<i, ", "(!PI{")
-
-    # p_str = p_str.replace("[b, ", "(B{")
-    # p_str = p_str.replace("[d, ", "(D{")
-    # p_str = p_str.replace("[i, ", "(I{")
-    # p_str = p_str.replace("<b, ", "(PB{")
-    # p_str = p_str.replace("<d, ", "(PD{")
-    # p_str = p_str.replace("<i, ", "(PI{")
-
-    
-    # p_str = p_str.replace("]", "}")
-    # p_str = p_str.replace(">", "}")
-
-    # if self.negated:
-    #     p_str += f"(!{self.name}"
-    # else:
-    #     p_str += f"({self.name}"
-    # if self.arity == 0:
-    #     p_str = f"{p_str})"
-    # else:
-    #     p_str = f"{p_str} {' '.join(map(str, self.terms))})"    
-    
-    # bdi_search = ["B{", "D{", "I{"]
-    # total = sum(p_str.count(word) for word in bdi_search)
-    # if total > 1:
-    #     print()
-    # for _ in range(total):
-    #     p_str += ")"
-    # return p_str
-
     p_str = ""
     if self.bdi:
-        bdi_str = "("
-        if self.bdi[0]:
-            if self.bdi[0].type == "EXC":
-                bdi_str += "not_"
+        bdi_str = "("      
         for bdi_term in self.bdi[1:]:
             for token in bdi_term:
                 if type(token) is list:
@@ -216,6 +168,9 @@ def new_predicate_str_rmls(self):
                         bdi_str += get_merged_token_value(t)
                 else:
                     bdi_str += get_merged_token_value(token)
+        if self.bdi[0]:
+            if self.bdi[0].type == "EXC":
+                bdi_str += "not_"
         p_str += bdi_str
         name = self.name
     else:
