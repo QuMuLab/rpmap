@@ -4,65 +4,134 @@ from pddl.logic.base import And
 from pddl.logic.predicates import Predicate
 from pddl.logic.effects import When
 
-def handle_list_comp(list_comp_terms):
-    print()
+def modify_predicate(old_p, mod_p):
+    """ Assuming both predicates have the same "base,"
+    modify the old predicate according to the attributes of the new predicate"""
+    new_pred = Predicate(
+        old_p.name,
+        *old_p.terms
+    )
+    # take the original AK (wouldn't be modified)
+    new_pred.always_known = old_p.always_known
+    # new negation takes precedence
+    new_pred.negated = mod_p.negated
+    
+    # just copy this for now
+    new_pred.bdi = deepcopy(old_p.bdi)
+    # the BDI is trickier. if we just have a negation, we are negating the existing BDI.
+    # otherwise, we assume we are replacing the whole BDI term.
+    if mod_p.bdi:
+        if len(mod_p.bdi) == 1: # just have negation
+            if new_pred.bdi:
+                new_pred.bdi[0] = mod_p.bdi[0]
+            else:
+                new_pred.bdi = mod_p.bdi
+        else:
+            new_pred.bdi = mod_p.bdi
+    return new_pred
 
-def get_cond_preds(ant_pos_cond, ant_neg_cond, cons_cond):
+def get_pos_or_neg_cond_term(cond, term_type):
+    if term_type == 'pos':
+        # note: since we have a condition, we assume we're working with a When
+        # we need to grab all predicates that are not negated
+        if type(cond) is list:
+            new_preds = [p for p in cond if p.negated == False]
+        else:
+            if cond.condition.negated == False:
+                new_preds = [cond]
+    else:
+        if type(cond) is list:
+            new_preds = [p for p in cond if p.negated == False]
+        else:
+            if cond.negated == True:
+                new_preds = [cond]
+    return new_preds
+
+
+def handle_list_comp(ant_pos_cond, ant_neg_cond, list_comp_terms, o):
+    if not ant_pos_cond and not ant_neg_cond:
+        return []
+    matching_lc = None
+    # check if the positive condition has a matching list comprehension term
+    if ant_pos_cond:
+        if type(ant_pos_cond) is list:
+            first_cond_term = ant_pos_cond[0]
+            if type(first_cond_term) is list:
+                if list_comp_terms[4] == first_cond_term[0]:
+                    matching_lc = 'pos'
+    # if not, check the negative condition
+    if not matching_lc and ant_neg_cond:
+        if type(ant_neg_cond) is list:
+            first_cond_term = ant_neg_cond[0]
+            if type(first_cond_term) is list:
+                if list_comp_terms[4] == first_cond_term[0]:
+                    matching_lc = 'neg'
+    # if neither matches, then we don't know what the list comprehension is referring to
+    if not matching_lc:
+        raise ValueError("No matching list comprehension term found in antecedent conditions.")
+    # if we do have a matching term, we need to construct the new list of predicates
+    new_preds = get_pos_or_neg_cond_term(o.condition, matching_lc)
+
+    # finally we need to see if any modifications were made to the predicates by looking
+    # at the first term of the list comprehension
+    for i in range(len(new_preds)):
+        new_preds[i] = modify_predicate(new_preds[i], list_comp_terms[0])
+    return new_preds
+
+def get_cond_preds(ant_pos_cond, ant_neg_cond, cons_cond, o):
     # recursively iterate through the condition structure
-    if type(cons_cond) in [Token, Predicate]:        
-        return cons_cond
+    if type(cons_cond) is Predicate:   
+        return [cons_cond]
+    elif type(cons_cond) is Token:
+        if cons_cond.type == 'PLUS':
+            return []
 
-    if type(cons_cond) is list:
-        first_term = cons_cond[0]
-        if type(first_term) is list:
-            if first_term[0] == "COMPOUND":
-                # we're dealing with a list comprehension
-                return handle_list_comp(cons_cond[2:-1])
-        return [get_cond_preds(ant_pos_cond, ant_neg_cond, term) for term in cons_cond]
+    elif type(cons_cond) is list:
+        cond_preds = []
+        for term in cons_cond:
+            if type(term) is list:
+                if type(term[0]) is list:
+                    if term[0][0] == "COMPOUND":
+                        # we're dealing with a list comprehension
+                        cond_preds.extend(handle_list_comp(ant_pos_cond, ant_neg_cond, term[0][2:-1], o))
+                        continue
+                # we're referencing an antecedent condition
+                if term == ant_pos_cond[0]:
+                    cond_preds.extend(get_pos_or_neg_cond_term(o.condition, 'pos'))  
+                elif term == ant_neg_cond[0]:
+                    cond_preds.extend(get_pos_or_neg_cond_term(o.condition, 'neg'))                
+            cond_preds.extend(get_cond_preds(ant_pos_cond, ant_neg_cond, term, o))
 
-def create_cond(ant_pos_cond, ant_neg_cond, cons_cond):
+        return [get_cond_preds(ant_pos_cond, ant_neg_cond, term, o) for term in cons_cond]
+
+def create_cond(ant_pos_cond, ant_neg_cond, cons_cond, o):
     if cons_cond:
-        new_cond_preds = get_cond_preds(ant_pos_cond, ant_neg_cond, cons_cond)
-        return And(*new_cond_preds)
+        return get_cond_preds(ant_pos_cond, ant_neg_cond, cons_cond, o)
     return None
 
-def create_conds(ant_pos_cond, ant_neg_cond, cons_pos_cond, cons_neg_cond):
-    new_pos_cond = create_cond(ant_pos_cond, ant_neg_cond, cons_pos_cond) if ant_pos_cond != cons_pos_cond else ant_pos_cond
-    new_neg_cond = create_cond(ant_pos_cond, ant_neg_cond, cons_neg_cond) if ant_neg_cond != cons_neg_cond else ant_neg_cond
-    return new_pos_cond, new_neg_cond
+def create_conds(ant_pos_cond, ant_neg_cond, cons_pos_cond, cons_neg_cond, o):
+    new_pos_cond = create_cond(ant_pos_cond, ant_neg_cond, cons_pos_cond, o) if ant_pos_cond != cons_pos_cond else ant_pos_cond
+    new_neg_cond = create_cond(ant_pos_cond, ant_neg_cond, cons_neg_cond, o) if ant_neg_cond != cons_neg_cond else ant_neg_cond
+
+    new_cond = []
+    if new_pos_cond:
+        new_cond.extend(new_pos_cond)
+    if new_neg_cond:
+        new_cond.extend(new_neg_cond)
+    # note: we assume we have at least some condition, because this is being called
+    # to create consequent conditions for a When formula, which must have some condition
+    return And(*new_cond)
+
 
 def create_consequent(ant_pos_cond, ant_neg_cond, cons_pos_cond, cons_neg_cond, cons_rml, cons_cond_type, o):
     if type(o) is When:
-        new_pos_cond, new_neg_cond = create_conds(ant_pos_cond, ant_neg_cond, cons_pos_cond, cons_neg_cond)
+        cond = create_conds(ant_pos_cond, ant_neg_cond, cons_pos_cond, cons_neg_cond, o)
         # TODO: create new condition from these (check if any results are None),
         # and return a When formula
-        o = o.effect
-        if type(o) is not Predicate:
+        if type(o.effect) is not Predicate:
             raise NotImplementedError("Handle complex when effects later?")
-
-    new_pred = Predicate(
-        o.name,
-        *o.terms
-    )
-    # take the original AK (wouldn't be specified in the RML)
-    new_pred.always_known = o.always_known
-    if cons_cond_type == 'del':
-        new_pred.negated = not new_pred.negated
-    # just copy this for now
-    new_pred.bdi = deepcopy(o.bdi)
-    # the BDI is trickier. if we just have a negation, we are negating the existing BDI.
-    # otherwise, we assume we are replacing the whole BDI term.
-    if cons_rml.bdi:
-        if len(cons_rml.bdi) == 1: # just have negation
-            if new_pred.bdi:
-                new_pred.bdi[0] = cons_rml.bdi[0]
-            else:
-                new_pred.bdi = cons_rml.bdi
-        else:
-            new_pred.bdi = cons_rml.bdi
-
-    
-    return new_pred
+        return When(cond, modify_predicate(o.effect, cons_rml))    
+    return modify_predicate(o, cons_rml)
 
 def check_ant_format(rml, cond_type, o) -> bool:
     """
@@ -141,5 +210,8 @@ def apply_cond_effs(anc_effs, domain, problem):
                 for o in action.effect.operands:
                     # check the antecedent format
                     if check_ant_format(ant_rml, ant_cond_type, o):
+                        new_pred = create_consequent(ant_pos_cond, ant_neg_cond, cons_pos_cond, cons_neg_cond, cons_rml, cons_cond_type, o)
                         # apply the consequent
-                        action.effect._operands.append(create_consequent(ant_pos_cond, ant_neg_cond, cons_pos_cond, cons_neg_cond, cons_rml, cons_cond_type, o))
+                        if cons_cond_type == 'del':
+                            new_pred.negated = not new_pred.negated
+                        action.effect._operands.append(new_pred)

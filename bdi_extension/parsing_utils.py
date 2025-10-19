@@ -23,7 +23,7 @@ def recursive_print(tree, outer_sep=""):
             if type(child) is list:
                 # other printing type is defined
                 if type(child[0]) is str:
-                    if child[0] is "COMPOUND": # printing a list comp 
+                    if child[0] == "COMPOUND": # printing a list comp 
                         new_str.append(recursive_print(child[1:], " "))
                 else:
                     new_str.append(recursive_print(child, ""))

@@ -5,16 +5,16 @@
 	    agent loc
 	)
 	(:predicates
+		{AK}(connected ?l1 ?l2)
 		(secret ?b)
-		(secret ?a)
-		{AK}(at ?a ?l2)
+		{AK}(connected ?l2 ?l2)
+		{AK}(connected ?l1 ?l1)
 		{AK}(at ?b ?l2)
-		{AK}(at ?a ?l1)
 		{AK}(connected ?l2 ?l1)
 		{AK}(at ?b ?l1)
-		{AK}(connected ?l1 ?l2)
-		{AK}(connected ?l1 ?l1)
-		{AK}(connected ?l2 ?l2)
+		{AK}(at ?a ?l1)
+		(secret ?a)
+		{AK}(at ?a ?l2)
 	)
 	(:action move_a_l1_l1
 	    :parameters ()
