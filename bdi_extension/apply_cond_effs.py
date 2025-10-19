@@ -58,7 +58,6 @@ def get_pos_or_neg_cond_term(cond, term_type):
                 new_preds = [cond]
     return new_preds
 
-
 def handle_list_comp(ant_pos_cond, ant_neg_cond, list_comp_terms, o):
     if not ant_pos_cond and not ant_neg_cond:
         return []
@@ -196,6 +195,18 @@ def check_ant_format(rml, cond_type, o) -> bool:
     del o_bdi_body[3]
     return rml_negated_bdi == o_negated_bdi and rml_bdi_body == o_bdi_body and rml.always_known == o.always_known and rml.negated == o.negated
 
+def apply_cond_eff(ant_pos_cond, ant_neg_cond, ant_rml, ant_cond_type, cons_pos_cond, cons_neg_cond, cons_rml, cons_cond_type, o):
+    """Adapted from pdlb.actions.Action._expand."""
+    condleft = [o]
+    processed_conds = set()
+    while condleft:
+        next_cond = condleft.pop(0)
+        # check the antecedent format
+        if next_cond not in processed_conds and check_ant_format(ant_rml, ant_cond_type, o):
+            processed_conds.add(next_cond)
+            condleft.append(create_consequent(ant_pos_cond, ant_neg_cond, cons_pos_cond, cons_neg_cond, cons_rml, cons_cond_type, next_cond))
+    return list(processed_conds - {o}) # already have o
+
 def apply_cond_effs(anc_effs, domain, problem):
     for action in domain._actions:
         for anc_eff in anc_effs._anceffs:
@@ -221,8 +232,10 @@ def apply_cond_effs(anc_effs, domain, problem):
                 cons_cond_type = cons[3][1][0].value
             
                 for o in action.effect.operands:
-                    # check the antecedent format
-                    if check_ant_format(ant_rml, ant_cond_type, o):
-                        new_pred = create_consequent(ant_pos_cond, ant_neg_cond, cons_pos_cond, cons_neg_cond, cons_rml, cons_cond_type, o)
+                    new_preds = apply_cond_eff(ant_pos_cond, ant_neg_cond, ant_rml, ant_cond_type,
+                                             cons_pos_cond, cons_neg_cond, cons_rml, cons_cond_type, o)
+                    if new_preds:
                         # apply the consequent
-                        action.effect._operands.append(new_pred)
+                        action.effect._operands.extend(new_preds)
+        # in case of duplicate effects, remove them
+        action.effect._operands = list(set(action.effect._operands))
