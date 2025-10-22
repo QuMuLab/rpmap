@@ -3,52 +3,112 @@ from .parsing_utils import *
 from pddl.helpers.base import _typed_parameters
 
 
+class RML:
+    def __init__(self, args):
+        self.name = None
+        # negate the whole thing, whether that's a bdi term or not
+        # ONLY SET IF THERE'S NO BDI TERM OR TERM NEGATION IN THE RML 
+        # (because those have their own negations with distinct meanings,
+        # and then we're overloading the '!' operator...)
+        self.negate_whole_f = False
+        self.negate_term = False
+        self.bdi = None
+
+        # figure out where the BDI term ends, e.g. (!)[b, ?agent]{index} or (!)<b, ?agent>{index}.
+        # (if there's no BDI term, we just skip over None)
+        after_bdi = None
+        for i in range(len(args)):
+            if type(args[i]) is Token:
+                if "LPAR" in args[i].type: #accounting for import being part of the type name
+                    # reached the end of the BDI terms
+                    after_bdi = i
+                    break
+        # check for EXC (negation)
+        if args[after_bdi + 1]:
+            if "EXC" in args[after_bdi + 1].type:
+                self.negate_term = True
+        # get the name
+        raw_name = args[after_bdi + 2:-1]
+        name = []
+        # we get either a simple name like (rml) or a variable name like (?mu).
+        # we just treat it like the string name of a predicate.
+        for t in raw_name:
+            if type(t) is list:
+                if t[0].type == "QMRK":
+                    name.append(f"{t[0]}{t[1]}")
+                else:
+                    raise ValueError(f"Dealing with an unknown ancillary effect atomic formula term type {t}.")
+            elif type(t) is Token:
+                name.append(t.value)
+            else:
+                raise ValueError(f"Dealing with an unknown ancillary effect atomic formula term type {t}.")   
+        self.name = "".join(str(name)) if len(name) > 1 else name[0]
+
+        bdi = args[:after_bdi]
+        if bdi == [None]:
+            bdi = None
+        if bdi:
+            if len(bdi) == 1: # just have negation
+                if bdi[0]:
+                    self.negate_whole_f = True
+            else: # negation applies to the bdi_term
+                if bdi[1]:
+                    self.bdi = bdi
+                elif bdi[0] and not bdi[1]:
+                    self.negate_whole_f = True    
+
 def anceff_atomic_formula_term(self, args):
     """Create a modification of the atomic formula term transformer for ancillary effects.
     Adapted from the pddl.parser.domain.DomainTransformer.atomic_formula_term method.
     """
-    # figure out where the BDI term ends, e.g. (!)[b, ?agent]{index} or (!)<b, ?agent>{index}.
-    # (if there's no BDI term, we just skip over None)
-    after_bdi = None
-    for i in range(len(args)):
-        if type(args[i]) is Token:
-            if "LPAR" in args[i].type: #accounting for import being part of the type name
-                # reached the end of the BDI terms
-                after_bdi = i
-                break
-    negated = False
-    # check for EXC (negation)
-    if args[after_bdi + 1]:
-        if "EXC" in args[after_bdi + 1].type:
-            negated = True        
-    raw_name = args[after_bdi + 2:-1]
-    name = []
-    var_pred = False
-    # we get either a simple name like (rml) or a variable name like (?mu).
-    # we just treat it like the string name of a predicate.
-    for t in raw_name:
-        if type(t) is list:
-            var_pred = True
-            if t[0].type == "QMRK":
-                name.append(f"{t[0]}{t[1]}")
-            else:
-                raise ValueError(f"Dealing with an unknown ancillary effect atomic formula term type {t}.")
-        elif type(t) is Token:
-            name.append(t.value)
-        else:
-            raise ValueError(f"Dealing with an unknown ancillary effect atomic formula term type {t}.")
-    name = "".join(str(name)) if len(name) > 1 else name[0]
-    if var_pred:
-        # need this so the regex can allow a question mark.
-        p = VariablePredicate(name)
-    else:
-        p = Predicate(name)
-    bdi = args[:after_bdi]  # store the BDI term
-    if bdi == [None]:
-        bdi = None
-    p.bdi = bdi
-    p.negated = negated # store the negated term, e.g. (!term ?a ?b)
-    return p
+    rml = RML(args)
+    return rml
+    # negated = False
+    # if args[0]:
+    #     negated = True
+    # # figure out where the BDI term ends, e.g. (!)[b, ?agent]{index} or (!)<b, ?agent>{index}.
+    # # (if there's no BDI term, we just skip over None)
+    # after_bdi = None
+    # for i in range(len(args)):
+    #     if type(args[i]) is Token:
+    #         if "LPAR" in args[i].type: #accounting for import being part of the type name
+    #             # reached the end of the BDI terms
+    #             after_bdi = i
+    #             break
+    
+    # # check for EXC (negation)
+    # # if args[after_bdi + 1]:
+    # #     if "EXC" in args[after_bdi + 1].type:
+    # #         negated = True        
+    # raw_name = args[after_bdi + 2:-1]
+    # name = []
+    # var_pred = False
+    # # we get either a simple name like (rml) or a variable name like (?mu).
+    # # we just treat it like the string name of a predicate.
+    # for t in raw_name:
+    #     if type(t) is list:
+    #         var_pred = True
+    #         if t[0].type == "QMRK":
+    #             name.append(f"{t[0]}{t[1]}")
+    #         else:
+    #             raise ValueError(f"Dealing with an unknown ancillary effect atomic formula term type {t}.")
+    #     elif type(t) is Token:
+    #         name.append(t.value)
+    #     else:
+    #         raise ValueError(f"Dealing with an unknown ancillary effect atomic formula term type {t}.")
+    # name = "".join(str(name)) if len(name) > 1 else name[0]
+    # if var_pred:
+    #     # need this so the regex can allow a question mark.
+    #     p = VariablePredicate(name)
+    # else:
+    #     p = Predicate(name)
+    # # store the BDI term
+    # bdi = args[1:after_bdi] 
+    # if args[after_bdi + 1]:
+    #     bdi = [args[after_bdi + 1]] + bdi
+    # p.bdi = bdi if bdi else None
+    # p.negated = negated # store the negated term, e.g. (!term ?a ?b)
+    # return p
 
 class AncillaryEffects:
     """Class for Ancillary Effects, analogous to the pddl.core.Domain and pddl.core.Problem classes."""

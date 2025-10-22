@@ -255,7 +255,13 @@ def ground_formula(domain, problem, formula, assignment):
             grounded.append(ground_formula(domain, problem, formula.effect, assignment))
         return And(*grounded)
     elif type(formula) is When:
-        return When(ground_formula(domain, problem, formula.condition, assignment), ground_formula(domain, problem, formula.effect, assignment))
+        cond = ground_formula(domain, problem, formula.condition, assignment)
+        if type(cond) is Predicate:
+            # for formatting reasons we want to force this into being an "And"
+            and_term = And(*[])
+            and_term._operands.append(cond)
+            cond = and_term
+        return When(cond, ground_formula(domain, problem, formula.effect, assignment))
 
 
 def create_operators(domain, problem, fluent_dict):

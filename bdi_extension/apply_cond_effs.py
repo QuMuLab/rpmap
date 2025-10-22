@@ -9,50 +9,170 @@ def modify_predicate_apply_cond_type(old_p, mod_p, cond_type):
     p = modify_predicate(old_p, mod_p)
     if cond_type == 'del':
         p.negated = not p.negated
+    print(p, "\n")
     return p
 
 def modify_predicate(old_p, mod_p):
     """ Assuming both predicates have the same "base,"
     modify the old predicate according to the attributes of the new predicate"""
+    print(old_p)
     new_pred = Predicate(
         old_p.name,
         *old_p.terms
     )
     # take the original AK (wouldn't be modified)
     new_pred.always_known = old_p.always_known
-    # new negation takes precedence
-    new_pred.negated = mod_p.negated
-    
+
     # just copy this for now
     new_pred.bdi = deepcopy(old_p.bdi)
-    # the BDI is trickier. if we just have a negation, we are negating the existing BDI.
-    # otherwise, we assume we are replacing the whole BDI term.
-    if mod_p.bdi:
-        if len(mod_p.bdi) == 1: # just have negation
-            if new_pred.bdi:
-                new_pred.bdi[0] = mod_p.bdi[0]
+    new_pred.negated = old_p.negated
+
+    # broadest case: we are just negating the whole thing
+    if mod_p.negate_whole_f:
+        if new_pred.bdi:
+            if len(new_pred.bdi) > 1: # have a full BDI term
+                # need to negate carefully according to the theory
+                # check if we're dealing with belief or possible belief
+                if new_pred.bdi[1][0].type == "LSQB":
+                    new_pred.bdi = [
+                        Token('EXC', '!') if not new_pred.bdi[0] else None,
+                        [
+                            Token('LESSER_OP', '<'),
+                            [Token('BELIEF', 'b')],
+                            Token('COMMA', ','),
+                            Token('NAME', new_pred.bdi[1][3].value),
+                            Token('GREATER_OP', '>')
+                        ]
+                    ]
+                else:
+                    new_pred.bdi = [
+                        Token('EXC', '!') if not new_pred.bdi[0] else None,
+                        [
+                            Token('LSQB', '['),
+                            [Token('BELIEF', 'b')],
+                            Token('COMMA', ','),
+                            Token('NAME', new_pred.bdi[1][3].value),
+                            Token('RSQB', ']')
+                        ]
+                    ]
             else:
-                new_pred.bdi = mod_p.bdi
+                # only have a negation, just negate that
+                new_pred.bdi[0] = Token('EXC', '!') if not new_pred.bdi[0] else None
         else:
-            new_pred.bdi = mod_p.bdi
-            new_pred.bdi[1][3] = old_p.bdi[1][3]
-            # TODO: actually check parameters here?
-            # right now we're just assuming one agent
+            # if no bdi term, then still remember we are negating *belief*,
+            # just according to the root agent. so negate the predicate using the
+            # "inner" negation.
+            new_pred.bdi = [Token('EXC', '!')]
+    elif mod_p.bdi:
+        new_pred.bdi = mod_p.bdi
+        new_pred.bdi[1][3] = old_p.bdi[1][3]
+        # TODO: actually check parameters here?
+        # right now we're just assuming one agent
+    elif mod_p.negate_term:
+        if new_pred.bdi:
+            new_pred.bdi[0] = Token('EXC', '!') if not new_pred.bdi[0] else None
+        else:
+            new_pred.bdi = [Token('EXC', '!')]
     return new_pred
+
+    
+
+
+    # # the BDI is trickier...
+    # # first, we need to see what we are dealing with in terms of the modifying BDI term.
+    # negate_pred = None
+    # mod_p_bdi_term = None
+    # whole_term_negate = mod_p.negated # negates the whole term (whether that's bdi or not)
+    # mod_p_bdi_term = None
+    # if mod_p.bdi:
+    #     negate_pred = True if mod_p.bdi[0] else False # negate the predicate itself
+    #     if len(mod_p.bdi) > 1: # have more than just a negation
+    #         mod_p_bdi_term = mod_p.bdi[1:]
+    #         # case one: the new predicate has no bdi, just copy everything over.
+    #         if not new_pred.bdi:
+    #             new_pred.bdi = mod_p.bdi
+    #         if new_pred.bdi:
+    #             # case two: new predicate is only negated
+    #             if len(new_pred.bdi) == 1:
+    #                 # if negate_pred: 
+    #                 pass
+
+    # if new_pred.bdi:
+    #     # first check if we just have a negation
+    #     if len(new_pred.bdi) == 1:
+    #         if negate_pred:
+    #             pass
+
+    #     # first check if the type of bdi is dfi
+
+    # print()
+    
+
+    # # first, we need to see what we are dealing with in terms of the new BDI term.
+    # # if there's no BDI term at all, just copy the new one over.
+    # if not new_pred.bdi:
+    #     new_pred.bdi = mod_p.bdi
+    #     # if the RML is negated, simply flip the 
+   
+    # if mod_p.bdi:
+    #     if len(mod_p.bdi) == 1: # just have negation
+    #         if new_pred.bdi:
+    #             if len(new_pred.bdi) == 1: # also have negation
+    #                 # need to flip it (here, that will always mean disabling it)
+    #                 new_pred.bdi = None
+    #             else:
+    #                 # need to negate carefully according to the theory
+    #                 # check if we're dealing with belief or possible belief
+    #                 if new_pred.bdi[1][0].type == "LSQB":
+    #                     new_pred.bdi = [
+    #                         None,
+    #                         [
+    #                             Token('LESSER_OP', '<'),
+    #                             [Token('BELIEF', 'b')],
+    #                             Token('COMMA', ','),
+    #                             Token('NAME', new_pred.bdi[1][3].value),
+    #                             Token('GREATER_OP', '>')
+    #                         ]
+    #                     ]
+    #                     new_pred.negation = True
+    #                 else:
+    #                     new_pred.bdi = [
+    #                         None,
+    #                         [
+    #                             Token('LSQB', '['),
+    #                             [Token('BELIEF', 'b')],
+    #                             Token('COMMA', ','),
+    #                             Token('NAME', new_pred.bdi[1][3].value),
+    #                             Token('RSQB', ']')
+    #                         ]
+    #                     ]
+    #                     new_pred.negation = True
+    #         else:
+    #             # just add the negation
+    #             new_pred.bdi = mod_p.bdi
+    #     else:
+    #         new_pred.bdi = mod_p.bdi
+    #         new_pred.bdi[1][3] = old_p.bdi[1][3]
+    #         # TODO: actually check parameters here?
+    #         # right now we're just assuming one agent
+    # # apply any negation
+    # if mod_p.negated == True:
+    #     new_pred.negated =  not old_p.negated
+    # return new_pred
 
 def get_pos_or_neg_cond_term(cond, term_type):
     new_preds = []
     if term_type == 'pos':
         # note: since we have a condition, we assume we're working with a When
         # we need to grab all predicates that are not negated
-        if type(cond) is list:
-            new_preds = [p for p in cond if p.negated == False]
+        if type(cond) is And:
+            new_preds = [p for p in cond.operands if p.negated == False]
         else:
             if cond.negated == False:
                 new_preds = [cond]
     else:
-        if type(cond) is list:
-            new_preds = [p for p in cond if p.negated == False]
+        if type(cond) is And:
+            new_preds = [p for p in cond.operands if p.negated == True]
         else:
             if cond.negated == True:
                 new_preds = [cond]
@@ -132,8 +252,10 @@ def create_conds(ant_pos_cond, ant_neg_cond, cons_pos_cond, cons_neg_cond, o):
         new_cond.extend(new_neg_cond)
     # note: we assume we have at least some condition, because this is being called
     # to create consequent conditions for a When formula, which must have some condition
-    return And(*new_cond)
-
+    # for formatting reasons we want to force this into being an "And"
+    and_term = And(*[])
+    and_term._operands.extend(new_cond)
+    return and_term
 
 def create_consequent(ant_pos_cond, ant_neg_cond, cons_pos_cond, cons_neg_cond, cons_rml, cons_cond_type, o):
     if type(o) is When:
@@ -193,7 +315,7 @@ def check_ant_format(rml, cond_type, o) -> bool:
     # we are assuming the parameters are general/don't matter
     del rml_bdi_body[3]
     del o_bdi_body[3]
-    return rml_negated_bdi == o_negated_bdi and rml_bdi_body == o_bdi_body and rml.always_known == o.always_known and rml.negated == o.negated
+    return rml_negated_bdi == o_negated_bdi and rml_bdi_body == o_bdi_body
 
 def apply_cond_eff(ant_pos_cond, ant_neg_cond, ant_rml, ant_cond_type, cons_pos_cond, cons_neg_cond, cons_rml, cons_cond_type, o):
     """Adapted from pdlb.actions.Action._expand."""
@@ -211,7 +333,7 @@ def apply_cond_effs(anc_effs, domain, problem):
     for action in domain._actions:
         for anc_eff in anc_effs._anceffs:
             # first do negation removal
-            if anc_eff[2].value in ['uncertain-firing', 'negation-removal', 'kd45closure', 'kd45-un-closure']:
+            if anc_eff[2].value in ['negation-removal', 'kd45closure']:#['uncertain-firing', 'negation-removal', 'kd45closure', 'kd45-un-closure']:
                 print(anc_eff[2].value)
                 anc_eff = anc_eff[3:-1] # remove parentheses and anceff name    
                 # parameters are optional
