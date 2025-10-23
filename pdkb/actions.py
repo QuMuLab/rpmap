@@ -29,6 +29,10 @@ class Action(object):
         self.COMPILERS_NEG = []
 
         for mod_name in ancillary.compute_modules() + extra_ancillary:
+            # just for now to debug
+            # TODO REMOVE THIS LATER
+            if mod_name not in ["pdkb.ancillary.uncertain_firing", "pdkb.ancillary.negation_removal", "pdkb.ancillary.kd45_closure", "pdkb.ancillary.kd45_un_closure", "pdkb.ancillary.uncertain_firing"]:
+                continue
             mod = importlib.import_module(mod_name)
             self.COMPILERS_POS.extend(mod.COMPILERS_POS)
             self.COMPILERS_NEG.extend(mod.COMPILERS_NEG)
