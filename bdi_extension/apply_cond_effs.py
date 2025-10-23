@@ -237,52 +237,48 @@ def check_ant_format(rml, cond_type, o) -> bool:
     del o_bdi_body[3]
     return rml_negated_bdi == o_negated_bdi and rml_bdi_body == o_bdi_body
 
-def apply_cond_eff(ant_pos_cond, ant_neg_cond, ant_rml, ant_cond_type, cons_pos_cond, cons_neg_cond, cons_rml, cons_cond_type, o):
+def apply_cond_eff(anc_effs, o):
     """Adapted from pdlb.actions.Action._expand."""
     condleft = [o]
     processed_conds = set()
     while condleft:
         next_cond = condleft.pop(0)
         # check the antecedent format
-        # TODO: need to check against ALL antecedent formats, not just the most recent
         if next_cond not in processed_conds:
             processed_conds.add(next_cond)
-            if check_ant_format(ant_rml, ant_cond_type, next_cond):
-                condleft.append(create_consequent(ant_pos_cond, ant_neg_cond, cons_pos_cond, cons_neg_cond, cons_rml, cons_cond_type, deepcopy(next_cond)))
+            for anc_eff in anc_effs._anceffs:
+                # first do negation removal
+                if anc_eff[2].value in ['uncertain-firing', 'negation-removal', 'kd45closure', 'kd45-un-closure']:
+                    print(anc_eff[2].value)
+                    anc_eff = anc_eff[3:-1] # remove parentheses and anceff name    
+                    # parameters are optional
+                    if anc_eff[0]:
+                        params = anc_eff[0][1]
+                    # antecedent
+                    ant = anc_eff[1][2:-1]
+                    # positive and negative conditions are optional
+                    ant_pos_cond = ant[0][1] if ant[0] else ant[0]
+                    ant_neg_cond = ant[1][1] if ant[1] else ant[1]
+                    ant_rml = ant[3][1]
+                    ant_cond_type = ant[4][1][0].value
+                    if check_ant_format(ant_rml, ant_cond_type, next_cond):
+                        # consequent
+                        cons = anc_eff[2][2:-1]
+                        cons_pos_cond = cons[0][1] if cons[0] else cons[0]
+                        cons_neg_cond = cons[1][1] if cons[1] else cons[1]
+                        cons_rml = cons[2][1]
+                        cons_cond_type = cons[3][1][0].value
+                        condleft.append(create_consequent(ant_pos_cond, ant_neg_cond, cons_pos_cond, cons_neg_cond, cons_rml, cons_cond_type, deepcopy(next_cond)))
     return list(processed_conds - {o}) # already have o
 
 def apply_cond_effs(anc_effs, domain, problem):
     for action in domain._actions:
         if action.name == "share_a_b_l1":
-            print()
-        for anc_eff in anc_effs._anceffs:
-            # first do negation removal
-            if anc_eff[2].value in ['uncertain-firing', 'negation-removal', 'kd45closure', 'kd45-un-closure']:
-
-                print(anc_eff[2].value)
-                anc_eff = anc_eff[3:-1] # remove parentheses and anceff name    
-                # parameters are optional
-                if anc_eff[0]:
-                    params = anc_eff[0][1]
-                # antecedent
-                ant = anc_eff[1][2:-1]
-                # positive and negative conditions are optional
-                ant_pos_cond = ant[0][1] if ant[0] else ant[0]
-                ant_neg_cond = ant[1][1] if ant[1] else ant[1]
-                ant_rml = ant[3][1]
-                ant_cond_type = ant[4][1][0].value
-                # consequent
-                cons = anc_eff[2][2:-1]
-                cons_pos_cond = cons[0][1] if cons[0] else cons[0]
-                cons_neg_cond = cons[1][1] if cons[1] else cons[1]
-                cons_rml = cons[2][1]
-                cons_cond_type = cons[3][1][0].value
-            
-                for o in action.effect.operands:
-                    new_preds = apply_cond_eff(ant_pos_cond, ant_neg_cond, ant_rml, ant_cond_type,
-                                             cons_pos_cond, cons_neg_cond, cons_rml, cons_cond_type, o)
-                    if new_preds:
-                        # apply the consequent
-                        action.effect._operands.extend(new_preds)
+            print()            
+        for o in action.effect.operands:
+            new_preds = apply_cond_eff(anc_effs, o)
+            if new_preds:
+                # apply the consequent
+                action.effect._operands.extend(new_preds)
         # in case of duplicate effects, remove them
         action.effect._operands = set(action.effect._operands)
