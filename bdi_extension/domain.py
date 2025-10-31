@@ -162,12 +162,13 @@ def new_predicate_str_rmls(self):
     if self.bdi:
         bdi_str = "("      
         for bdi_term in self.bdi[1:]:
-            for token in bdi_term:
-                if type(token) is list:
-                    for t in token:
-                        bdi_str += get_merged_token_value(t)
-                else:
-                    bdi_str += get_merged_token_value(token)
+            if bdi_term:
+                for token in bdi_term:
+                    if type(token) is list:
+                        for t in token:
+                            bdi_str += get_merged_token_value(t)
+                    else:
+                        bdi_str += get_merged_token_value(token)
         if self.bdi[0]:
             if self.bdi[0].type == "EXC":
                 bdi_str += "not_"

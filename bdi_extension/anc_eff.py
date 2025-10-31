@@ -13,6 +13,8 @@ class RML:
         self.negate_whole_f = False
         self.negate_term = False
         self.bdi = None
+        self.nest = True if args[2] else False
+
 
         # figure out where the BDI term ends, e.g. (!)[b, ?agent]{index} or (!)<b, ?agent>{index}.
         # (if there's no BDI term, we just skip over None)
@@ -28,7 +30,16 @@ class RML:
             if "EXC" in args[after_bdi + 1].type:
                 self.negate_term = True
         # get the name
-        raw_name = args[after_bdi + 2:-1]
+        for a in args[after_bdi + 2:-1]:
+            if a:
+                if type(a) is Token:
+                    if a.type in ["RML_NAME", "R"]:
+                        raw_name = [a]
+                        break
+                elif type(a) is list:
+                    if a[0].type == "QMRK":
+                        raw_name = a
+                        break
         name = []
         # we get either a simple name like (rml) or a variable name like (?mu).
         # we just treat it like the string name of a predicate.
@@ -53,6 +64,10 @@ class RML:
                     self.negate_whole_f = True
             else: # negation applies to the bdi_term
                 if bdi[1]:
+                    # hacky way to remove the extra "none" from the absent LSQB
+                    if len(bdi) == 3:
+                        if bdi[2] is None:
+                            bdi = bdi[:-1]
                     self.bdi = bdi
                 elif bdi[0] and not bdi[1]:
                     self.negate_whole_f = True    
@@ -205,7 +220,9 @@ class AncEffTransformer(Transformer):
             "start",
             "var",
             "bdi",
-            "bdi_term"
+            "bdi_term",
+            "awareness",
+            "nest"
         ]
         for f in for_bts:
             setattr(AncEffTransformer, f, basic_tokens_transformer)

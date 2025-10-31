@@ -282,15 +282,24 @@ def create_operators(domain, problem, fluent_dict):
                 op_name = a.name
             # TODO: handle other types of formulas?
             precondition = And(*predicates_to_fluents(a.precondition.operands, assignment))
-            effect = ground_formula(domain, problem, a.effect, assignment)      
-            operators.add(
-                Action(
+            effect = ground_formula(domain, problem, a.effect, assignment)     
+            new_a = Action(
                     op_name,
                     None,
                     precondition,
                     effect
                 )
-            )
+            if type(a.derive_condition) is list:
+                # have a complex derived condition
+                # need to ensure we handle any variables here
+                dev_cond_copy = deepcopy(a.derive_condition)
+                for i in range(len(dev_cond_copy)):
+                    if type(dev_cond_copy[i]) is list:
+                        if type(dev_cond_copy[i][0]) is list:
+                            if dev_cond_copy[i][0][0].type == "QMRK":
+                                dev_cond_copy[i] = Constant(assignment[dev_cond_copy[i][0][1].value])
+            new_a.derive_condition = dev_cond_copy
+            operators.add(new_a)
     return operators
 
 def ground(domain, problem):

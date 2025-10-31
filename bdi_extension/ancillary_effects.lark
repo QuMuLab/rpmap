@@ -14,7 +14,7 @@ POSCOND: ":poscond"
 NEGCOND: ":negcond"
 RML_TYPE: ":rml"
 COND_TYPE: ":type"
-CONDITION: ":condition"
+AWARENESS: ":need_awareness"
 LCRL: "{"
 RCRL: "}"
 FOR: "for"
@@ -23,6 +23,8 @@ R: "r"
 RML_NAME: "rml"
 ADD: "add"
 DEL: "del"
+TRUE_: "true"
+FALSE_: "false"
 
 start: [anceffs] [domain] [problem]
 
@@ -34,7 +36,7 @@ bdi_term: BELIEF | DESIRE | INTENTION
 
 bdi: LSQB bdi_term COMMA var RSQB | LESSER_OP bdi_term COMMA var GREATER_OP
 
-atomic_formula_term_rml: [EXC] bdi* LPAR [EXC] RML_NAME RPAR
+atomic_formula_term_rml: [EXC] bdi* [LSQB] LPAR [EXC] RML_NAME RPAR [RSQB]
 
 anceff_params: PARAMETERS action_parameters
 
@@ -54,13 +56,13 @@ rml_def: RML_TYPE atomic_formula_term_rml
 
 cond_type_def: COND_TYPE cond_types
 
-ant_def: ANT LPAR [poscond] [negcond] [condition] rml_def cond_type_def RPAR
+ant_def: ANT LPAR [poscond] [negcond] [awareness] rml_def cond_type_def RPAR
 
 cons_def: CONS LPAR [poscond] [negcond] rml_def cond_type_def RPAR
 
 atomic_formula_term_condition: [EXC] bdi* LPAR [EXC] var RPAR
 
-condition: CONDITION atomic_formula_term_condition
+awareness: AWARENESS TRUE_ | AWARENESS FALSE_
 
 anceff: LPAR ANCEFF_NAME NAME [anceff_params] ant_def cons_def RPAR
 
