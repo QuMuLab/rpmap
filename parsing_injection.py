@@ -201,7 +201,7 @@ def create_fluents(domain, problem):
             fluents.add(grounded_p)
     return fluents
 
-def predicates_to_fluents(predicates: list[Predicate], assignment):
+def predicates_to_fluents(predicates: list[Predicate], assignment, domain_preds):
     fluents = []
     for p in predicates:
         p = deepcopy(p)
@@ -224,25 +224,21 @@ def predicates_to_fluents(predicates: list[Predicate], assignment):
             f = Predicate(p.name, *new_terms)
             if p.bdi:         
                 p.bdi[1][3] = Token("NAME", assignment[p.bdi[1][3][1].value]) 
-                # for bdi_term in p.bdi[1:]: #exclude the EXC token
-                #     for i in range(len(bdi_term)):
-                #         token = bdi_term[i]
-                #         if type(token) is list:
-                #             if token[0].type == "QMRK":
-                #                 if token[1] in assignment:
-                #                     token[1].value = assignment[token[1].value]
-                #                     bdi_term[i] = token[1]
             f.bdi = p.bdi
             f.negated = p.negated
-            f.always_known = p.always_known
+            # find the "always known" status by referencing it from the domain predicates
+            for dp in domain_preds:
+                if dp.name == f.name and len(dp.terms) == len(f.terms):
+                    f.always_known = dp.always_known
+                    break
             fluents.append(f)
     return fluents
 
 def ground_formula(domain, problem, formula, assignment):
     if type(formula) is Predicate:
-        return predicates_to_fluents([formula], assignment)[0]
+        return predicates_to_fluents([formula], assignment, domain.predicates)[0]
     elif type(formula) is And:
-        return And(*predicates_to_fluents(formula.operands, assignment))
+        return And(*predicates_to_fluents(formula.operands, assignment, domain.predicates))
     elif type(formula) is Forall:
         # need to get all values for this variable
         grounded = []
@@ -281,7 +277,7 @@ def create_operators(domain, problem, fluent_dict):
             else:
                 op_name = a.name
             # TODO: handle other types of formulas?
-            precondition = And(*predicates_to_fluents(a.precondition.operands, assignment))
+            precondition = And(*predicates_to_fluents(a.precondition.operands, assignment, domain.predicates))
             effect = ground_formula(domain, problem, a.effect, assignment)     
             new_a = Action(
                     op_name,

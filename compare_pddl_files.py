@@ -4,6 +4,8 @@ def normalize_effect(effect: str, is_generated: bool) -> str:
     """Clean up effect strings and normalize for fair comparison."""
     effect = re.sub(r";[^\n]*", "", effect)  # remove comments
     effect = re.sub(r"\s+", " ", effect).strip()  # collapse whitespace
+    # Remove a stray trailing parenthesis (ground truth sometimes has one more)
+    effect = re.sub(r"\)+\s*$", ")", effect)
     if is_generated:
         # convert PB → P in generated file
         effect = re.sub(r"\bPB", "P", effect)
@@ -57,5 +59,23 @@ def compare_effects(generated_file: str, truth_file: str, action_name: str):
     for e in incorrect:
         print(e, "\n")
 
+def extract_all_action_names_from_text(text: str):
+    """
+    Return a list of action names found in the given PDDL text.
+    Uses a case-insensitive search for '(:action <name'.
+    """
+    names = re.findall(r"\(:action\s+([^\s\)]+)", text, flags=re.IGNORECASE)
+    # dedupe and preserve sort order
+    seen = set()
+    out = []
+    for n in names:
+        if n not in seen:
+            seen.add(n)
+            out.append(n)
+    return out
+
 # Example usage:
-compare_effects("bdi_extension/bdi_pdkbddl_files/grounded_domain.pdkbddl", "pdkb-domain.pddl", "share_a_b_l1")
+text = open("bdi_extension/bdi_pdkbddl_files/grounded_domain.pdkbddl", encoding="utf-8").read()
+actions = extract_all_action_names_from_text(text)
+for a in actions:
+    compare_effects("bdi_extension/bdi_pdkbddl_files/grounded_domain.pdkbddl", "pdkb-domain.pddl", a)

@@ -64,10 +64,9 @@ class RML:
                     self.negate_whole_f = True
             else: # negation applies to the bdi_term
                 if bdi[1]:
-                    # hacky way to remove the extra "none" from the absent LSQB
+                    # hacky way to remove the extra LSQB term
                     if len(bdi) == 3:
-                        if bdi[2] is None:
-                            bdi = bdi[:-1]
+                        bdi = bdi[:-1]
                     self.bdi = bdi
                 elif bdi[0] and not bdi[1]:
                     self.negate_whole_f = True    
