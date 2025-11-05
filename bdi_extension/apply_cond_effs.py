@@ -35,8 +35,6 @@ class ApplyCondEff:
         self.cons_cond_type = cons[3][1][0].value
 
     def modify_predicate_apply_cond_type(self, old_p, agent=None):
-        if old_p.name == "secret" and old_p.bdi and agent == "a":
-            print()
         p = self.modify_predicate(old_p, self.cons_rml, agent)
         if self.cons_cond_type == 'del':
             p.negated = not p.negated
@@ -60,7 +58,6 @@ class ApplyCondEff:
                 return new_pred
             # if we have belief then possible belief, return just the possible belief
             elif mod_p_bdi[0].type == "LSQB" and new_pred_bdi[0].type == "LESSER_OP":
-                new_pred.bdi[1] = mod_p_bdi
                 return new_pred
 
     def modify_predicate(self, old_p, mod_p, agent=None):
@@ -125,7 +122,8 @@ class ApplyCondEff:
                             mod_p.bdi[1][3] = Token('NAME', agent)
                             new_pred = self.merge_bdi(mod_p, new_pred)
                     else:
-                        new_pred.bdi = deepcopy(mod_p.bdi)
+                        new_pred.bdi[0] = deepcopy(mod_p.bdi[0])
+                        new_pred.bdi[1][:5] = deepcopy(mod_p.bdi[1])
                         new_pred.bdi[1][3] = old_p.bdi[1][3]
                 else:
                     if new_pred.always_known:
@@ -193,7 +191,7 @@ class ApplyCondEff:
         # finally we need to see if any modifications were made to the predicates by looking
         # at the first term of the list comprehension
         for i in range(len(new_preds)):
-            new_preds[i] = self.modify_predicate(new_preds[i], list_comp_terms[0], agent)
+            new_preds[i] = self.modify_predicate(deepcopy(new_preds[i]), list_comp_terms[0], agent)
         return new_preds
 
     def get_cond_preds(self, cons_cond, next_cond, agent=None):
@@ -301,7 +299,7 @@ class ApplyCondEff:
                         cond = set(cond + self.get_derived_cond_preds(a))
                     and_cond = And(*[])
                     and_cond._operands.extend(cond)
-                    consequent_preds.append(When(and_cond, self.modify_predicate_apply_cond_type(next_cond.effect, a)))
+                    consequent_preds.append(When(and_cond, self.modify_predicate_apply_cond_type(deepcopy(next_cond.effect), a)))
                 return consequent_preds
             else:
                 base_conds = self.create_conds(next_cond)
@@ -316,14 +314,14 @@ class ApplyCondEff:
                             continue
                         and_cond = And(*[])
                         and_cond._operands.extend(cond)
-                        consequent_preds.append(When(and_cond, self.modify_predicate_apply_cond_type(next_cond.effect, agent)))
+                        consequent_preds.append(When(and_cond, self.modify_predicate_apply_cond_type(deepcopy(next_cond.effect), agent)))
                     return consequent_preds
                 else:
                     and_cond = And(*[])
                     and_cond._operands.extend(base_conds)
-                    return When(and_cond, self.modify_predicate_apply_cond_type(next_cond.effect))
+                    return When(and_cond, self.modify_predicate_apply_cond_type(deepcopy(next_cond.effect)))
         else:
-            return self.modify_predicate_apply_cond_type(next_cond)
+            return self.modify_predicate_apply_cond_type(deepcopy(next_cond))
 
     def check_ant_format(self, next_cond) -> bool:
         """
@@ -366,6 +364,7 @@ class ApplyCondEff:
         if len(self.ant_rml.bdi) != len(next_cond.bdi):
             return False
         # now we can check the full bdi terms.
+        # we only need to check that the antecedent matches the outermost term!
         rml_negated_bdi = deepcopy(self.ant_rml.bdi[0])
         rml_bdi_body = deepcopy(self.ant_rml.bdi[1])
         o_negated_bdi = deepcopy(next_cond.bdi[0])
@@ -373,7 +372,7 @@ class ApplyCondEff:
         # we are assuming the parameters are general/don't matter
         del rml_bdi_body[3]
         del o_bdi_body[3]
-        return rml_negated_bdi == o_negated_bdi and rml_bdi_body == o_bdi_body
+        return rml_negated_bdi == o_negated_bdi and rml_bdi_body == o_bdi_body[:len(rml_bdi_body)]
 
 def check_nesting(cons, depth):
     if type(cons) is When:
@@ -389,7 +388,7 @@ def check_nesting(cons, depth):
         else:
             if len(cons.bdi) == 1:
                 return True
-            return len([t for t in cons.bdi[1] if t == Token("LSQB", "[")]) <= depth
+            return len([t for t in cons.bdi[1] if t in [Token("LSQB", "["), Token("LESSER_OP", "<")]]) <= depth
     print()
 
 def apply_cond_eff(anc_effs, o, action, agents, depth, predicates):
@@ -403,8 +402,8 @@ def apply_cond_eff(anc_effs, o, action, agents, depth, predicates):
             processed_conds.add(next_cond)
             for anc_eff in anc_effs._anceffs:
                 anc_eff_data = ApplyCondEff(anc_eff, action, agents, depth, predicates)
-                # if anc_eff_data.name not in ["mutual-awareness-pos", "mutual-awareness-neg"]:
-                #     continue
+                if anc_eff_data.name not in ["kd45closure", "mutual-awareness-pos", "mutual-awareness-neg"]: # "negation-removal", "kd45-un-closure", "uncertain-firing", 
+                    continue
                 if anc_eff_data.check_ant_format(next_cond):
                     cons = anc_eff_data.create_consequent(deepcopy(next_cond))
                     check_nesting(cons, depth)
@@ -418,7 +417,9 @@ def apply_cond_eff(anc_effs, o, action, agents, depth, predicates):
     return list(processed_conds - {o}) # already have o
 
 def apply_cond_effs(anc_effs, domain, problem):
-    for action in domain._actions:       
+    for action in domain._actions:   
+        if action.name != "share_a_b_l1":
+            continue
         for o in action.effect.operands:
             new_preds = apply_cond_eff(anc_effs, o, action, domain._agents, problem.depth, domain.predicates)
             if new_preds:
