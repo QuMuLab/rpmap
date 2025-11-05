@@ -31,7 +31,7 @@ class Action(object):
         for mod_name in ancillary.compute_modules() + extra_ancillary:
             # just for now to debug
             # TODO REMOVE THIS LATER
-            if mod_name not in ["pdkb.ancillary.kd45_closure", "pdkb.ancillary.mutual_awareness", "pdkb.ancillary.negation_removal"]:#, "pdkb.ancillary.negation_removal", "pdkb.ancillary.kd45_un_closure", "pdkb.ancillary.uncertain_firing"]:#["pdkb.ancillary.uncertain_firing", "pdkb.ancillary.negation_removal", "pdkb.ancillary.kd45_closure", "pdkb.ancillary.kd45_un_closure"]:
+            if mod_name in ["pdkb.ancillary.mutual_awareness"]:#, "pdkb.ancillary.negation_removal", "pdkb.ancillary.kd45_un_closure", "pdkb.ancillary.uncertain_firing"]:#["pdkb.ancillary.uncertain_firing", "pdkb.ancillary.negation_removal", "pdkb.ancillary.kd45_closure", "pdkb.ancillary.kd45_un_closure"]:
                 continue
             mod = importlib.import_module(mod_name)
             self.COMPILERS_POS.extend(mod.COMPILERS_POS)
