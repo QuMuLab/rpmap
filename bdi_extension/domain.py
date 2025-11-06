@@ -1,6 +1,7 @@
 import pddl.core
 import pddl.logic
 from lark.lexer import Token
+from .anc_eff import instantiate_bdi
 from .parsing_utils import *
 from pddl.action import Action
 from pddl.formatter import (
@@ -86,20 +87,17 @@ def atomic_formula_term(self, args):
         p = VariablePredicate(name, *terms)
     else:
         p = Predicate(name, *terms)
-    bdi = args[:after_bdi]  # store the BDI term
-    if bdi == [None]:
-        bdi = None
-    p.bdi = bdi
+    p.bdi = instantiate_bdi(args[:after_bdi])
     p.negated = negated # store the negated term, e.g. (!term ?a ?b)
     return p
 
 # ----- STRING AND PRINT FUNCTIONS -----
 
-def recursive_print_bdi(tree):
-    """Recursive print for the BDI function."""
-    tree_str = recursive_print(tree)
-    # add a space after the comma
-    return tree_str if "," not in tree_str else f"{', '.join(tree_str.split(','))}"
+# def recursive_print_bdi(tree):
+#     """Recursive print for the BDI function."""
+#     tree_str = recursive_print(tree)
+#     # add a space after the comma
+#     return tree_str if "," not in tree_str else f"{', '.join(tree_str.split(','))}"
 
 def new_action_str(self):
     """New action string adapted from the pddl.action.Action.__str__ method."""
@@ -121,7 +119,7 @@ def get_predicate_prefix(self):
     if self.always_known:
         p_str += "{AK}"
     if self.bdi:
-        p_str += recursive_print_bdi(self.bdi)
+        p_str += str(self.bdi)
     return p_str
 
 def new_predicate_str(self):
@@ -136,57 +134,26 @@ def new_predicate_str(self):
     else:
         return f"{p_str} {' '.join(map(str, self.terms))})"   
     
-def get_merged_token_value(token):
-    if token.type == "LSQB":
-        return ""
-    elif token.type == "RSQB":
-        return "_"
-    elif token.type == "LESSER_OP":
-        return "P"
-    elif token.type == "GREATER_OP":
-        return "_"
-    elif token.type == "COMMA":
-        return ""
-    elif token.type == "BELIEF":
-        return "B"
-    elif token.type == "DESIRE":
-        return "D"
-    elif token.type == "INTENTION":
-        return "I"
-    else:
-        return token.value
-    
 def new_predicate_str_rmls(self):
     """New predicate string adapted from the pddl.logic.Predicate.__str__ method."""
-    p_str = ""
-    if self.bdi:
-        bdi_str = "("      
-        for bdi_term in self.bdi[1:]:
-            if bdi_term:
-                for token in bdi_term:
-                    if type(token) is list:
-                        for t in token:
-                            bdi_str += get_merged_token_value(t)
-                    else:
-                        bdi_str += get_merged_token_value(token)
-        if self.bdi[0]:
-            if self.bdi[0].type == "EXC":
-                bdi_str += "not_"
-        p_str += bdi_str
-        name = self.name
+    p_str = "("
+    if self.bdi: 
+        p_str += str(self.bdi)
+        for t in self.bdi.nested:
+            p_str += f"_{str(t)}"
+        p_str += f"_{self.name}"
     else:
-        name = f"({self.name}"
+        p_str += self.name
     if self.arity == 0:
         terms = f")"
     else:
         terms = f"{'_'.join(map(str, self.terms))})" 
     if self.negated:
-            p_str = f"(not {p_str}{name}_{terms})"
+            p_str = f"(not {p_str}_{terms})"
     else:
-        p_str = f"{p_str}{name}_{terms}"
+        p_str = f"{p_str}_{terms}"
     
     return p_str   
-
 
 def new_domain_str(self):
     """New domain string adapted from the pddl.core.Domain.__str__ method."""
@@ -240,6 +207,7 @@ def new_predicate_eq(self, other):
     # adapted from the PDDL Predicate class __eq__ method
     return (
             isinstance(other, Predicate)
+            and self.arity == other.arity
             and self.name == other.name
             and self.terms == other.terms
             and self.always_known == other.always_known
@@ -249,8 +217,7 @@ def new_predicate_eq(self, other):
 
 def new_predicate_hash(self):
     """New predicate hash that takes into account the new always_known, bdi, and negated terms."""
-    bdi_str = recursive_print_bdi(self.bdi) if self.bdi else ""
-    return hash((self.name, self.arity, self.terms, self.always_known, bdi_str, self.negated))
+    return hash((self.name, self.arity, self.terms, self.always_known, self.bdi, self.negated))
 
 # ----- GRAMMAR CONSTRUCTION -----
 

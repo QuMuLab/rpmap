@@ -1,4 +1,5 @@
 import pddl.core
+from .anc_eff import instantiate_bdi
 from .parsing_utils import *
 from pddl.formatter import (
     print_constants,
@@ -34,10 +35,7 @@ def atomic_formula_name(self, args):
         else:
             terms.append(self._objects_by_name.get(str(_term_name)))
     p = Predicate(predicate_name, *terms)
-    bdi = args[:after_bdi]  # store the BDI term
-    if bdi == [None]:
-        bdi = None
-    p.bdi = bdi
+    p.bdi = instantiate_bdi(args[:after_bdi])
     p.negated = negated # store the negated term, e.g. (!term ?a ?b)
     return p
 

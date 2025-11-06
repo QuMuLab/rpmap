@@ -1,17 +1,154 @@
-from lark.visitors import Transformer
 from .parsing_utils import *
+from lark.visitors import Transformer
 from pddl.helpers.base import _typed_parameters
+from pddl.logic.terms import Constant
+from abc import ABC, abstractmethod
+from enum import Enum
 
 
-class RML:
+# def get_merged_token_value(token):
+#     if token.type == "LSQB":
+#         return ""
+#     elif token.type == "RSQB":
+#         return "_"
+#     elif token.type == "LESSER_OP":
+#         return "P"
+#     elif token.type == "GREATER_OP":
+#         return "_"
+#     elif token.type == "COMMA":
+#         return ""
+#     elif token.type == "BELIEF":
+#         return "B"
+#     elif token.type == "DESIRE":
+#         return "D"
+#     elif token.type == "INTENTION":
+#         return "I"
+#     else:
+#         return token.value
+
+class BDIType(Enum):
+    BELIEF = 1
+    DESIRE = 2
+    INTENTION = 3
+
+class Agent:
+    def __init__(self, agent):
+        self.var = False
+        self.name = None
+        if type(agent) is str:
+            self.name = agent
+        elif type(agent) is Token:
+            self.name = agent.value
+        elif type(agent) is list: # var parsing
+            self.var = True
+            try:
+                self.name = agent[1].value
+            except Exception as e:
+                raise ValueError(f"Error parsing agent variable name from args {agent}: {e}")
+            
+    def __eq__(self, other):
+        if not isinstance(other, Agent):
+            return False
+        return self.name == other.name and self.var == other.var
+    
+    def __hash__(self):
+        return hash((self.name, self.var))
+
+class BDI(ABC):
+    def __init__(self, negated_inner, bdi_args):
+        self.negated_inner = negated_inner
+        self.hard_bdi = None
+        self.agent = None
+        self.nested = []
+
+        if bdi_args:
+            self.hard_bdi = True if bdi_args[0].type == "LSQB" else False
+            self.agent = Agent(bdi_args[3])
+
+    def __str__(self):
+        class_name = self.__class__.__name__
+        bdi_str = "P"  if not self.hard_bdi and class_name != "NegateOnly" else ""
+        
+        if class_name != "NegateOnly":
+            bdi_str += f"{self.__class__.__name__[0]}{self.agent.name}"
+            if self.negated_inner:
+                bdi_str += "_not"
+        else:
+            if self.negated_inner:
+                bdi_str += "not"        
+        return bdi_str
+    
+    def __eq__(self, other):
+        if not isinstance(other, BDI):
+            return False
+        return self.negated_inner == other.negated_inner and \
+               self.hard_bdi == other.hard_bdi and \
+               self.agent == other.agent and \
+               self.nested == other.nested
+    
+    def __hash__(self):
+        return hash((self.negated_inner, self.hard_bdi, self.agent, tuple(self.nested)))
+
+    def negate(self):
+        self.hard_bdi = not self.hard_bdi
+        self.negated_inner = not self.negated_inner
+
+class NegateOnly(BDI):
+    def __init__(self, negated_inner):
+        super().__init__(negated_inner, None)
+
+    def negate(self):
+        self.negated_inner = not self.negated_inner
+
+class Belief(BDI):
+    def __init__(self, negated_inner, bdi_args):
+        super().__init__(negated_inner, bdi_args)  
+
+class Desire(BDI):
+    def __init__(self, negated_inner, bdi_args):
+        super().__init__(negated_inner, bdi_args)
+
+class Intention(BDI):
+    def __init__(self, negated_inner, bdi_args):
+        super().__init__(negated_inner, bdi_args)
+
+def instantiate_bdi(bdi_args):
+    """Instantiate the appropriate BDI class based on the type of BDI term."""
+    if not bdi_args:
+        return None
+    # get rid of superfluous None values
+    bdi_args = [a for a in bdi_args if a is not None]
+    if not bdi_args:
+        return None
+    else:
+        if len(bdi_args) == 1:
+            if type(bdi_args[0]) is Token:
+                if bdi_args[0].type == "EXC":
+                    return NegateOnly(True)
+        negated_inner = False
+        bdi_body = bdi_args[0]
+        if type(bdi_args[0]) is Token:
+            if bdi_args[0].type == "EXC":
+                negated_inner = True
+                bdi_body = bdi_args[1]
+        bdi_type = bdi_body[1][0].type
+        if bdi_type == "BELIEF":
+            return Belief(negated_inner, bdi_body)
+        elif bdi_type == "DESIRE":
+            return Desire(negated_inner, bdi_body)
+        elif bdi_type == "INTENTION":
+            return Intention(negated_inner, bdi_body)
+
+
+class ModRML:
     def __init__(self, args):
         self.name = None
         # negate the whole thing, whether that's a bdi term or not
         # ONLY SET IF THERE'S NO BDI TERM OR TERM NEGATION IN THE RML 
         # (because those have their own negations with distinct meanings,
         # and then we're overloading the '!' operator...)
-        self.negate_whole_f = False
-        self.negate_term = False
+        self.negate_whole_term = False
+        self.negated_inner_rml = False
         self.bdi = None
         self.nest = True if args[2] else False
 
@@ -28,7 +165,7 @@ class RML:
         # check for EXC (negation)
         if args[after_bdi + 1]:
             if "EXC" in args[after_bdi + 1].type:
-                self.negate_term = True
+                self.negated_inner_rml = True
         # get the name
         for a in args[after_bdi + 2:-1]:
             if a:
@@ -55,74 +192,15 @@ class RML:
                 raise ValueError(f"Dealing with an unknown ancillary effect atomic formula term type {t}.")   
         self.name = "".join(str(name)) if len(name) > 1 else name[0]
 
-        bdi = args[:after_bdi]
-        if bdi == [None]:
-            bdi = None
-        if bdi:
-            if len(bdi) == 1: # just have negation
-                if bdi[0]:
-                    self.negate_whole_f = True
-            else: # negation applies to the bdi_term
-                if bdi[1]:
-                    # hacky way to remove the extra LSQB term
-                    if len(bdi) == 3:
-                        bdi = bdi[:-1]
-                    self.bdi = bdi
-                elif bdi[0] and not bdi[1]:
-                    self.negate_whole_f = True    
+        self.bdi = instantiate_bdi(args[:after_bdi])
+        if type(self.bdi) is NegateOnly: # just have negation
+            self.negate_whole_term = True  
 
 def anceff_atomic_formula_term(self, args):
     """Create a modification of the atomic formula term transformer for ancillary effects.
     Adapted from the pddl.parser.domain.DomainTransformer.atomic_formula_term method.
     """
-    rml = RML(args)
-    return rml
-    # negated = False
-    # if args[0]:
-    #     negated = True
-    # # figure out where the BDI term ends, e.g. (!)[b, ?agent]{index} or (!)<b, ?agent>{index}.
-    # # (if there's no BDI term, we just skip over None)
-    # after_bdi = None
-    # for i in range(len(args)):
-    #     if type(args[i]) is Token:
-    #         if "LPAR" in args[i].type: #accounting for import being part of the type name
-    #             # reached the end of the BDI terms
-    #             after_bdi = i
-    #             break
-    
-    # # check for EXC (negation)
-    # # if args[after_bdi + 1]:
-    # #     if "EXC" in args[after_bdi + 1].type:
-    # #         negated = True        
-    # raw_name = args[after_bdi + 2:-1]
-    # name = []
-    # var_pred = False
-    # # we get either a simple name like (rml) or a variable name like (?mu).
-    # # we just treat it like the string name of a predicate.
-    # for t in raw_name:
-    #     if type(t) is list:
-    #         var_pred = True
-    #         if t[0].type == "QMRK":
-    #             name.append(f"{t[0]}{t[1]}")
-    #         else:
-    #             raise ValueError(f"Dealing with an unknown ancillary effect atomic formula term type {t}.")
-    #     elif type(t) is Token:
-    #         name.append(t.value)
-    #     else:
-    #         raise ValueError(f"Dealing with an unknown ancillary effect atomic formula term type {t}.")
-    # name = "".join(str(name)) if len(name) > 1 else name[0]
-    # if var_pred:
-    #     # need this so the regex can allow a question mark.
-    #     p = VariablePredicate(name)
-    # else:
-    #     p = Predicate(name)
-    # # store the BDI term
-    # bdi = args[1:after_bdi] 
-    # if args[after_bdi + 1]:
-    #     bdi = [args[after_bdi + 1]] + bdi
-    # p.bdi = bdi if bdi else None
-    # p.negated = negated # store the negated term, e.g. (!term ?a ?b)
-    # return p
+    return ModRML(args)
 
 class AncillaryEffects:
     """Class for Ancillary Effects, analogous to the pddl.core.Domain and pddl.core.Problem classes."""

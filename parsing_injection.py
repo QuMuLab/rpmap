@@ -6,6 +6,7 @@ import os
 import pddl
 import sys
 from bdi_extension.domain import construct_domain_grammar
+from bdi_extension.anc_eff import Agent
 from lark import Lark
 from lark.visitors import Transformer
 from bdi_extension.parsing_utils import *
@@ -222,8 +223,9 @@ def predicates_to_fluents(predicates: list[Predicate], assignment, domain_preds)
             fluents.append(outside_formula_type(f))
         else:
             f = Predicate(p.name, *new_terms)
-            if p.bdi:         
-                p.bdi[1][3] = Token("NAME", assignment[p.bdi[1][3][1].value]) 
+            if p.bdi:  
+                if p.bdi.agent.var:
+                    p.bdi.agent = Agent(assignment[p.bdi.agent.name])   
             f.bdi = p.bdi
             f.negated = p.negated
             # find the "always known" status by referencing it from the domain predicates
@@ -304,6 +306,7 @@ def ground(domain, problem):
     fluents = create_fluents(domain, problem)
 
     # to avoid creating a bunch new fluent objects, create a dictionary mapping fluent names to their objects
+    # TODO: actually use this dict
     fluent_dict = {hash(f): f for f in fluents}
     operators = create_operators(domain, problem, fluent_dict)
     

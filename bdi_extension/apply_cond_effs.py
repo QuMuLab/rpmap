@@ -1,4 +1,5 @@
 from copy import deepcopy
+from .anc_eff import NegateOnly, Agent, ModRML
 from lark.lexer import Token
 from pddl.logic.base import And
 from pddl.logic.predicates import Predicate
@@ -42,43 +43,49 @@ class ApplyCondEff:
     
     def assign_bdi_negation(self, mod_p, new_pred):
         # TODO: not sure if this is right.
-        if (mod_p.bdi[0] and new_pred.bdi[0]) or (not mod_p.bdi[0] and not new_pred.bdi[0]):
-            # both have negation
-            new_pred.bdi[0] = None
-        elif mod_p.bdi[0] ^ new_pred.bdi[0]:
-            new_pred.bdi[0] = Token('EXC', '!')
+        if (mod_p.bdi.negated_inner and new_pred.bdi.negated_inner) or (not mod_p.bdi.negated_inner and not new_pred.bdi.negated_inner):
+            new_pred.bdi.negated_inner = False
+        elif mod_p.bdi.negated_inner ^ new_pred.bdi.negated_inner:
+            new_pred.bdi.negated_inner = True
     
     def merge_bdi(self, mod_p, new_pred, old_p):
         # we only want to nest by adding a NEGATIVE BDI term IF
         # the original BDI term is NOT a belief of the corresponding
         # agent (positive or negative)
-        if mod_p.bdi[0] and mod_p.bdi[1][3] == new_pred.bdi[1][3]:
+        if mod_p.bdi.negated_inner and mod_p.bdi.agent == new_pred.bdi.agent:
             return old_p # need this for the original negation status
-        mod_p_bdi = mod_p.bdi[1]
-        new_pred_bdi = new_pred.bdi[1]
         # easiest case, don't need to collapse
-        if mod_p_bdi[3] != new_pred_bdi[3]:
-            new_pred.bdi[1] = mod_p_bdi + new_pred_bdi
-            self.assign_bdi_negation(mod_p, new_pred)
+        if mod_p.bdi.agent != new_pred.bdi.agent:
+            # check if the outer BDI is just a negation
+            if type(new_pred.bdi) is not NegateOnly:
+                new_pred.bdi.nested = [mod_p.bdi, *mod_p.bdi.nested]
+                self.assign_bdi_negation(mod_p, new_pred)
+            else:
+                # check if this is an "always known" predicate
+                if not new_pred.always_known:
+                    negation = new_pred.bdi.negated_inner
+                    new_pred.bdi = mod_p.bdi
+                    new_pred.bdi.negated_inner = negation
             return new_pred 
         else:
             # if here, both BDI references the same agent
             # next easiest case, they are equal
-            if mod_p_bdi == new_pred_bdi:
+            if mod_p.bdi == new_pred.bdi:
                 self.assign_bdi_negation(mod_p, new_pred)
                 return new_pred
             # if we have possible belief then belief, return just the belief
-            elif mod_p_bdi[0].type == "LESSER_OP" and new_pred_bdi[0].type == "LSQB":
+            elif not mod_p.bdi.hard_bdi and new_pred.bdi.hard_bdi:
                 self.assign_bdi_negation(mod_p, new_pred)
                 return new_pred
             # if we have belief then possible belief, return just the possible belief
-            elif mod_p_bdi[0].type == "LSQB" and new_pred_bdi[0].type == "LESSER_OP":
+            elif mod_p.bdi.hard_bdi and not new_pred.bdi.hard_bdi:
                 self.assign_bdi_negation(mod_p, new_pred)
                 return new_pred
 
     def modify_predicate(self, old_p, mod_p, agent=None):
         """ Assuming both predicates have the same "base,"
         modify the old predicate according to the attributes of the new predicate"""
+        mod_p = deepcopy(mod_p)
         new_pred = Predicate(
             old_p.name,
             *old_p.terms
@@ -94,69 +101,37 @@ class ApplyCondEff:
         new_pred.negated = False 
 
         # broadest case: we are just negating the whole thing
-        if mod_p.negate_whole_f:
+        if mod_p.negate_whole_term:
             if new_pred.bdi:
-                if len(new_pred.bdi) > 1: # have a full BDI term
-                    # need to negate carefully according to the theory
-                    # check if we're dealing with belief or possible belief
-                    if new_pred.bdi[1][0].type == "LSQB":
-                        new_pred.bdi = [
-                            Token('EXC', '!') if not new_pred.bdi[0] else None,
-                            [
-                                Token('LESSER_OP', '<'),
-                                [Token('BELIEF', 'b')],
-                                Token('COMMA', ','),
-                                Token('NAME', new_pred.bdi[1][3].value),
-                                Token('GREATER_OP', '>')
-                            ]
-                        ]
-                    else:
-                        new_pred.bdi = [
-                            Token('EXC', '!') if not new_pred.bdi[0] else None,
-                            [
-                                Token('LSQB', '['),
-                                [Token('BELIEF', 'b')],
-                                Token('COMMA', ','),
-                                Token('NAME', new_pred.bdi[1][3].value),
-                                Token('RSQB', ']')
-                            ]
-                        ]
-                else:
-                    # only have a negation, just negate that
-                    new_pred.bdi = None
+                new_pred.bdi.negate()                    
             else:
-                # if no bdi term, then still remember we are negating *belief*,
+                # if no bdi term, then still remember we are still negating the BDI term,
                 # just according to the root agent. so negate the predicate using the
                 # "inner" negation.
-                new_pred.bdi = [Token('EXC', '!')]
+                new_pred.bdi = NegateOnly(True)
         elif mod_p.bdi:
                 if new_pred.bdi:
                     if mod_p.nest:
-                        mod_p.bdi[1][3] = Token('NAME', agent)
+                        mod_p.bdi.agent = Agent(agent)
                         new_pred = self.merge_bdi(mod_p, new_pred, old_p)
                     else:
-                        new_pred.bdi[0] = deepcopy(mod_p.bdi[0])
-                        new_pred.bdi[1][:5] = deepcopy(mod_p.bdi[1])
-                        new_pred.bdi[1][3] = old_p.bdi[1][3]
+                        new_pred.bdi = deepcopy(mod_p.bdi)
+                        new_pred.bdi.agent = deepcopy(old_p.bdi.agent)
                 else:
                     if new_pred.always_known:
                         # we don't give "always known" predicates BDI terms.
                         # however a negation can still happen!
-                        if mod_p.bdi[0]:
-                            new_pred.bdi = [Token('EXC', '!')]
+                        if mod_p.bdi.negated_inner:
+                            new_pred.bdi = NegateOnly(True)
                         return new_pred
                     else:
-                        mod_p.bdi[1][3] = Token('NAME', agent)
+                        mod_p.bdi.agent = Agent(agent)
                         new_pred.bdi = deepcopy(mod_p.bdi)
-
-        elif mod_p.negate_term:
+        elif mod_p.negate_inner_rml:
             if new_pred.bdi:
-                if len(new_pred.bdi) > 1:
-                    new_pred.bdi[0] = Token('EXC', '!') if not new_pred.bdi[0] else None
-                else:
-                    new_pred.bdi = None
+                new_pred.bdi.negated_inner = not new_pred.bdi.negated_inner
             else:
-                new_pred.bdi = [Token('EXC', '!')]
+                new_pred.bdi = NegateOnly(True)
         return new_pred
 
     def get_pos_or_neg_cond_term(self, cond, term_type):
@@ -199,7 +174,7 @@ class ApplyCondEff:
         if not matching_lc:
             raise ValueError("No matching list comprehension term found in antecedent conditions.")
         # if we do have a matching term, we need to construct the new list of predicates
-        new_preds = self.get_pos_or_neg_cond_term(next_cond.condition, matching_lc)
+        new_preds = self.get_pos_or_neg_cond_term(next_cond, matching_lc)
 
         # finally we need to see if any modifications were made to the predicates by looking
         # at the first term of the list comprehension
@@ -226,10 +201,10 @@ class ApplyCondEff:
                             continue
                     # we're referencing an antecedent condition
                     if term == self.ant_pos_cond[0]:
-                        cond_preds.extend(self.get_pos_or_neg_cond_term(next_cond.condition, 'pos')) 
+                        cond_preds.extend(self.get_pos_or_neg_cond_term(next_cond, 'pos')) 
                         continue 
                     elif term == self.ant_neg_cond[0]:
-                        cond_preds.extend(self.get_pos_or_neg_cond_term(next_cond.condition, 'neg')) 
+                        cond_preds.extend(self.get_pos_or_neg_cond_term(next_cond, 'neg')) 
                         continue   
                 # regular recursion            
                 cond_preds.extend(self.get_cond_preds(term, next_cond))
@@ -267,45 +242,63 @@ class ApplyCondEff:
     
     def get_derived_cond_preds(self, agent=None):
         if type(self.derived_cond) is list:
-            var = None
-            for i in range(len(self.derived_cond)):
-                if type(self.derived_cond[i]) is list:
-                    if self.derived_cond[i][0].type == "DLR":
-                        # TODO: assuming only one var for now
-                        var = self.derived_cond[i][1]
-                        break
-            if var: 
-                # just want for a specific agent
-                if agent:
-                    return [self.create_dcond_pred(i, agent)]
-                else:
-                    grounded_dconds = []
-                    # want for all agents (generic)
-                    # need to ground this
-                    # TODO: assuming only agents for now
-                    # TODO: assuming no bdi terms for now
-                    # replace the ith term with the grounded variable
-                    for a in self.agents:
-                        p = self.create_dcond_pred(i, a)
-                        grounded_dconds.append((p, a))
-                    return grounded_dconds
-                # create a new 
-        elif self.derived_cond.value == "ALWAYS":
-            pass
-        elif self.derived_cond.value == "NEVER":
-            return []
+            # TODO: when are we checking for these first two cases?
+            if self.derived_cond[0] == Token("ALWAYS", "always"):
+                return []
+            elif self.derived_cond[0] == Token("NEVER", "never"):
+                return []
+            else:
+                var = None
+                for i in range(len(self.derived_cond)):
+                    if type(self.derived_cond[i]) is list:
+                        if self.derived_cond[i][0].type == "DLR":
+                            # TODO: assuming only one var for now
+                            var = self.derived_cond[i][1]
+                            break
+                if var: 
+                    # just want for a specific agent
+                    if agent:
+                        return [self.create_dcond_pred(i, agent)]
+                    else:
+                        grounded_dconds = []
+                        # want for all agents (generic)
+                        # need to ground this
+                        # TODO: assuming only agents for now
+                        # TODO: assuming no bdi terms for now
+                        # replace the ith term with the grounded variable
+                        for a in self.agents:
+                            p = self.create_dcond_pred(i, a)
+                            grounded_dconds.append((p, a))
+                        return grounded_dconds        
+    
+    @staticmethod
+    def bdi_in_cond(cond):
+        if not cond:
+            return False
+        elif type(cond) is ModRML:
+            if cond.bdi and type(cond.bdi) is not NegateOnly:
+                return True
+        elif type(cond) is list:
+            for t in cond:
+                check = ApplyCondEff.bdi_in_cond(t)
+                if check:
+                    return True
 
     def create_consequent(self, next_cond):
+        bdi_in_cons_pos = ApplyCondEff.bdi_in_cond(self.cons_pos_cond)
+        bdi_in_cons_neg = ApplyCondEff.bdi_in_cond(self.cons_neg_cond)
+        bdi_in_cons_rml = ApplyCondEff.bdi_in_cond(self.cons_rml)
         consequent_preds = []
         if type(next_cond) is When:
+            
             if type(next_cond.effect) is not Predicate:
                 raise NotImplementedError("Handle complex when effects later?")
             # if we are dealing with a situation where the consequent references an agent parameter
             # and the antecedent doesn't, then this parameter should be iterated through
             # to create separate consequents that reference ALL agents! 
-            if not self.ant_rml.bdi and self.cons_pos_cond or self.cons_neg_cond:
+            if not self.ant_rml.bdi and (bdi_in_cons_pos or bdi_in_cons_neg or bdi_in_cons_rml):
                 for a in self.agents:
-                    cond = self.create_conds(next_cond, a)
+                    cond = self.create_conds(next_cond.condition, a)
                     # also need to do derived conditions here since that might
                     # have a matching agent parameter.
                     if self.need_awareness and self.derived_cond:
@@ -315,7 +308,7 @@ class ApplyCondEff:
                     consequent_preds.append(When(and_cond, self.modify_predicate_apply_cond_type(deepcopy(next_cond.effect), a)))
                 return consequent_preds
             else:
-                base_conds = self.create_conds(next_cond)
+                base_conds = self.create_conds(next_cond.condition)
                 derived_cond_preds = None
                 if self.need_awareness and self.derived_cond:
                     derived_cond_preds = self.get_derived_cond_preds()
@@ -332,9 +325,27 @@ class ApplyCondEff:
                 else:
                     and_cond = And(*[])
                     and_cond._operands.extend(sorted(base_conds))
-                    return When(and_cond, self.modify_predicate_apply_cond_type(deepcopy(next_cond.effect)))
+                    return [When(and_cond, self.modify_predicate_apply_cond_type(deepcopy(next_cond.effect)))]
         else:
-            return self.modify_predicate_apply_cond_type(deepcopy(next_cond))
+            if not self.ant_rml.bdi and (bdi_in_cons_pos or bdi_in_cons_neg or bdi_in_cons_rml):
+                for a in self.agents:
+                    # we have an empty condition, so don't worry about that
+                    # BUT we need to do derived conditions here since that might
+                    # have a matching agent parameter.
+                    if self.need_awareness and self.derived_cond:
+                        cond = set(self.get_derived_cond_preds(a))
+                    if cond:
+                        if len(cond) == 1:
+                            if list(cond)[0] == next_cond:
+                                continue
+                        and_cond = And(*[])
+                        and_cond._operands.extend(sorted(cond))
+                        consequent_preds.append(When(and_cond, self.modify_predicate_apply_cond_type(deepcopy(next_cond), a)))
+                        raise NotImplementedError("Check if working correctly.")
+                    else:
+                        consequent_preds.append(self.modify_predicate_apply_cond_type(deepcopy(next_cond), a))
+                return consequent_preds
+            return [self.modify_predicate_apply_cond_type(deepcopy(next_cond))]
 
     def check_ant_format(self, next_cond) -> bool:
         """
@@ -364,28 +375,19 @@ class ApplyCondEff:
         # explained in the docstring
         if self.ant_rml.bdi and not next_cond.bdi:
             return False
-        
-        # since we've already checked the outer negation and the inner negation
-        # is only relevant if there's a BDI term, then at this point,
-        # we can assume the RML is blank if it has no BDI term, e.g. (rml)
+
         if (not self.ant_rml.bdi and next_cond.bdi) or (not self.ant_rml.bdi and not next_cond.bdi):
             return True
 
         # if we've gotten to this point, both have bdi.
-        # however these could still be different kinds (e.g. just negation vs. full bdi term).
-        # let's just check that they're the same length to proceed.
-        if len(self.ant_rml.bdi) != len(next_cond.bdi):
+        # however these could still be different kinds.
+        if type(self.ant_rml.bdi) != type(next_cond.bdi):
             return False
-        # now we can check the full bdi terms.
-        # we only need to check that the antecedent matches the outermost term!
-        rml_negated_bdi = deepcopy(self.ant_rml.bdi[0])
-        rml_bdi_body = deepcopy(self.ant_rml.bdi[1])
-        o_negated_bdi = deepcopy(next_cond.bdi[0])
-        o_bdi_body = deepcopy(next_cond.bdi[1])
-        # we are assuming the parameters are general/don't matter
-        del rml_bdi_body[3]
-        del o_bdi_body[3]
-        return rml_negated_bdi == o_negated_bdi and rml_bdi_body == o_bdi_body[:len(rml_bdi_body)]
+        
+        # now we can check the full bdi terms, knowing they're the same type.
+        # note: we don't care what the agent is, we're just checking for the overall structure
+        return self.ant_rml.bdi.negated_inner == next_cond.bdi.negated_inner and \
+            self.ant_rml.bdi.hard_bdi == next_cond.bdi.hard_bdi 
 
 def check_nesting(cons, depth):
     if type(cons) is When:
@@ -396,12 +398,10 @@ def check_nesting(cons, depth):
                 return False
         return True
     elif type(cons) is Predicate:
-        if not cons.bdi:
+        if not cons.bdi or type(cons.bdi) is NegateOnly:
             return True
         else:
-            if len(cons.bdi) == 1:
-                return True
-            return len([t for t in cons.bdi[1] if t in [Token("LSQB", "["), Token("LESSER_OP", "<")]]) <= depth
+            return len(cons.bdi.nested) + 1 <= depth
 
 def apply_cond_eff(anc_effs, o, action, agents, depth, predicates):
     """Adapted from pdlb.actions.Action._expand."""
@@ -416,30 +416,20 @@ def apply_cond_eff(anc_effs, o, action, agents, depth, predicates):
                 anc_eff_data = ApplyCondEff(anc_eff, action, agents, depth, predicates)
                 if anc_eff_data.name in ["mutual-awareness-pos", "mutual-awareness-neg"]: # "negation-removal", "kd45-un-closure", "uncertain-firing", 
                     continue
-                
                 if anc_eff_data.check_ant_format(next_cond):
                     print(anc_eff_data.name)
                     print(f"next cond: {next_cond}")
-                    cons = anc_eff_data.create_consequent(deepcopy(next_cond))
-                    check_nesting(cons, depth)
-                    if type(cons) is list:
-                        for c in cons:
-                            if check_nesting(c, depth):
-                                if c not in processed_conds and c not in condleft:
-                                    print(c)
-                                condleft.append(c)
-                    else:
-                        if check_nesting(cons, depth):
-                            if cons not in processed_conds and cons not in condleft:
-                                print(cons)
-                            condleft.append(cons)
+                    cons = set(anc_eff_data.create_consequent(deepcopy(next_cond)))
+                    for c in cons:
+                        if check_nesting(c, depth):
+                            if c not in processed_conds and c not in condleft:
+                                print(c)
+                            condleft.append(c)
                     print("----")
     return list(processed_conds - {o}) # already have o
 
 def apply_cond_effs(anc_effs, domain, problem):
     for action in domain._actions:   
-        # if action.name != "share_a_b_l1":
-        #     continue
         for o in action.effect.operands:
             new_preds = apply_cond_eff(anc_effs, o, action, domain._agents, problem.depth, domain.predicates)
             if new_preds:
