@@ -41,25 +41,32 @@ class ApplyCondEff:
             p.negated = not p.negated
         return p
     
-    def assign_bdi_negation(self, mod_p, new_pred):
-        # TODO: not sure if this is right.
-        if (mod_p.bdi.negated_inner and new_pred.bdi.negated_inner) or (not mod_p.bdi.negated_inner and not new_pred.bdi.negated_inner):
-            new_pred.bdi.negated_inner = False
-        elif mod_p.bdi.negated_inner ^ new_pred.bdi.negated_inner:
-            new_pred.bdi.negated_inner = True
+    # def assign_bdi_negation(self, mod_p, new_pred):
+    #     # TODO: not sure if this is right.
+    #     if (mod_p.bdi.negated_inner and new_pred.bdi.negated_inner) or (not mod_p.bdi.negated_inner and not new_pred.bdi.negated_inner):
+    #         new_pred.bdi.negated_inner = False
+    #     elif mod_p.bdi.negated_inner ^ new_pred.bdi.negated_inner:
+    #         new_pred.bdi.negated_inner = True
+
+    @staticmethod
+    def handle_any_nested_negations(pred):
+        return pred
     
     def merge_bdi(self, mod_p, new_pred, old_p):
         # we only want to nest by adding a NEGATIVE BDI term IF
         # the original BDI term is NOT a belief of the corresponding
         # agent (positive or negative)
-        if mod_p.bdi.negated_inner and mod_p.bdi.agent == new_pred.bdi.agent:
+        if mod_p.negate_whole_term and mod_p.bdi.agent == new_pred.bdi.agent:
             return old_p # need this for the original negation status
         # easiest case, don't need to collapse
         if mod_p.bdi.agent != new_pred.bdi.agent:
             # check if the outer BDI is just a negation
             if type(new_pred.bdi) is not NegateOnly:
-                new_pred.bdi.nested = [mod_p.bdi, *mod_p.bdi.nested]
-                self.assign_bdi_negation(mod_p, new_pred)
+                new_nested = [new_pred.bdi, *new_pred.bdi.nested]
+                new_pred.bdi = mod_p.bdi
+                new_pred.bdi.nested = new_nested
+                # WOOOOO time to negate by flipping everything???
+                return ApplyCondEff.handle_any_nested_negations(new_pred)
             else:
                 # check if this is an "always known" predicate
                 if not new_pred.always_known:
@@ -71,15 +78,15 @@ class ApplyCondEff:
             # if here, both BDI references the same agent
             # next easiest case, they are equal
             if mod_p.bdi == new_pred.bdi:
-                self.assign_bdi_negation(mod_p, new_pred)
+                # self.assign_bdi_negation(mod_p, new_pred)
                 return new_pred
             # if we have possible belief then belief, return just the belief
             elif not mod_p.bdi.hard_bdi and new_pred.bdi.hard_bdi:
-                self.assign_bdi_negation(mod_p, new_pred)
+                # self.assign_bdi_negation(mod_p, new_pred)
                 return new_pred
             # if we have belief then possible belief, return just the possible belief
             elif mod_p.bdi.hard_bdi and not new_pred.bdi.hard_bdi:
-                self.assign_bdi_negation(mod_p, new_pred)
+                # self.assign_bdi_negation(mod_p, new_pred)
                 return new_pred
 
     def modify_predicate(self, old_p, mod_p, agent=None):
@@ -115,8 +122,10 @@ class ApplyCondEff:
                         mod_p.bdi.agent = Agent(agent)
                         new_pred = self.merge_bdi(mod_p, new_pred, old_p)
                     else:
+                        # we only want to affect the outer BDI
                         new_pred.bdi = deepcopy(mod_p.bdi)
                         new_pred.bdi.agent = deepcopy(old_p.bdi.agent)
+                        new_pred.bdi.nested = deepcopy(old_p.bdi.nested)
                 else:
                     if new_pred.always_known:
                         # we don't give "always known" predicates BDI terms.
@@ -414,7 +423,7 @@ def apply_cond_eff(anc_effs, o, action, agents, depth, predicates):
             processed_conds.add(next_cond)
             for anc_eff in anc_effs._anceffs:
                 anc_eff_data = ApplyCondEff(anc_eff, action, agents, depth, predicates)
-                if anc_eff_data.name in ["mutual-awareness-pos", "mutual-awareness-neg"]: # "negation-removal", "kd45-un-closure", "uncertain-firing", 
+                if anc_eff_data.name not in ["kd45closure", "mutual-awareness-pos", "mutual-awareness-neg"]: # "negation-removal", "kd45-un-closure", "uncertain-firing", 
                     continue
                 if anc_eff_data.check_ant_format(next_cond):
                     print(anc_eff_data.name)
@@ -430,6 +439,8 @@ def apply_cond_eff(anc_effs, o, action, agents, depth, predicates):
 
 def apply_cond_effs(anc_effs, domain, problem):
     for action in domain._actions:   
+        # if action.name != "share_a_b_l1":
+        #     continue
         for o in action.effect.operands:
             new_preds = apply_cond_eff(anc_effs, o, action, domain._agents, problem.depth, domain.predicates)
             if new_preds:

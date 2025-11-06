@@ -6,9 +6,9 @@ def normalize_effect(effect: str, is_generated: bool) -> str:
     effect = re.sub(r"\s+", " ", effect).strip()  # collapse whitespace
     # Remove a stray trailing parenthesis (ground truth sometimes has one more)
     effect = re.sub(r"\)+\s*$", ")", effect)
-    if is_generated:
-        # convert PB → P in generated file
-        effect = re.sub(r"\bPB", "P", effect)
+    # if is_generated:
+    #     # convert PB → P in generated file
+    #     effect = re.sub(r"\bPB", "P", effect)
     return effect
 
 def extract_action_block(text: str, action_name: str) -> str:
