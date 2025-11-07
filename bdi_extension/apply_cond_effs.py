@@ -120,6 +120,10 @@ class ApplyCondEff:
                 new_pred.bdi = NegateOnly(True)
         elif mod_p.bdi:
                 if new_pred.bdi:
+                    if type(new_pred.bdi) is NegateOnly and new_pred.always_known:
+                        if mod_p.bdi.negate_inner_rml:
+                            new_pred.bdi.negate()
+                        return new_pred
                     if mod_p.nest:
                         mod_p.bdi.agent = Agent(agent)
                         new_pred = self.merge_bdi(mod_p, new_pred, old_p)
@@ -254,10 +258,7 @@ class ApplyCondEff:
     
     def get_derived_cond_preds(self, agent=None):
         if type(self.derived_cond) is list:
-            # TODO: when are we checking for these first two cases?
             if self.derived_cond[0] == Token("ALWAYS", "always"):
-                return []
-            elif self.derived_cond[0] == Token("NEVER", "never"):
                 return []
             else:
                 var = None
@@ -313,7 +314,7 @@ class ApplyCondEff:
                     cond = self.create_conds(next_cond.condition, a)
                     # also need to do derived conditions here since that might
                     # have a matching agent parameter.
-                    if self.need_awareness and self.derived_cond:
+                    if self.need_awareness and self.derived_cond[0] != Token("NEVER", "never"):
                         cond = set(cond + self.get_derived_cond_preds(a))
                     and_cond = And(*[])
                     and_cond._operands.extend(sorted(cond))
@@ -322,7 +323,7 @@ class ApplyCondEff:
             else:
                 base_conds = self.create_conds(next_cond.condition)
                 derived_cond_preds = None
-                if self.need_awareness and self.derived_cond:
+                if self.need_awareness and self.derived_cond[0] != Token("NEVER", "never"):
                     derived_cond_preds = self.get_derived_cond_preds()
                 if derived_cond_preds:
                     for (p, agent) in derived_cond_preds:
@@ -343,9 +344,8 @@ class ApplyCondEff:
                 for a in self.agents:
                     # we have an empty condition, so don't worry about that
                     # BUT we need to do derived conditions here since that might
-                    # have a matching agent parameter.
-                    if self.need_awareness and self.derived_cond:
-                        cond = set(self.get_derived_cond_preds(a))
+                    # have a matching agent parameter.                    
+                    cond = set(self.get_derived_cond_preds(a)) if self.need_awareness and self.derived_cond[0] != Token("NEVER", "never") else None
                     if cond:
                         if len(cond) == 1:
                             if list(cond)[0] == next_cond:
@@ -426,7 +426,7 @@ def apply_cond_eff(anc_effs, o, action, agents, depth, predicates):
             processed_conds.add(next_cond)
             for anc_eff in anc_effs._anceffs:
                 anc_eff_data = ApplyCondEff(anc_eff, action, agents, depth, predicates)
-                if anc_eff_data.name not in ["negation-removal", "mutual-awareness-pos", "mutual-awareness-neg"]: # "negation-removal", "kd45-un-closure", "uncertain-firing", 
+                if anc_eff_data.name not in ["kd45closure", "negation-removal", "mutual-awareness-pos", "mutual-awareness-neg"]: # "negation-removal", "kd45-un-closure", "uncertain-firing", 
                     continue
                 if anc_eff_data.check_ant_format(next_cond):
                     print(anc_eff_data.name)
@@ -440,6 +440,11 @@ def apply_cond_eff(anc_effs, o, action, agents, depth, predicates):
                     print("----")
     return list(processed_conds - {o}) # already have o
 
+def remove_extra_bdi(term):
+    if type(term.bdi) is NegateOnly:
+        if not term.bdi.negate_inner_rml and not term.bdi.nested:
+            term.bdi = None
+
 def apply_cond_effs(anc_effs, domain, problem):
     for action in domain._actions:   
         if action.name != "share_a_b_l1":
@@ -449,5 +454,20 @@ def apply_cond_effs(anc_effs, domain, problem):
             if new_preds:
                 # apply the consequent
                 action.effect._operands.extend(new_preds)
+        # remove extraneous BDI terms
+        for o in action.effect.operands:
+            if type(o) is When:
+                if type(o.condition) is And:
+                    for c in o.condition.operands:
+                        remove_extra_bdi(c)
+                else:
+                    remove_extra_bdi(o.condition)
+                if type(o.effect) is And:
+                    for e in o.effect.operands:
+                        remove_extra_bdi(e)
+                else:
+                    remove_extra_bdi(o.effect)
+            else:
+                remove_extra_bdi(o)
         # in case of duplicate effects, remove them
         action.effect._operands = set(action.effect._operands)
