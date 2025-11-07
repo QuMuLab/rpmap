@@ -77,6 +77,6 @@ def extract_all_action_names_from_text(text: str):
 # Example usage:
 text = open("bdi_extension/bdi_pdkbddl_files/grounded_domain.pdkbddl", encoding="utf-8").read()
 actions = extract_all_action_names_from_text(text)
-for a in actions:
-    compare_effects("bdi_extension/bdi_pdkbddl_files/grounded_domain.pdkbddl", "pdkb-domain.pddl", a)
-# compare_effects("bdi_extension/bdi_pdkbddl_files/grounded_domain.pdkbddl", "pdkb-domain.pddl", "share_a_b_l1")
+# for a in actions:
+#     compare_effects("bdi_extension/bdi_pdkbddl_files/grounded_domain.pdkbddl", "pdkb-domain.pddl", a)
+compare_effects("bdi_extension/bdi_pdkbddl_files/grounded_domain.pdkbddl", "pdkb-domain.pddl", "share_a_b_l1")

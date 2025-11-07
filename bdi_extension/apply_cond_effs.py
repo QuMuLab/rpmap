@@ -40,47 +40,45 @@ class ApplyCondEff:
         if self.cons_cond_type == 'del':
             p.negated = not p.negated
         return p
-
-    # @staticmethod
-    # def negate_nested(pred):
-    #     # if so, now we need to flip everything to apply the negation!
-    #     pred.bdi.negate()
-    #     for b in pred.bdi.nested:
-    #         b.negate()
-        # return pred
     
     def merge_bdi(self, mod_p, new_pred, old_p):
+        # easiest case, they are equal
+        if mod_p.bdi == new_pred.bdi:
+            return old_p
         # we only want to nest by adding a NEGATIVE BDI term IF
         # the original BDI term is NOT a belief of the corresponding
         # agent (positive or negative)
-        if mod_p.negate_whole_term and mod_p.bdi.agent == new_pred.bdi.agent:
+        elif mod_p.negate_whole_term and mod_p.bdi.agent == new_pred.bdi.agent:
             # need this for the original negation status.
             # in the case where we are modifying a raw RML (rml without the negation
             # status) because the antecedent cond type is "del" and we need to
             # return the original formula, we need to restore the negation status.
             return old_p
-        # easiest case, don't need to collapse
-        if mod_p.bdi.agent != new_pred.bdi.agent:
+        else:
             new_nested = [new_pred.bdi, *new_pred.bdi.nested]
             new_pred.bdi = mod_p.bdi
             new_pred.bdi.nested = new_nested
             # first, check if we have a new negation added
             if new_pred.bdi.negate_inner_rml:
-                # WOOOOO time to negate by flipping everything???
-                # return ApplyCondEff.negate_nested(new_pred)
+                # WOOOOO time to negate by flipping everything
                 new_pred.bdi.negate(True)
+            # check if they reference the same agents
+            if new_pred.bdi.agent == new_pred.bdi.nested[0].agent:
+                # if we have possible belief then belief, return just the belief
+                if not new_pred.bdi.hard_bdi and new_pred.bdi.nested[0].hard_bdi:
+                    new_bdi = new_pred.bdi.nested[0]
+                    nested = new_pred.bdi.nested[1:]
+                    new_pred.bdi = new_bdi
+                    new_pred.bdi.nested = nested
+                    return new_pred
+                # if we have belief then possible belief, return just the possible belief
+                elif new_pred.bdi.hard_bdi and not new_pred.bdi.nested[0].hard_bdi:
+                    new_bdi = new_pred.bdi.nested[0]
+                    nested = new_pred.bdi.nested[1:]
+                    new_pred.bdi = new_bdi
+                    new_pred.bdi.nested = nested
+                    return new_pred
             return new_pred
-        else:
-            # if here, both BDI references the same agent
-            # next easiest case, they are equal
-            if mod_p.bdi == new_pred.bdi:
-                return old_p
-            # if we have possible belief then belief, return just the belief
-            elif not mod_p.bdi.hard_bdi and new_pred.bdi.hard_bdi:
-                return old_p
-            # if we have belief then possible belief, return just the possible belief
-            elif mod_p.bdi.hard_bdi and not new_pred.bdi.hard_bdi:
-                return old_p
 
     def modify_predicate(self, old_p, mod_p, agent=None):
         """ Assuming both predicates have the same "base,"
@@ -123,7 +121,8 @@ class ApplyCondEff:
                     if type(new_pred.bdi) is NegateOnly and new_pred.always_known:
                         if mod_p.bdi.negate_inner_rml:
                             new_pred.bdi.negate()
-                        return new_pred
+                            return new_pred
+                        return old_p
                     if mod_p.nest:
                         mod_p.bdi.agent = Agent(agent)
                         new_pred = self.merge_bdi(mod_p, new_pred, old_p)
@@ -142,12 +141,12 @@ class ApplyCondEff:
                     else:
                         mod_p.bdi.agent = Agent(agent)
                         new_pred.bdi = deepcopy(mod_p.bdi)
-        elif mod_p.negate_inner_rml:
-            if new_pred.bdi:
-                new_pred.bdi.negate()
-                # ApplyCondEff.negate_nested(new_pred)
-            else:
-                new_pred.bdi = NegateOnly(True)
+        # elif mod_p.negate_inner_rml:
+        #     if new_pred.bdi:
+        #         new_pred.bdi.negate()
+        #         # ApplyCondEff.negate_nested(new_pred)
+        #     else:
+        #         new_pred.bdi = NegateOnly(True)
         return new_pred
 
     def get_pos_or_neg_cond_term(self, cond, term_type):
@@ -166,6 +165,11 @@ class ApplyCondEff:
             else:
                 if cond.negated == True:
                     new_preds = [cond]
+            new_preds = deepcopy(new_preds)
+            # note that we want to ignore the negations here and just get the raw RMLs,
+            # because they will be re-applied by the :negcond in the consequent if necessary later.
+            for i in range (len(new_preds)):
+                new_preds[i].negated = False
         return new_preds
 
     def handle_list_comp(self, list_comp_terms, next_cond, agent=None):
@@ -426,12 +430,21 @@ def apply_cond_eff(anc_effs, o, action, agents, depth, predicates):
             processed_conds.add(next_cond)
             for anc_eff in anc_effs._anceffs:
                 anc_eff_data = ApplyCondEff(anc_eff, action, agents, depth, predicates)
-                if anc_eff_data.name not in ["kd45closure", "negation-removal", "mutual-awareness-pos", "mutual-awareness-neg"]: # "negation-removal", "kd45-un-closure", "uncertain-firing", 
-                    continue
+                # if anc_eff_data.name not in ["uncertain-firing", "mutual-awareness-pos", "mutual-awareness-neg"]: # "negation-removal", "kd45-un-closure", "uncertain-firing", 
+                #     continue
                 if anc_eff_data.check_ant_format(next_cond):
                     print(anc_eff_data.name)
                     print(f"next cond: {next_cond}")
-                    cons = set(anc_eff_data.create_consequent(deepcopy(next_cond)))
+                    cons = list(set(anc_eff_data.create_consequent(deepcopy(next_cond))))
+                    # remove extraneous BDI terms)
+                    for i in range(len(cons)):
+                        if type(cons[i]) is When:
+                            cond = set([remove_extra_bdi(c) for c in cons[i].condition.operands])
+                            and_cond = And(*[])
+                            and_cond._operands.extend(sorted(cond))
+                            cons[i] = When(and_cond, remove_extra_bdi(cons[i].effect))
+                        else:
+                            cons[i] = remove_extra_bdi(cons[i])
                     for c in cons:
                         if check_nesting(c, depth):
                             if c not in processed_conds and c not in condleft:
@@ -441,33 +454,20 @@ def apply_cond_eff(anc_effs, o, action, agents, depth, predicates):
     return list(processed_conds - {o}) # already have o
 
 def remove_extra_bdi(term):
-    if type(term.bdi) is NegateOnly:
-        if not term.bdi.negate_inner_rml and not term.bdi.nested:
-            term.bdi = None
+    if term:
+        if type(term.bdi) is NegateOnly:
+            if not term.bdi.negate_inner_rml and not term.bdi.nested:
+                term.bdi = None
+    return term
 
 def apply_cond_effs(anc_effs, domain, problem):
     for action in domain._actions:   
-        if action.name != "share_a_b_l1":
-            continue
+        # if action.name != "share_a_b_l1":
+        #     continue
         for o in action.effect.operands:
             new_preds = apply_cond_eff(anc_effs, o, action, domain._agents, problem.depth, domain.predicates)
             if new_preds:
                 # apply the consequent
                 action.effect._operands.extend(new_preds)
-        # remove extraneous BDI terms
-        for o in action.effect.operands:
-            if type(o) is When:
-                if type(o.condition) is And:
-                    for c in o.condition.operands:
-                        remove_extra_bdi(c)
-                else:
-                    remove_extra_bdi(o.condition)
-                if type(o.effect) is And:
-                    for e in o.effect.operands:
-                        remove_extra_bdi(e)
-                else:
-                    remove_extra_bdi(o.effect)
-            else:
-                remove_extra_bdi(o)
         # in case of duplicate effects, remove them
         action.effect._operands = set(action.effect._operands)
