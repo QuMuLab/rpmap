@@ -40,77 +40,79 @@ class ApplyCondEff:
         if self.cons_cond_type == 'del':
             p.negated = not p.negated
         return p
-    
-    # def assign_bdi_negation(self, mod_p, new_pred):
-    #     # TODO: not sure if this is right.
-    #     if (mod_p.bdi.negated_inner and new_pred.bdi.negated_inner) or (not mod_p.bdi.negated_inner and not new_pred.bdi.negated_inner):
-    #         new_pred.bdi.negated_inner = False
-    #     elif mod_p.bdi.negated_inner ^ new_pred.bdi.negated_inner:
-    #         new_pred.bdi.negated_inner = True
 
-    @staticmethod
-    def handle_any_nested_negations(pred):
-        return pred
+    # @staticmethod
+    # def negate_nested(pred):
+    #     # if so, now we need to flip everything to apply the negation!
+    #     pred.bdi.negate()
+    #     for b in pred.bdi.nested:
+    #         b.negate()
+        # return pred
     
     def merge_bdi(self, mod_p, new_pred, old_p):
         # we only want to nest by adding a NEGATIVE BDI term IF
         # the original BDI term is NOT a belief of the corresponding
         # agent (positive or negative)
         if mod_p.negate_whole_term and mod_p.bdi.agent == new_pred.bdi.agent:
-            return old_p # need this for the original negation status
+            # need this for the original negation status.
+            # in the case where we are modifying a raw RML (rml without the negation
+            # status) because the antecedent cond type is "del" and we need to
+            # return the original formula, we need to restore the negation status.
+            return old_p
         # easiest case, don't need to collapse
         if mod_p.bdi.agent != new_pred.bdi.agent:
-            # check if the outer BDI is just a negation
-            if type(new_pred.bdi) is not NegateOnly:
-                new_nested = [new_pred.bdi, *new_pred.bdi.nested]
-                new_pred.bdi = mod_p.bdi
-                new_pred.bdi.nested = new_nested
+            new_nested = [new_pred.bdi, *new_pred.bdi.nested]
+            new_pred.bdi = mod_p.bdi
+            new_pred.bdi.nested = new_nested
+            # first, check if we have a new negation added
+            if new_pred.bdi.negate_inner_rml:
                 # WOOOOO time to negate by flipping everything???
-                return ApplyCondEff.handle_any_nested_negations(new_pred)
-            else:
-                # check if this is an "always known" predicate
-                if not new_pred.always_known:
-                    negation = new_pred.bdi.negated_inner
-                    new_pred.bdi = mod_p.bdi
-                    new_pred.bdi.negated_inner = negation
-            return new_pred 
+                # return ApplyCondEff.negate_nested(new_pred)
+                new_pred.bdi.negate(True)
+            return new_pred
         else:
             # if here, both BDI references the same agent
             # next easiest case, they are equal
             if mod_p.bdi == new_pred.bdi:
-                # self.assign_bdi_negation(mod_p, new_pred)
-                return new_pred
+                return old_p
             # if we have possible belief then belief, return just the belief
             elif not mod_p.bdi.hard_bdi and new_pred.bdi.hard_bdi:
-                # self.assign_bdi_negation(mod_p, new_pred)
-                return new_pred
+                return old_p
             # if we have belief then possible belief, return just the possible belief
             elif mod_p.bdi.hard_bdi and not new_pred.bdi.hard_bdi:
-                # self.assign_bdi_negation(mod_p, new_pred)
-                return new_pred
+                return old_p
 
     def modify_predicate(self, old_p, mod_p, agent=None):
         """ Assuming both predicates have the same "base,"
         modify the old predicate according to the attributes of the new predicate"""
         mod_p = deepcopy(mod_p)
-        new_pred = Predicate(
-            old_p.name,
-            *old_p.terms
-        )
-        # take the original AK (wouldn't be modified)
-        new_pred.always_known = old_p.always_known
+        new_pred = deepcopy(old_p)
+        
+        
+        # new_pred = Predicate(
+        #     old_p.name,
+        #     *old_p.terms
+        # )
+        # # take the original AK (wouldn't be modified)
+        # new_pred.always_known = old_p.always_known
 
         # just copy this for now
-        new_pred.bdi = deepcopy(old_p.bdi)
+        # new_pred.bdi = deepcopy(old_p.bdi)
         # new_pred.negated = old_p.negated
         # we are just passing in the raw RML.
         # if it's negated, that's indicated by the "del"
-        new_pred.negated = False 
+
+        # if the antecedent has a type "del," then we only want to
+        # pass in the "raw" RML, a.k.a. leave the negation at the door.
+        if self.ant_cond_type == 'del':
+            new_pred.negated = False
+        # new_pred.negated = False 
 
         # broadest case: we are just negating the whole thing
         if mod_p.negate_whole_term:
             if new_pred.bdi:
-                new_pred.bdi.negate()                    
+                new_pred.bdi.negate()
+                # ApplyCondEff.negate_nested(new_pred)                   
             else:
                 # if no bdi term, then still remember we are still negating the BDI term,
                 # just according to the root agent. so negate the predicate using the
@@ -130,7 +132,7 @@ class ApplyCondEff:
                     if new_pred.always_known:
                         # we don't give "always known" predicates BDI terms.
                         # however a negation can still happen!
-                        if mod_p.bdi.negated_inner:
+                        if mod_p.bdi.negate_inner_rml:
                             new_pred.bdi = NegateOnly(True)
                         return new_pred
                     else:
@@ -138,7 +140,8 @@ class ApplyCondEff:
                         new_pred.bdi = deepcopy(mod_p.bdi)
         elif mod_p.negate_inner_rml:
             if new_pred.bdi:
-                new_pred.bdi.negated_inner = not new_pred.bdi.negated_inner
+                new_pred.bdi.negate()
+                # ApplyCondEff.negate_nested(new_pred)
             else:
                 new_pred.bdi = NegateOnly(True)
         return new_pred
@@ -395,7 +398,7 @@ class ApplyCondEff:
         
         # now we can check the full bdi terms, knowing they're the same type.
         # note: we don't care what the agent is, we're just checking for the overall structure
-        return self.ant_rml.bdi.negated_inner == next_cond.bdi.negated_inner and \
+        return self.ant_rml.bdi.negate_inner_rml == next_cond.bdi.negate_inner_rml and \
             self.ant_rml.bdi.hard_bdi == next_cond.bdi.hard_bdi 
 
 def check_nesting(cons, depth):
@@ -423,7 +426,7 @@ def apply_cond_eff(anc_effs, o, action, agents, depth, predicates):
             processed_conds.add(next_cond)
             for anc_eff in anc_effs._anceffs:
                 anc_eff_data = ApplyCondEff(anc_eff, action, agents, depth, predicates)
-                if anc_eff_data.name not in ["kd45closure", "mutual-awareness-pos", "mutual-awareness-neg"]: # "negation-removal", "kd45-un-closure", "uncertain-firing", 
+                if anc_eff_data.name not in ["negation-removal", "mutual-awareness-pos", "mutual-awareness-neg"]: # "negation-removal", "kd45-un-closure", "uncertain-firing", 
                     continue
                 if anc_eff_data.check_ant_format(next_cond):
                     print(anc_eff_data.name)
@@ -439,8 +442,8 @@ def apply_cond_eff(anc_effs, o, action, agents, depth, predicates):
 
 def apply_cond_effs(anc_effs, domain, problem):
     for action in domain._actions:   
-        # if action.name != "share_a_b_l1":
-        #     continue
+        if action.name != "share_a_b_l1":
+            continue
         for o in action.effect.operands:
             new_preds = apply_cond_eff(anc_effs, o, action, domain._agents, problem.depth, domain.predicates)
             if new_preds:

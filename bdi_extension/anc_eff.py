@@ -55,8 +55,8 @@ class Agent:
         return hash((self.name, self.var))
 
 class BDI(ABC):
-    def __init__(self, negated_inner, bdi_args):
-        self.negated_inner = negated_inner
+    def __init__(self, negate_inner_rml, bdi_args):
+        self.negate_inner_rml = negate_inner_rml
         self.hard_bdi = None
         self.agent = None
         self.nested = []
@@ -71,46 +71,56 @@ class BDI(ABC):
         
         if class_name != "NegateOnly":
             bdi_str += f"{self.__class__.__name__[0]}{self.agent.name}"
-            if self.negated_inner:
+            if self.negate_inner_rml:
                 bdi_str += "_not"
         else:
-            if self.negated_inner:
+            if self.negate_inner_rml:
                 bdi_str += "not"        
         return bdi_str
     
     def __eq__(self, other):
         if not isinstance(other, BDI):
             return False
-        return self.negated_inner == other.negated_inner and \
+        return self.negate_inner_rml == other.negate_inner_rml and \
                self.hard_bdi == other.hard_bdi and \
                self.agent == other.agent and \
                self.nested == other.nested
     
     def __hash__(self):
-        return hash((self.negated_inner, self.hard_bdi, self.agent, tuple(self.nested)))
+        return hash((self.negate_inner_rml, self.hard_bdi, self.agent, tuple(self.nested)))
 
-    def negate(self):
+    def negate(self, already_negated: bool=False):
         self.hard_bdi = not self.hard_bdi
-        self.negated_inner = not self.negated_inner
+        if not already_negated:
+            self.negate_inner_rml = not self.negate_inner_rml
+        if self.nested:
+            for b in self.nested:
+                b.hard_bdi = not b.hard_bdi
+            if self.negate_inner_rml and self.nested[-1].negate_inner_rml:
+                self.nested[-1].negate_inner_rml = False
+                self.negate_inner_rml = False
+            elif self.negate_inner_rml ^ self.nested[-1].negate_inner_rml:
+                self.nested[-1].negate_inner_rml = True
+                self.negate_inner_rml = False
 
 class NegateOnly(BDI):
-    def __init__(self, negated_inner):
-        super().__init__(negated_inner, None)
+    def __init__(self, negate_inner_rml):
+        super().__init__(negate_inner_rml, None)
 
     def negate(self):
-        self.negated_inner = not self.negated_inner
+        self.negate_inner_rml = not self.negate_inner_rml
 
 class Belief(BDI):
-    def __init__(self, negated_inner, bdi_args):
-        super().__init__(negated_inner, bdi_args)  
+    def __init__(self, negate_inner_rml, bdi_args):
+        super().__init__(negate_inner_rml, bdi_args)  
 
 class Desire(BDI):
-    def __init__(self, negated_inner, bdi_args):
-        super().__init__(negated_inner, bdi_args)
+    def __init__(self, negate_inner_rml, bdi_args):
+        super().__init__(negate_inner_rml, bdi_args)
 
 class Intention(BDI):
-    def __init__(self, negated_inner, bdi_args):
-        super().__init__(negated_inner, bdi_args)
+    def __init__(self, negate_inner_rml, bdi_args):
+        super().__init__(negate_inner_rml, bdi_args)
 
 def instantiate_bdi(bdi_args):
     """Instantiate the appropriate BDI class based on the type of BDI term."""
@@ -125,19 +135,19 @@ def instantiate_bdi(bdi_args):
             if type(bdi_args[0]) is Token:
                 if bdi_args[0].type == "EXC":
                     return NegateOnly(True)
-        negated_inner = False
+        negate_inner_rml = False
         bdi_body = bdi_args[0]
         if type(bdi_args[0]) is Token:
             if bdi_args[0].type == "EXC":
-                negated_inner = True
+                negate_inner_rml = True
                 bdi_body = bdi_args[1]
         bdi_type = bdi_body[1][0].type
         if bdi_type == "BELIEF":
-            return Belief(negated_inner, bdi_body)
+            return Belief(negate_inner_rml, bdi_body)
         elif bdi_type == "DESIRE":
-            return Desire(negated_inner, bdi_body)
+            return Desire(negate_inner_rml, bdi_body)
         elif bdi_type == "INTENTION":
-            return Intention(negated_inner, bdi_body)
+            return Intention(negate_inner_rml, bdi_body)
 
 
 class ModRML:
@@ -148,11 +158,10 @@ class ModRML:
         # (because those have their own negations with distinct meanings,
         # and then we're overloading the '!' operator...)
         self.negate_whole_term = False
-        self.negated_inner_rml = False
+        self.negate_inner_rml_rml = False
         self.bdi = None
-        self.nest = True if args[2] else False
-
-
+        self.nest = False
+        
         # figure out where the BDI term ends, e.g. (!)[b, ?agent]{index} or (!)<b, ?agent>{index}.
         # (if there's no BDI term, we just skip over None)
         after_bdi = None
@@ -161,11 +170,14 @@ class ModRML:
                 if "LPAR" in args[i].type: #accounting for import being part of the type name
                     # reached the end of the BDI terms
                     after_bdi = i
+                    if type(args[after_bdi - 1]) is Token:
+                        if args[after_bdi - 1].type == "LSQB":
+                            self.nest = True
                     break
         # check for EXC (negation)
         if args[after_bdi + 1]:
             if "EXC" in args[after_bdi + 1].type:
-                self.negated_inner_rml = True
+                self.negate_inner_rml_rml = True
         # get the name
         for a in args[after_bdi + 2:-1]:
             if a:
