@@ -1,6 +1,7 @@
 from copy import deepcopy
 from .anc_eff import NegateOnly, Agent, ModRML
 from lark.lexer import Token
+from pddl.core import Domain, Problem
 from pddl.logic.base import And
 from pddl.logic.predicates import Predicate
 from pddl.logic.effects import When
@@ -8,8 +9,8 @@ from pddl.logic.terms import Constant
 
 
 class ApplyCondEff:
-    def __init__(self, anc_eff, action, agents, depth, predicates):
-        self.derived_cond = action.derive_condition
+    def __init__(self, anc_eff, derive_condition, agents, depth, predicates):
+        self.derived_cond = derive_condition
         self.agents = agents
         self.depth = depth
         self.predicates = predicates
@@ -348,8 +349,10 @@ class ApplyCondEff:
                 for a in self.agents:
                     # we have an empty condition, so don't worry about that
                     # BUT we need to do derived conditions here since that might
-                    # have a matching agent parameter.                    
-                    cond = set(self.get_derived_cond_preds(a)) if self.need_awareness and self.derived_cond[0] != Token("NEVER", "never") else None
+                    # have a matching agent parameter.                
+                    cond = None
+                    if self.derived_cond:    
+                        cond = set(self.get_derived_cond_preds(a)) if self.need_awareness and self.derived_cond[0] != Token("NEVER", "never") else None
                     if cond:
                         if len(cond) == 1:
                             if list(cond)[0] == next_cond:
@@ -419,7 +422,7 @@ def check_nesting(cons, depth):
         else:
             return len(cons.bdi.nested) + 1 <= depth
 
-def apply_cond_eff(anc_effs, o, action, agents, depth, predicates):
+def apply_cond_eff(anc_effs, o, derive_condition, agents, depth, predicates):
     """Adapted from pdlb.actions.Action._expand."""
     condleft = [o]
     processed_conds = set()
@@ -429,7 +432,7 @@ def apply_cond_eff(anc_effs, o, action, agents, depth, predicates):
         if next_cond not in processed_conds:
             processed_conds.add(next_cond)
             for anc_eff in anc_effs._anceffs:
-                anc_eff_data = ApplyCondEff(anc_eff, action, agents, depth, predicates)
+                anc_eff_data = ApplyCondEff(anc_eff, derive_condition, agents, depth, predicates)
                 # if anc_eff_data.name not in ["uncertain-firing", "mutual-awareness-pos", "mutual-awareness-neg"]: # "negation-removal", "kd45-un-closure", "uncertain-firing", 
                 #     continue
                 if anc_eff_data.check_ant_format(next_cond):
@@ -460,14 +463,68 @@ def remove_extra_bdi(term):
                 term.bdi = None
     return term
 
+def grab_fluents(formula):
+    if type(formula) is Predicate:
+        return [formula]
+    elif type(formula) is And:
+        return formula.operands
+    if type(formula) is When:
+        return set(grab_fluents(formula.condition)).union(set(grab_fluents(formula.effect)))
+
 def apply_cond_effs(anc_effs, domain, problem):
-    for action in domain._actions:   
-        # if action.name != "share_a_b_l1":
-        #     continue
+    depth = int(problem.depth[2].value)
+    for action in domain.actions:   
         for o in action.effect.operands:
-            new_preds = apply_cond_eff(anc_effs, o, action, domain._agents, problem.depth, domain.predicates)
+            new_preds = apply_cond_eff(anc_effs, o, action.derive_condition, domain._agents, depth, domain.predicates)
             if new_preds:
                 # apply the consequent
                 action.effect._operands.extend(new_preds)
         # in case of duplicate effects, remove them
         action.effect._operands = set(action.effect._operands)
+
+    init = set(problem.init)
+    for p in problem.init:
+        new_preds = apply_cond_eff(anc_effs, p, None, domain._agents, depth, domain.predicates)
+        if new_preds:
+            for n in new_preds:
+                if not n.negated:
+                    init.add(n)
+
+    goal = set(problem.goal)
+    for p in problem.goal:
+        goal.update(apply_cond_eff(anc_effs, p, None, domain._agents, depth, domain.predicates))
+
+    # now that we have all the predicates we need, let's add them to the predicates section
+    predicates = set()
+    for action in domain.actions:
+        for p in action.precondition.operands:
+            predicates.update(grab_fluents(p))
+        for p in action.effect.operands:
+            predicates.update(grab_fluents(p))
+
+    domain = Domain(
+        name=domain.name, 
+        requirements=domain.requirements, 
+        types=domain.types, 
+        constants=domain.constants, 
+        predicates=predicates,
+        derived_predicates=domain.derived_predicates, 
+        functions=domain.functions, 
+        actions=domain.actions, 
+        agents=domain._agents)
+
+    problem = Problem(
+        name = domain.name,
+        domain_name = domain.name,
+        requirements = problem.requirements,
+        objects = problem.objects,
+        init = init,
+        goal = goal,
+        depth = int(problem.depth[2].value),
+        task = problem.task[2].value,
+        init_type = problem.init_type[2].value,
+        plan = problem.plan,
+        projection = problem.projection
+    )
+
+    return domain, problem

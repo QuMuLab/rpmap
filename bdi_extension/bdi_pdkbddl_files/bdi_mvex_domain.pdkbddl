@@ -21,8 +21,8 @@
         :precondition       (and (at ?a ?l) [b, ?a](secret ?as))
         :effect             (and
                                 (forall (?a2 - agent)
-                                    (when     (at ?a2 ?l)
-                                         [b, ?a2](secret ?as)))
+                                    (when (at ?a2 ?l)
+                                        [b, ?a2](secret ?as)))
                             )
     )
 )

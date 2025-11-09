@@ -87,7 +87,7 @@ def new_problem_str(self):
     body += f"(:task {self.task})\n"
     body += f"(:init-type {self.init_type})\n"
     body += pprint_pddl_collection("(:init", self.init)
-    body += f"(:goal {recursive_print(self.goal, ' ')})" + "\n"
+    body += pprint_pddl_collection("(:goal", self.goal)
     body += f"{'(:metric ' + str(self.metric) + ')'}\n" if self.metric else ""
     body += pprint_pddl_collection("(:plan", self.plan)
     result = result + "\n" + indent(body, "\t") + "\n)"
@@ -98,9 +98,12 @@ def new_problem_str(self):
 
 def new_init_problem(self, *args, **kwargs):
     """New init function for the problem that takes depth, task, init type, and plan into account."""
-    self.depth = int(kwargs["depth"][2].value)  # store the depth
-    self.task = kwargs["task"][2].value  # store the task
-    self.init_type = kwargs["init_type"][2].value  # store the init type
+    # self.depth = int(kwargs["depth"][2].value)  # store the depth
+    # self.task = kwargs["task"][2].value  # store the task
+    # self.init_type = kwargs["init_type"][2].value  # store the init type
+    self.depth = kwargs["depth"]  # store the depth
+    self.task = kwargs["task"]  # store the task
+    self.init_type = kwargs["init_type"]  # store the init type
     self.plan = kwargs["plan"] # store the plan
     self.projection = kwargs["projection"]  # store the projection
     kwargs.pop("projection")

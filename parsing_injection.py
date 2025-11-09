@@ -5,6 +5,7 @@ import bdi_extension.anc_eff as anc_eff
 import os
 import pddl
 import sys
+import time
 from bdi_extension.domain import construct_domain_grammar
 from bdi_extension.anc_eff import Agent
 from lark import Lark
@@ -19,10 +20,13 @@ from pddl.parser import GRAMMAR_FILE
 from pddl.parser.domain import DomainTransformer
 from pddl.parser.problem import ProblemTransformer
 import pdkb.pddl.grounder as grounder
+from pdkb.planner import solve
 from pdkb.rml import parse_rml
 from pdkb.problems import Domain, convert_action, parse_problem
+from pdkb.test.utils import run_command, parse_output_ipc
 from bdi_extension.problem import construct_problem_grammar
 from bdi_extension.apply_cond_effs import apply_cond_effs
+
 
 def write(file_path, content):
     """Write content to a file."""
@@ -309,6 +313,19 @@ def ground(domain, problem):
     # TODO: actually use this dict
     fluent_dict = {hash(f): f for f in fluents}
     operators = create_operators(domain, problem, fluent_dict)
+
+    # need to get the always known status for predicates
+    for p in problem.init:
+        for dom_p in domain.predicates:
+            if p.name == dom_p.name:
+                p.always_known = dom_p.always_known
+                break
+
+    for p in problem.goal:
+        for dom_p in domain.predicates:
+            if p.name == dom_p.name:
+                p.always_known = dom_p.always_known
+                break
     
     grounded_domain = pddl_core.Domain(
         name=domain.name, 
@@ -325,6 +342,22 @@ def ground(domain, problem):
     return grounded_domain, problem
     # self._ground_init(fluent_dict)
     # self._ground_goal(fluent_dict)
+
+def solve(path=False):
+    # Solve the problem
+    planner_path = os.path.dirname(os.path.abspath(__file__))
+
+    planner_cmd = "python3 %s/planners/staged_bfws.py pdkb-domain.pddl pdkb-problem.pddl pdkb-plan.txt" % planner_path
+
+    t0 = time.time()
+    run_command(planner_cmd,
+                output_file = 'pdkb-plan.out',
+                MEMLIMIT = "2000000",
+                TIMELIMIT = "1800")
+    print("\nPlan Time: %.5f\n" % (time.time() - t0))
+    plan = parse_output_ipc('pdkb-plan.txt')
+
+    print("Plan Length: %d\n" % len(plan.actions))
 
 if __name__ == "__main__":
     # read the ancillary effects grammar file and add to the main grammar file
@@ -351,5 +384,8 @@ if __name__ == "__main__":
 
     # from pdkb.pddl.grounder.GroundProblem._ground
     anc_eff, domain, problem = (result[0], *ground(result[1], result[2]))
-    apply_cond_effs(anc_eff, domain, problem)
+    domain, problem = apply_cond_effs(anc_eff, domain, problem)
     write("bdi_extension/bdi_pdkbddl_files/grounded_domain.pdkbddl", str(domain))
+    write("bdi_extension/bdi_pdkbddl_files/grounded_problem.pdkbddl", str(problem))
+
+    solve("bdi_extension/bdi_pdkbddl_files/grounded_problem.pdkbddl")

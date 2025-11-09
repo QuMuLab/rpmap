@@ -17,19 +17,17 @@
         (connected l1 l2)
         (connected l2 l1)
 
+        ; (forall ?ag - agent (at ?ag l1))
         (at a l1)
-        (at b l1)
-        [b, a](secret a)
-        [b, b](secret b)
-        ; (forall (?ag - agent) (at ?ag l1))
+        (at b l2)
 
         ; (forall (?ag - agent)
         ;     [b, ?ag](secret ?ag))
+        [b, a](secret a)
+        [b, b](secret b)
     )
-
     (:goal
            [b, a](secret b)
     )
-
     (:plan )
 )

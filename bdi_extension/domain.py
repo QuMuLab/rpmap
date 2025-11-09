@@ -169,7 +169,7 @@ def new_domain_str(self):
     body += types_str
     body += print_constants("(:constants", self.constants, ")\n")
     if self.predicates:
-        predicates_str = NL_AND_TAB.join([f"{p.get_predicate_prefix()}{print_predicates_with_types([p])}" for p in self.predicates])
+        predicates_str = NL_AND_TAB.join([str(p) for p in self.predicates])
         body += f"(:predicates{NL_AND_TAB}{predicates_str}\n)\n"
     if self.functions:
         body += print_types_or_functions_with_parents(
