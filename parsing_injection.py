@@ -229,7 +229,7 @@ def predicates_to_fluents(predicates: list[Predicate], assignment, domain_preds)
             f = Predicate(p.name, *new_terms)
             if p.bdi:  
                 if p.bdi.agent.var:
-                    p.bdi.agent = Agent(assignment[p.bdi.agent.name])   
+                    p.bdi.agent = Agent(assignment[p.bdi.agent.name], False)   
             f.bdi = p.bdi
             f.negated = p.negated
             # find the "always known" status by referencing it from the domain predicates

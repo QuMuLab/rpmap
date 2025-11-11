@@ -6,45 +6,15 @@ from abc import ABC, abstractmethod
 from enum import Enum
 
 
-# def get_merged_token_value(token):
-#     if token.type == "LSQB":
-#         return ""
-#     elif token.type == "RSQB":
-#         return "_"
-#     elif token.type == "LESSER_OP":
-#         return "P"
-#     elif token.type == "GREATER_OP":
-#         return "_"
-#     elif token.type == "COMMA":
-#         return ""
-#     elif token.type == "BELIEF":
-#         return "B"
-#     elif token.type == "DESIRE":
-#         return "D"
-#     elif token.type == "INTENTION":
-#         return "I"
-#     else:
-#         return token.value
-
 class BDIType(Enum):
     BELIEF = 1
     DESIRE = 2
     INTENTION = 3
 
 class Agent:
-    def __init__(self, agent):
-        self.var = False
-        self.name = None
-        if type(agent) is str:
-            self.name = agent
-        elif type(agent) is Token:
-            self.name = agent.value
-        elif type(agent) is list: # var parsing
-            self.var = True
-            try:
-                self.name = agent[1].value
-            except Exception as e:
-                raise ValueError(f"Error parsing agent variable name from args {agent}: {e}")
+    def __init__(self, agent, var):
+        self.var = var
+        self.name = agent
             
     def __eq__(self, other):
         if not isinstance(other, Agent):
@@ -55,15 +25,11 @@ class Agent:
         return hash((self.name, self.var))
 
 class BDI(ABC):
-    def __init__(self, negate_inner_rml, bdi_args):
+    def __init__(self, negate_inner_rml, hard_bdi, agent):
         self.negate_inner_rml = negate_inner_rml
-        self.hard_bdi = None
-        self.agent = None
+        self.hard_bdi = hard_bdi
+        self.agent = agent
         self.nested = []
-
-        if bdi_args:
-            self.hard_bdi = True if bdi_args[0].type == "LSQB" else False
-            self.agent = Agent(bdi_args[3])
 
     def __str__(self):
         class_name = self.__class__.__name__
@@ -90,7 +56,8 @@ class BDI(ABC):
         return hash((self.negate_inner_rml, self.hard_bdi, self.agent, tuple(self.nested)))
 
     def negate(self, already_negated: bool=False):
-        self.hard_bdi = not self.hard_bdi
+        if self.hard_bdi is not None:
+            self.hard_bdi = not self.hard_bdi
         if not already_negated:
             self.negate_inner_rml = not self.negate_inner_rml
         if self.nested:
@@ -105,22 +72,19 @@ class BDI(ABC):
 
 class NegateOnly(BDI):
     def __init__(self, negate_inner_rml):
-        super().__init__(negate_inner_rml, None)
-
-    def negate(self):
-        self.negate_inner_rml = not self.negate_inner_rml
+        super().__init__(negate_inner_rml, None, None)
 
 class Belief(BDI):
-    def __init__(self, negate_inner_rml, bdi_args):
-        super().__init__(negate_inner_rml, bdi_args)  
+    def __init__(self, negate_inner_rml, hard_bdi, agent):
+        super().__init__(negate_inner_rml, hard_bdi, agent)  
 
 class Desire(BDI):
-    def __init__(self, negate_inner_rml, bdi_args):
-        super().__init__(negate_inner_rml, bdi_args)
+    def __init__(self, negate_inner_rml, hard_bdi, agent):
+        super().__init__(negate_inner_rml, hard_bdi, agent)
 
 class Intention(BDI):
-    def __init__(self, negate_inner_rml, bdi_args):
-        super().__init__(negate_inner_rml, bdi_args)
+    def __init__(self, negate_inner_rml, hard_bdi, agent):
+        super().__init__(negate_inner_rml, hard_bdi, agent)
 
 def instantiate_bdi(bdi_args):
     """Instantiate the appropriate BDI class based on the type of BDI term."""
@@ -142,12 +106,16 @@ def instantiate_bdi(bdi_args):
                 negate_inner_rml = True
                 bdi_body = bdi_args[1]
         bdi_type = bdi_body[1][0].type
+        if type(bdi_body[3]) is list:
+            agent = Agent(bdi_body[3][1].value, True)
+        elif type(bdi_body[3]) is Token:
+            agent = Agent(bdi_body[3].value, False)
         if bdi_type == "BELIEF":
-            return Belief(negate_inner_rml, bdi_body)
+            return Belief(negate_inner_rml, bdi_body[0].type == "LSQB", agent)
         elif bdi_type == "DESIRE":
-            return Desire(negate_inner_rml, bdi_body)
+            return Desire(negate_inner_rml, bdi_body[0].type == "LSQB", agent)
         elif bdi_type == "INTENTION":
-            return Intention(negate_inner_rml, bdi_body)
+            return Intention(negate_inner_rml, bdi_body[0].type == "LSQB", agent)
 
 
 class ModRML:

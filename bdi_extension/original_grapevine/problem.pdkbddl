@@ -12,6 +12,7 @@
     (:task valid_generation)
 
     (:init-type complete)
+    ; only apply closure 
     (:init
 
         (connected l1 l2)
@@ -26,6 +27,7 @@
     )
 
     (:goal
+        ; only apply closure 
            [a](secret b)
     )
 )

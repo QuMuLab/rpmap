@@ -1,5 +1,5 @@
 from copy import deepcopy
-from .anc_eff import NegateOnly, Agent, ModRML
+from .anc_eff import NegateOnly, Agent, ModRML, Belief
 from lark.lexer import Token
 from pddl.core import Domain, Problem
 from pddl.logic.base import And
@@ -42,27 +42,20 @@ class ApplyCondEff:
             p.negated = not p.negated
         return p
     
-    def merge_bdi(self, mod_p, new_pred, old_p):
-        # easiest case, they are equal
-        if mod_p.bdi == new_pred.bdi:
-            return old_p
-        # we only want to nest by adding a NEGATIVE BDI term IF
-        # the original BDI term is NOT a belief of the corresponding
-        # agent (positive or negative)
-        elif mod_p.negate_whole_term and mod_p.bdi.agent == new_pred.bdi.agent:
-            # need this for the original negation status.
-            # in the case where we are modifying a raw RML (rml without the negation
-            # status) because the antecedent cond type is "del" and we need to
-            # return the original formula, we need to restore the negation status.
-            return old_p
-        else:
-            new_nested = [new_pred.bdi, *new_pred.bdi.nested]
-            new_pred.bdi = mod_p.bdi
-            new_pred.bdi.nested = new_nested
-            # first, check if we have a new negation added
-            if new_pred.bdi.negate_inner_rml:
-                # WOOOOO time to negate by flipping everything
-                new_pred.bdi.negate(True)
+    @staticmethod
+    def nest_bdi(mod_p, new_pred, old_p, simplify=True):
+        if simplify:
+            # easiest case, they are equal
+            if mod_p.bdi == new_pred.bdi:
+                return old_p
+        new_nested = [new_pred.bdi, *new_pred.bdi.nested]
+        new_pred.bdi = mod_p.bdi
+        new_pred.bdi.nested = new_nested
+        # first, check if we have a new negation added
+        if new_pred.bdi.negate_inner_rml:
+            # WOOOOO time to negate by flipping everything
+            new_pred.bdi.negate(True)
+        if simplify:
             # check if they reference the same agents
             if new_pred.bdi.agent == new_pred.bdi.nested[0].agent:
                 # if we have possible belief then belief, return just the belief
@@ -79,7 +72,21 @@ class ApplyCondEff:
                     new_pred.bdi = new_bdi
                     new_pred.bdi.nested = nested
                     return new_pred
-            return new_pred
+        return new_pred
+    
+    @staticmethod
+    def merge_bdi(mod_p, new_pred, old_p):
+        # we only want to nest by adding a NEGATIVE BDI term IF
+        # the original BDI term is NOT a belief of the corresponding
+        # agent (positive or negative)
+        if mod_p.negate_whole_term and mod_p.bdi.agent == new_pred.bdi.agent:
+            # need this for the original negation status.
+            # in the case where we are modifying a raw RML (rml without the negation
+            # status) because the antecedent cond type is "del" and we need to
+            # return the original formula, we need to restore the negation status.
+            return old_p
+        else:
+            return ApplyCondEff.nest_bdi(mod_p, new_pred, old_p)
 
     def modify_predicate(self, old_p, mod_p, agent=None):
         """ Assuming both predicates have the same "base,"
@@ -125,7 +132,7 @@ class ApplyCondEff:
                             return new_pred
                         return old_p
                     if mod_p.nest:
-                        mod_p.bdi.agent = Agent(agent)
+                        mod_p.bdi.agent = Agent(agent, False)
                         new_pred = self.merge_bdi(mod_p, new_pred, old_p)
                     else:
                         # we only want to affect the outer BDI
@@ -140,7 +147,7 @@ class ApplyCondEff:
                             new_pred.bdi = NegateOnly(True)
                         return new_pred
                     else:
-                        mod_p.bdi.agent = Agent(agent)
+                        mod_p.bdi.agent = Agent(agent, False)
                         new_pred.bdi = deepcopy(mod_p.bdi)
         # elif mod_p.negate_inner_rml:
         #     if new_pred.bdi:
@@ -422,16 +429,17 @@ def check_nesting(cons, depth):
         else:
             return len(cons.bdi.nested) + 1 <= depth
 
-def apply_cond_eff(anc_effs, o, derive_condition, agents, depth, predicates):
+def apply_cond_eff(anc_effs, o, derive_condition, agents, depth, predicates, effs_to_apply=None):
     """Adapted from pdlb.actions.Action._expand."""
     condleft = [o]
     processed_conds = set()
+    anc_effs_to_apply = [a for a in anc_effs._anceffs if a[2].value in effs_to_apply] if effs_to_apply else anc_effs._anceffs
     while condleft:
         next_cond = condleft.pop(0)
         # check the antecedent format
         if next_cond not in processed_conds:
             processed_conds.add(next_cond)
-            for anc_eff in anc_effs._anceffs:
+            for anc_eff in anc_effs_to_apply:
                 anc_eff_data = ApplyCondEff(anc_eff, derive_condition, agents, depth, predicates)
                 # if anc_eff_data.name not in ["uncertain-firing", "mutual-awareness-pos", "mutual-awareness-neg"]: # "negation-removal", "kd45-un-closure", "uncertain-firing", 
                 #     continue
@@ -459,17 +467,90 @@ def apply_cond_eff(anc_effs, o, derive_condition, agents, depth, predicates):
 def remove_extra_bdi(term):
     if term:
         if type(term.bdi) is NegateOnly:
-            if not term.bdi.negate_inner_rml and not term.bdi.nested:
-                term.bdi = None
+            if not term.bdi.negate_inner_rml:
+                if not term.bdi.nested:
+                    term.bdi = None
+                else:
+                    new_nested = deepcopy(term.bdi.nested[1:])
+                    term.bdi = deepcopy(term.bdi.nested[0])
+                    term.bdi.nested = new_nested
     return term
 
-def grab_fluents(formula):
-    if type(formula) is Predicate:
-        return [formula]
-    elif type(formula) is And:
-        return formula.operands
-    if type(formula) is When:
-        return set(grab_fluents(formula.condition)).union(set(grab_fluents(formula.effect)))
+def all_rmls(domain, depth):
+    # adapted from the pdkb.kd45.PDKB.all_rmls property
+    all_rmls = set()
+    # neg_predicates = deepcopy(domain.predicates)
+    # for p in neg_predicates:
+    #     p.bdi = NegateOnly(True)
+    # to_add = domain.predicates | neg_predicates
+    to_add = domain.predicates
+    all_rmls.update(to_add)
+    for i in range(1, depth + 1):
+        prev_added = to_add.copy()
+        to_add = set()
+        for ag in domain._agents:
+            agent = Agent(ag, False) 
+            for rml in prev_added:
+                new_rmls = set()
+                print(rml)    
+                rml_ = deepcopy(rml)
+                if i == 1:
+                    rml_.bdi = NegateOnly(True)
+                    new_rmls.add(rml_)
+                
+                if not rml.always_known:
+                    rml_ = deepcopy(rml)
+                    rml_.bdi = Belief(negate_inner_rml=False, hard_bdi=True, agent=agent)
+                    new_rmls.add(rml_)
+
+                    rml_ = deepcopy(rml)
+                    rml_.bdi = Belief(negate_inner_rml=False, hard_bdi=False, agent=agent)
+                    new_rmls.add(rml_)
+
+                    rml_ = deepcopy(rml)
+                    rml_.bdi = Belief(negate_inner_rml=True, hard_bdi=True, agent=agent)
+                    new_rmls.add(rml_)
+
+                    rml_ = deepcopy(rml)
+                    rml_.bdi = Belief(negate_inner_rml=True, hard_bdi=False, agent=agent)
+                    new_rmls.add(rml_)
+                                
+                if rml.bdi:
+                    for r in new_rmls:
+                        rml_ = deepcopy(rml)
+                        if type(rml_.bdi) is NegateOnly:
+                            if rml_.bdi.negate_inner_rml:
+                                r.bdi.negate()
+                            to_add.add(r)
+                            print(r)
+                        else:
+                            new_rml = ApplyCondEff.nest_bdi(r, rml_, rml_, False)
+                            to_add.add(new_rml)
+                            print(new_rml)
+                else:
+                    for a in new_rmls:
+                        print(a)
+                    to_add.update(new_rmls)
+        to_add = list(to_add)
+        for i in range(len(to_add)):
+            to_add[i] = remove_extra_bdi(to_add[i])
+        all_rmls.update(to_add)
+    return all_rmls
+
+    #     self._all_rmls.update(to_add)
+
+    #     for i in range(1, self.depth+1):
+
+    #         prev_added = to_add.copy()
+    #         to_add = set()
+
+    #         for ag in self.agents:
+    #             to_add.update(set([Belief(ag, rml) for rml in prev_added] + \
+    #                                 [Possible(ag, rml) for rml in prev_added]))
+
+    #         self._all_rmls.update(to_add)
+
+    # return self._all_rmls
 
 def apply_cond_effs(anc_effs, domain, problem):
     depth = int(problem.depth[2].value)
@@ -482,25 +563,45 @@ def apply_cond_effs(anc_effs, domain, problem):
         # in case of duplicate effects, remove them
         action.effect._operands = set(action.effect._operands)
 
+    # we also need to get all rmls for the predicates
+    predicates = all_rmls(domain, depth)
+
     init = set(problem.init)
+
+    shared = [p for p in init if p in predicates]
+
+    predicates2 = [deepcopy(p) for p in predicates]
+
+    shared2 = [p for p in init if p in predicates2]
+
+    for p1, p2 in zip(predicates, predicates2):
+        print(p1 is p2, p1 == p2)
+
+
+
     for p in problem.init:
-        new_preds = apply_cond_eff(anc_effs, p, None, domain._agents, depth, domain.predicates)
+        new_preds = apply_cond_eff(anc_effs, p, None, domain._agents, depth, domain.predicates, ["kd45closure"])
         if new_preds:
             for n in new_preds:
                 if not n.negated:
                     init.add(n)
-
+    if problem.init_type[2].value == "complete":
+        to_add = set()
+        # also need to close omniscience of the root agent
+        for rml in predicates:
+            if rml.bdi:
+                if rml.bdi.hard_bdi == False: # need to check False specifically, not None
+                    rml_neg = deepcopy(rml)
+                    rml_neg.bdi.negate()
+                    # have to do this instead of using "rml_neg in init" because of a weird
+                    # hash bug relating to mutability...
+                    # TODO: fix this with a cleaner solution later?
+                    if not any(rml_neg == p for p in init):
+                        to_add.add(rml)
+        init.update(to_add)
     goal = set(problem.goal)
     for p in problem.goal:
-        goal.update(apply_cond_eff(anc_effs, p, None, domain._agents, depth, domain.predicates))
-
-    # now that we have all the predicates we need, let's add them to the predicates section
-    predicates = set()
-    for action in domain.actions:
-        for p in action.precondition.operands:
-            predicates.update(grab_fluents(p))
-        for p in action.effect.operands:
-            predicates.update(grab_fluents(p))
+        goal.update(apply_cond_eff(anc_effs, p, None, domain._agents, depth, domain.predicates, ["kd45closure"]))
 
     domain = Domain(
         name=domain.name, 
@@ -514,17 +615,17 @@ def apply_cond_effs(anc_effs, domain, problem):
         agents=domain._agents)
 
     problem = Problem(
-        name = domain.name,
-        domain_name = domain.name,
-        requirements = problem.requirements,
-        objects = problem.objects,
-        init = init,
-        goal = goal,
-        depth = int(problem.depth[2].value),
-        task = problem.task[2].value,
-        init_type = problem.init_type[2].value,
-        plan = problem.plan,
-        projection = problem.projection
+        name=domain.name,
+        domain_name=domain.name,
+        requirements=problem.requirements,
+        objects=problem.objects,
+        init=init,
+        goal=goal,
+        depth=int(problem.depth[2].value),
+        task=problem.task[2].value,
+        init_type=problem.init_type[2].value,
+        plan=problem.plan,
+        projection=problem.projection
     )
 
     return domain, problem

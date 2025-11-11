@@ -82,14 +82,14 @@ def new_problem_str(self):
     if self.objects:
         body += print_constants("(:objects", self.objects, ")\n")
     # TODO: handle projection later
-    body += f"(:projection )\n"
-    body += f"(:depth {self.depth})\n"
-    body += f"(:task {self.task})\n"
-    body += f"(:init-type {self.init_type})\n"
+    # body += f"(:projection )\n"
+    # body += f"(:depth {self.depth})\n"
+    # body += f"(:task {self.task})\n"
+    # body += f"(:init-type {self.init_type})\n"
     body += pprint_pddl_collection("(:init", self.init)
     body += pprint_pddl_collection("(:goal", self.goal)
     body += f"{'(:metric ' + str(self.metric) + ')'}\n" if self.metric else ""
-    body += pprint_pddl_collection("(:plan", self.plan)
+    # body += pprint_pddl_collection("(:plan", self.plan)
     result = result + "\n" + indent(body, "\t") + "\n)"
     result = remove_empty_lines(result)
     return result
@@ -98,9 +98,6 @@ def new_problem_str(self):
 
 def new_init_problem(self, *args, **kwargs):
     """New init function for the problem that takes depth, task, init type, and plan into account."""
-    # self.depth = int(kwargs["depth"][2].value)  # store the depth
-    # self.task = kwargs["task"][2].value  # store the task
-    # self.init_type = kwargs["init_type"][2].value  # store the init type
     self.depth = kwargs["depth"]  # store the depth
     self.task = kwargs["task"]  # store the task
     self.init_type = kwargs["init_type"]  # store the init type

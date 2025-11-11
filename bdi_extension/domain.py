@@ -58,6 +58,7 @@ def atomic_formula_skeleton(self, args):
     variables = self._formula_skeleton(args)
     p = Predicate(predicate_name, *variables)
     p.always_known = True if ak else False
+    p.negated = False
     return p
 
 def atomic_formula_term(self, args):
