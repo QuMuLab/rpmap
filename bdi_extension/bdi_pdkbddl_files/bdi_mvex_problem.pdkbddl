@@ -1,4 +1,4 @@
-{include:ancillary_effects_belief.pdkbddl}
+{include:ancillary_effects.pdkbddl}
 {include:bdi_mvex_domain.pdkbddl}
 
 (define (problem paper2)
