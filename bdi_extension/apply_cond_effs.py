@@ -444,8 +444,8 @@ def apply_cond_eff(anc_effs, o, derive_condition, agents, depth, predicates, eff
                 # if anc_eff_data.name not in ["uncertain-firing", "mutual-awareness-pos", "mutual-awareness-neg"]: # "negation-removal", "kd45-un-closure", "uncertain-firing", 
                 #     continue
                 if anc_eff_data.check_ant_format(next_cond):
-                    print(anc_eff_data.name)
-                    print(f"next cond: {next_cond}")
+                    # print(anc_eff_data.name)
+                    # print(f"next cond: {next_cond}")
                     cons = list(set(anc_eff_data.create_consequent(deepcopy(next_cond))))
                     # remove extraneous BDI terms)
                     for i in range(len(cons)):
@@ -458,10 +458,10 @@ def apply_cond_eff(anc_effs, o, derive_condition, agents, depth, predicates, eff
                             cons[i] = remove_extra_bdi(cons[i])
                     for c in cons:
                         if check_nesting(c, depth):
-                            if c not in processed_conds and c not in condleft:
-                                print(c)
+                            # if c not in processed_conds and c not in condleft:
+                                # print(c)
                             condleft.append(c)
-                    print("----")
+                    # print("----")
     return list(processed_conds - {o}) # already have o
 
 def remove_extra_bdi(term):
@@ -479,10 +479,6 @@ def remove_extra_bdi(term):
 def all_rmls(domain, depth):
     # adapted from the pdkb.kd45.PDKB.all_rmls property
     all_rmls = set()
-    # neg_predicates = deepcopy(domain.predicates)
-    # for p in neg_predicates:
-    #     p.bdi = NegateOnly(True)
-    # to_add = domain.predicates | neg_predicates
     to_add = domain.predicates
     all_rmls.update(to_add)
     for i in range(1, depth + 1):
@@ -492,7 +488,6 @@ def all_rmls(domain, depth):
             agent = Agent(ag, False) 
             for rml in prev_added:
                 new_rmls = set()
-                print(rml)    
                 rml_ = deepcopy(rml)
                 if i == 1:
                     rml_.bdi = NegateOnly(True)
@@ -522,35 +517,16 @@ def all_rmls(domain, depth):
                             if rml_.bdi.negate_inner_rml:
                                 r.bdi.negate()
                             to_add.add(r)
-                            print(r)
                         else:
                             new_rml = ApplyCondEff.nest_bdi(r, rml_, rml_, False)
                             to_add.add(new_rml)
-                            print(new_rml)
                 else:
-                    for a in new_rmls:
-                        print(a)
                     to_add.update(new_rmls)
         to_add = list(to_add)
         for i in range(len(to_add)):
             to_add[i] = remove_extra_bdi(to_add[i])
         all_rmls.update(to_add)
     return all_rmls
-
-    #     self._all_rmls.update(to_add)
-
-    #     for i in range(1, self.depth+1):
-
-    #         prev_added = to_add.copy()
-    #         to_add = set()
-
-    #         for ag in self.agents:
-    #             to_add.update(set([Belief(ag, rml) for rml in prev_added] + \
-    #                                 [Possible(ag, rml) for rml in prev_added]))
-
-    #         self._all_rmls.update(to_add)
-
-    # return self._all_rmls
 
 def apply_cond_effs(anc_effs, domain, problem):
     depth = int(problem.depth[2].value)
@@ -567,17 +543,6 @@ def apply_cond_effs(anc_effs, domain, problem):
     predicates = all_rmls(domain, depth)
 
     init = set(problem.init)
-
-    shared = [p for p in init if p in predicates]
-
-    predicates2 = [deepcopy(p) for p in predicates]
-
-    shared2 = [p for p in init if p in predicates2]
-
-    for p1, p2 in zip(predicates, predicates2):
-        print(p1 is p2, p1 == p2)
-
-
 
     for p in problem.init:
         new_preds = apply_cond_eff(anc_effs, p, None, domain._agents, depth, domain.predicates, ["kd45closure"])

@@ -1,5 +1,5 @@
 (:ancillary_effects
-    (:anceff kd45closure
+    (:anceff kd45closure__belief
         :parameters (?a - agent)
         :antecedent 
         (
@@ -16,7 +16,7 @@
             :type add
         )
     )
-    (:anceff negation-removal
+    (:anceff negation-removal__belief
         :antecedent (
             :poscond ?pos
             :negcond ?neg
@@ -30,7 +30,7 @@
             :type del
         )
     )
-    (:anceff kd45-un-closure
+    (:anceff kd45-un-closure__belief
         :parameters (?a - agent)
         :antecedent (
             :poscond ?pos
@@ -45,7 +45,7 @@
             :type del
         )
     )
-    (:anceff uncertain-firing
+    (:anceff uncertain-firing__belief
         :antecedent (
             :poscond ?pos
             :negcond ?neg
@@ -58,7 +58,7 @@
             :type del
         )
     )
-    (:anceff mutual-awareness-pos
+    (:anceff mutual-awareness-pos__belief
         :parameters (?a - agent)
         :antecedent (
             :poscond ?pos
@@ -73,7 +73,7 @@
             :type add
         )
     )
-    (:anceff mutual-awareness-neg
+    (:anceff mutual-awareness-neg__belief
         :parameters (?a - agent)
         :antecedent (
             :poscond ?pos

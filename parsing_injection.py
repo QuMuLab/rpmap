@@ -385,7 +385,7 @@ if __name__ == "__main__":
     # from pdkb.pddl.grounder.GroundProblem._ground
     anc_eff, domain, problem = (result[0], *ground(result[1], result[2]))
     domain, problem = apply_cond_effs(anc_eff, domain, problem)
-    write("bdi_extension/bdi_pdkbddl_files/grounded_domain.pdkbddl", str(domain))
-    write("bdi_extension/bdi_pdkbddl_files/grounded_problem.pdkbddl", str(problem))
+    write("bdi_extension/bdi_pdkbddl_files/grounded_domain.pddl", str(domain))
+    write("bdi_extension/bdi_pdkbddl_files/grounded_problem.pddl", str(problem))
 
-    solve("bdi_extension/bdi_pdkbddl_files/grounded_problem.pdkbddl")
+    solve("bdi_extension/bdi_pdkbddl_files/grounded_problem.pddl")
