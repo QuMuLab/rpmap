@@ -383,8 +383,8 @@ if __name__ == "__main__":
     # new_solve("bdi_extension/bdi_pdkbddl_files/parsed.pdkbddl")
 
     # from pdkb.pddl.grounder.GroundProblem._ground
-    anc_eff, domain, problem = (result[0], *ground(result[1], result[2]))
-    domain, problem = apply_cond_effs(anc_eff, domain, problem)
+    anc_effs, domain, problem = (result[0:2], *ground(result[-2], result[-1]))
+    domain, problem = apply_cond_effs(anc_effs, domain, problem)
     write("bdi_extension/bdi_pdkbddl_files/grounded_domain.pddl", str(domain))
     write("bdi_extension/bdi_pdkbddl_files/grounded_problem.pddl", str(problem))
 

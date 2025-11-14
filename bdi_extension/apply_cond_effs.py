@@ -433,7 +433,7 @@ def apply_cond_eff(anc_effs, o, derive_condition, agents, depth, predicates, eff
     """Adapted from pdlb.actions.Action._expand."""
     condleft = [o]
     processed_conds = set()
-    anc_effs_to_apply = [a for a in anc_effs._anceffs if a[2].value in effs_to_apply] if effs_to_apply else anc_effs._anceffs
+    anc_effs_to_apply = [a for a in anc_effs if a[2].value in effs_to_apply] if effs_to_apply else anc_effs
     while condleft:
         next_cond = condleft.pop(0)
         # check the antecedent format
@@ -529,6 +529,13 @@ def all_rmls(domain, depth):
     return all_rmls
 
 def apply_cond_effs(anc_effs, domain, problem):
+    if type(anc_effs) is list:
+        new_anc_effs = []
+        for e in anc_effs:
+            new_anc_effs.extend(e._anceffs)
+        anc_effs = new_anc_effs
+    else:
+        anc_effs = anc_effs._anceffs
     depth = int(problem.depth[2].value)
     for action in domain.actions:   
         for o in action.effect.operands:
