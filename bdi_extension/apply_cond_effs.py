@@ -205,19 +205,25 @@ class ApplyCondEff:
         if not self.ant_pos_cond and not self.ant_neg_cond:
             return []
         matching_lc = None
+        # find the var term by finding the index after "in"
+        var_i = 0
+        for i in range(len(list_comp_terms)):
+            if list_comp_terms[i] == Token("IN", "in"):
+                var_i = i + 1
+                break
         # check if the positive condition has a matching list comprehension term
         if self.ant_pos_cond:
             if type(self.ant_pos_cond) is list:
                 first_cond_term = self.ant_pos_cond[0]
                 if type(first_cond_term) is list:
-                    if list_comp_terms[-2] == first_cond_term[0]:
+                    if list_comp_terms[var_i] == first_cond_term[0]:
                         matching_lc = 'pos'
         # if not, check the negative condition
         if not matching_lc and self.ant_neg_cond:
             if type(self.ant_neg_cond) is list:
                 first_cond_term = self.ant_neg_cond[0]
                 if type(first_cond_term) is list:
-                    if list_comp_terms[-2] == first_cond_term[0]:
+                    if list_comp_terms[var_i] == first_cond_term[0]:
                         matching_lc = 'neg'
         # if no matches, then we don't know what the list comprehension is referring to
         if not matching_lc:
@@ -338,7 +344,9 @@ class ApplyCondEff:
         bdi_in_cons_rml = ApplyCondEff.bdi_in_cond(self.cons_rml)
         consequent_preds = []
         if type(next_cond) is When:
-            
+            if type(next_cond.effect) is And:
+                if len(next_cond.effect._operands) == 1:
+                    next_cond = When(next_cond.condition, next_cond.effect._operands[0])
             if type(next_cond.effect) is not Predicate:
                 raise NotImplementedError("Handle complex when effects later?")
             # if we are dealing with a situation where the consequent references an agent parameter
@@ -353,7 +361,10 @@ class ApplyCondEff:
                         cond = set(cond + self.get_derived_cond_preds(a))
                     and_cond = And(*[])
                     and_cond._operands.extend(sorted(cond))
-                    consequent_preds.extend(When(and_cond, self.modify_predicate_apply_cond_type(deepcopy(next_cond.effect), a)))
+                    eff = self.modify_predicate_apply_cond_type(deepcopy(next_cond.effect), a)
+                    and_eff = And(*[])
+                    and_eff._operands.extend(sorted(eff))
+                    consequent_preds.append(When(and_cond, and_eff))
                 return consequent_preds
             else:
                 base_conds = self.create_conds(next_cond.condition)
@@ -368,12 +379,18 @@ class ApplyCondEff:
                             continue
                         and_cond = And(*[])
                         and_cond._operands.extend(sorted(cond))
-                        consequent_preds.extend(When(and_cond, self.modify_predicate_apply_cond_type(deepcopy(next_cond.effect), agent)))
+                        eff = self.modify_predicate_apply_cond_type(deepcopy(next_cond.effect), agent)
+                        and_eff = And(*[])
+                        and_eff._operands.extend(sorted(eff))
+                        consequent_preds.append(When(and_cond, and_eff))
                     return consequent_preds
                 else:
                     and_cond = And(*[])
                     and_cond._operands.extend(sorted(base_conds))
-                    return [When(and_cond, self.modify_predicate_apply_cond_type(deepcopy(next_cond.effect)))]
+                    eff = self.modify_predicate_apply_cond_type(deepcopy(next_cond.effect))
+                    and_eff = And(*[])
+                    and_eff._operands.extend(sorted(eff))
+                    return [When(and_cond, and_eff)]
         else:
             if not self.ant_rml.bdi and (bdi_in_cons_pos or bdi_in_cons_neg or bdi_in_cons_rml):
                 for a in self.agents:
@@ -389,7 +406,10 @@ class ApplyCondEff:
                                 continue
                         and_cond = And(*[])
                         and_cond._operands.extend(sorted(cond))
-                        consequent_preds.extend(When(and_cond, self.modify_predicate_apply_cond_type(deepcopy(next_cond), a)))
+                        eff = self.modify_predicate_apply_cond_type(deepcopy(next_cond), a)
+                        and_eff = And(*[])
+                        and_eff._operands.extend(sorted(eff))
+                        consequent_preds.append(When(and_cond, and_eff))
                         raise NotImplementedError("Check if working correctly.")
                     else:
                         consequent_preds.extend(self.modify_predicate_apply_cond_type(deepcopy(next_cond), a))
@@ -412,8 +432,14 @@ class ApplyCondEff:
         if type(next_cond) is When:
             # check the when effect against the rml 
             next_cond = next_cond.effect
+            if type(next_cond) is And:
+                if len(next_cond._operands) == 1:
+                    next_cond = next_cond._operands[0]
             if type(next_cond) is not Predicate:
-                raise NotImplementedError("Handle complex when effects later?")
+                # TODO: we now do have when formulas with effects with multiple predicates.
+                # but let's handle that later
+                return False
+                # raise NotImplementedError("Handle complex when effects later?")
 
         # easiest thing to check first is the cond_type.
         # if the cond_type is 'add', but the predicate is negated, 
@@ -470,14 +496,17 @@ def apply_cond_eff(anc_effs, o, derive_condition, agents, depth, predicates, eff
                     # print(anc_eff_data.name)
                     # print(f"next cond: {next_cond}")
                     cons = anc_eff_data.create_consequent(deepcopy(next_cond))
-                    cons = list(set(cons))
+                    # cons = list(set(cons))
                     # remove extraneous BDI terms)
                     for i in range(len(cons)):
                         if type(cons[i]) is When:
                             cond = set([remove_extra_bdi(c) for c in cons[i].condition.operands])
                             and_cond = And(*[])
                             and_cond._operands.extend(sorted(cond))
-                            cons[i] = When(and_cond, remove_extra_bdi(cons[i].effect))
+                            cond = set([remove_extra_bdi(c) for c in cons[i].effect.operands])
+                            and_eff = And(*[])
+                            and_eff._operands.extend(sorted(cond))
+                            cons[i] = When(and_cond, and_eff)
                         else:
                             cons[i] = remove_extra_bdi(cons[i])
                     for c in cons:
