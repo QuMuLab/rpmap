@@ -255,13 +255,18 @@ def create_operators(domain, problem, fluent_dict):
                 op_name = a.name
             # TODO: handle other types of formulas?
             precondition = And(*predicates_to_fluents(a.precondition.operands, assignment, domain.predicates))
-            effect = ground_formula(domain, problem, a.effect, assignment)     
+            effect = ground_formula(domain, problem, a.effect, assignment)  
+            if type(effect) is not And:
+                and_ = And(*[])
+                and_._operands.append(effect)
+                effect = and_
             new_a = Action(
                     op_name,
                     None,
                     precondition,
                     effect
                 )
+            new_a.assignment = assignment
             if type(a.derive_condition) is list:
                 # have a complex derived condition
                 # need to ensure we handle any variables here

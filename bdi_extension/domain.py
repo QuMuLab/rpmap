@@ -141,8 +141,6 @@ def new_predicate_str_rmls(self):
     p_str = "("
     if self.bdi: 
         p_str += str(self.bdi)
-        for t in self.bdi.nested:
-            p_str += f"_{str(t)}"
         p_str += f"_{self.name}"
     else:
         p_str += self.name

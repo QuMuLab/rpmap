@@ -14,20 +14,20 @@
             :type add
         )
     )
-    (:anceff skeptic-stop-beliefs
-        :parameters (?a1 ?a2 - agent)
-        :antecedent (
-            :poscond ?pos
-            :negcond ?neg
-            :rml [b, ?a1][b, ?a2](rml)
-            :type add
-        )
-        :consequent (
-            :poscond ?pos + (skeptical ?a1 ?a2)
-            :negcond ?neg
-            :rml {![d, ?a1][b, ?ag](rml) for ?ag in agents}
-            :type add
-        )
-    )
+    ; (:anceff skeptic-stop-beliefs
+    ;     :parameters (?a1 ?a2 - agent)
+    ;     :antecedent (
+    ;         :poscond ?pos
+    ;         :negcond ?neg
+    ;         :rml [b, ?a1][b, ?a2](rml)
+    ;         :type add
+    ;     )
+    ;     :consequent (
+    ;         :poscond ?pos + (skeptical ?a1 ?a2)
+    ;         :negcond ?neg
+    ;         :rml {![d, ?a1][b, ?ag](rml) for ?ag in agents}
+    ;         :type add
+    ;     )
+    ; )
 )
 
