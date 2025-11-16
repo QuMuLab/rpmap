@@ -89,7 +89,7 @@ def atomic_formula_term(self, args):
     else:
         p = Predicate(name, *terms)
     p.bdi = instantiate_bdi(args[:after_bdi])
-    p.negated = negated # store the negated term, e.g. (!term ?a ?b)
+    p.negated = negated
     return p
 
 # ----- STRING AND PRINT FUNCTIONS -----
@@ -104,8 +104,9 @@ def new_action_str(self):
     """New action string adapted from the pddl.action.Action.__str__ method."""
     # TODO: add support for derived conditions
     operator_str = "(:action {0}\n".format(self.name)
-    if self.derive_condition:
-        operator_str += f"    :derive-condition {recursive_print(self.derive_condition)}\n"
+    if not self.grounded_print:
+        if self.derive_condition:
+            operator_str += f"    :derive-condition {recursive_print(self.derive_condition)}\n"
     operator_str += f"    :parameters ({_typed_parameters(self.parameters)})\n"
     if self.precondition is not None:
         operator_str += f"    :precondition ({self.precondition.SYMBOL}{NL_AND_TABS}{NL_AND_TABS.join(map(str, self.precondition.operands))}{NL_AND_TAB})\n"
@@ -146,14 +147,12 @@ def new_predicate_str_rmls(self):
     else:
         p_str += self.name
     if self.arity == 0:
-        terms = f")"
+        p_str += f")"
     else:
         terms = f"{'_'.join(map(str, self.terms))})" 
-    if self.negated:
-            p_str = f"(not {p_str}_{terms})"
-    else:
         p_str = f"{p_str}_{terms}"
-    
+    if self.negated:
+            p_str = f"(not {p_str})"    
     return p_str   
 
 def new_domain_str(self):
@@ -162,7 +161,8 @@ def new_domain_str(self):
     result = f"(define (domain {self.name})"
     body = ""
     body += sort_and_print_collection("(:requirements ", self.requirements, ")\n")
-    body += f"(:agents {' '.join(sorted(self._agents)) if self._agents else ''})\n"
+    if not self.grounded_print:
+        body += f"(:agents {' '.join(sorted(self._agents)) if self._agents else ''})\n"
     # del self.types["agent"]  # remove agents from types
     self._types = Types(self.types, self._requirements)
     types_str = print_types_or_functions_with_parents("(:types", self.types, ")\n")
@@ -198,7 +198,6 @@ def new_domain_str(self):
 def new_init_domain(self, *args, **kwargs):
     """New init function for the pddl.core.Domain that takes into account agents."""
     self._agents = kwargs["agents"]
-    # adds an agent type so agent variables are recognized
     kwargs["types"]["agent"] = None
     kwargs.pop("agents")
     self.orig_init(*args, **kwargs)
@@ -284,5 +283,7 @@ def construct_domain_grammar(print_rml_style=True):
     pddl.core.Domain.orig_init = pddl.core.Domain.__init__
     pddl.core.Domain.__init__ = new_init_domain
     pddl.core.Domain.__str__ = new_domain_str
+    pddl.core.Domain.grounded_print = False
+    pddl.core.Action.grounded_print = False
     # delete the start attribute (a new start rule will be made)
     delattr(domain.DomainTransformer, "start")

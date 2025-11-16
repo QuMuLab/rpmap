@@ -1,6 +1,7 @@
 from copy import deepcopy
 from .anc_eff import NegateOnly, Agent, ModRML, Belief
 from lark.lexer import Token
+from lark.tree import Tree
 from pddl.core import Domain, Problem
 from pddl.logic.base import And
 from pddl.logic.predicates import Predicate
@@ -27,20 +28,27 @@ class ApplyCondEff:
         self.need_awareness = None
         if ant[2]:
             self.need_awareness = True if ant[2][1].value == "true" else False 
-        self.ant_rml = ant[3][1]
+        self.ant_rml = ant[3][1][0]
         self.ant_cond_type = ant[4][1][0].value
         # consequent
         cons = anc_eff[2][2:-1]
         self.cons_pos_cond = cons[0][1] if cons[0] else cons[0]
         self.cons_neg_cond = cons[1][1] if cons[1] else cons[1]
-        self.cons_rml = cons[2][1]
+        self.cons_rml = cons[2][1][0]
+        if type(self.cons_rml) is list:
+            self.cons_rml = self.handle_agent_list_comp(self.cons_rml)
+        else:
+            self.cons_rml = [self.cons_rml]
         self.cons_cond_type = cons[3][1][0].value
 
     def modify_predicate_apply_cond_type(self, old_p, agent=None):
-        p = self.modify_predicate(old_p, self.cons_rml, agent)
-        if self.cons_cond_type == 'del':
-            p.negated = not p.negated
-        return p
+        preds = []
+        for mod in self.cons_rml:
+            p = self.modify_predicate(old_p, mod, agent)
+            if self.cons_cond_type == 'del':
+                p.negated = not p.negated
+            preds.append(p)
+        return preds
     
     @staticmethod
     def nest_bdi(mod_p, new_pred, old_p, simplify=True):
@@ -179,6 +187,19 @@ class ApplyCondEff:
             for i in range (len(new_preds)):
                 new_preds[i].negated = False
         return new_preds
+    
+    def handle_agent_list_comp(self, list_comp_terms):
+        if list_comp_terms[-2].type == "AGENTS":
+            mod_rmls = []
+            for a in self.agents:
+                rml = deepcopy(list_comp_terms[2])
+                if rml.bdi.agent.name == "ag":
+                    rml.bdi.agent.name = a
+                for i in range(len(rml.bdi.nested)):
+                    if rml.bdi.nested[i].agent.name == "ag":
+                        rml.bdi.nested[i].agent = Agent(a, False)
+                mod_rmls.append(rml)
+        return mod_rmls
 
     def handle_list_comp(self, list_comp_terms, next_cond, agent=None):
         if not self.ant_pos_cond and not self.ant_neg_cond:
@@ -189,16 +210,16 @@ class ApplyCondEff:
             if type(self.ant_pos_cond) is list:
                 first_cond_term = self.ant_pos_cond[0]
                 if type(first_cond_term) is list:
-                    if list_comp_terms[4] == first_cond_term[0]:
+                    if list_comp_terms[-2] == first_cond_term[0]:
                         matching_lc = 'pos'
         # if not, check the negative condition
         if not matching_lc and self.ant_neg_cond:
             if type(self.ant_neg_cond) is list:
                 first_cond_term = self.ant_neg_cond[0]
                 if type(first_cond_term) is list:
-                    if list_comp_terms[4] == first_cond_term[0]:
+                    if list_comp_terms[-2] == first_cond_term[0]:
                         matching_lc = 'neg'
-        # if neither matches, then we don't know what the list comprehension is referring to
+        # if no matches, then we don't know what the list comprehension is referring to
         if not matching_lc:
             raise ValueError("No matching list comprehension term found in antecedent conditions.")
         # if we do have a matching term, we need to construct the new list of predicates
@@ -212,12 +233,13 @@ class ApplyCondEff:
 
     def get_cond_preds(self, cons_cond, next_cond, agent=None):
         # recursively iterate through the condition structure
-        if type(cons_cond) is Predicate:   
+        if type(cons_cond) is Tree:
+            return self.get_cond_preds(cons_cond.children, next_cond, agent)
+        elif type(cons_cond) is Predicate:   
             return [cons_cond]
         elif type(cons_cond) is Token:
             if cons_cond.type == 'PLUS':
                 return []
-
         elif type(cons_cond) is list:
             cond_preds = []
             for term in cons_cond:
@@ -308,6 +330,7 @@ class ApplyCondEff:
                 check = ApplyCondEff.bdi_in_cond(t)
                 if check:
                     return True
+            return False 
 
     def create_consequent(self, next_cond):
         bdi_in_cons_pos = ApplyCondEff.bdi_in_cond(self.cons_pos_cond)
@@ -330,7 +353,7 @@ class ApplyCondEff:
                         cond = set(cond + self.get_derived_cond_preds(a))
                     and_cond = And(*[])
                     and_cond._operands.extend(sorted(cond))
-                    consequent_preds.append(When(and_cond, self.modify_predicate_apply_cond_type(deepcopy(next_cond.effect), a)))
+                    consequent_preds.extend(When(and_cond, self.modify_predicate_apply_cond_type(deepcopy(next_cond.effect), a)))
                 return consequent_preds
             else:
                 base_conds = self.create_conds(next_cond.condition)
@@ -345,7 +368,7 @@ class ApplyCondEff:
                             continue
                         and_cond = And(*[])
                         and_cond._operands.extend(sorted(cond))
-                        consequent_preds.append(When(and_cond, self.modify_predicate_apply_cond_type(deepcopy(next_cond.effect), agent)))
+                        consequent_preds.extend(When(and_cond, self.modify_predicate_apply_cond_type(deepcopy(next_cond.effect), agent)))
                     return consequent_preds
                 else:
                     and_cond = And(*[])
@@ -366,12 +389,12 @@ class ApplyCondEff:
                                 continue
                         and_cond = And(*[])
                         and_cond._operands.extend(sorted(cond))
-                        consequent_preds.append(When(and_cond, self.modify_predicate_apply_cond_type(deepcopy(next_cond), a)))
+                        consequent_preds.extend(When(and_cond, self.modify_predicate_apply_cond_type(deepcopy(next_cond), a)))
                         raise NotImplementedError("Check if working correctly.")
                     else:
-                        consequent_preds.append(self.modify_predicate_apply_cond_type(deepcopy(next_cond), a))
+                        consequent_preds.extend(self.modify_predicate_apply_cond_type(deepcopy(next_cond), a))
                 return consequent_preds
-            return [self.modify_predicate_apply_cond_type(deepcopy(next_cond))]
+            return self.modify_predicate_apply_cond_type(deepcopy(next_cond))
 
     def check_ant_format(self, next_cond) -> bool:
         """
@@ -446,7 +469,8 @@ def apply_cond_eff(anc_effs, o, derive_condition, agents, depth, predicates, eff
                 if anc_eff_data.check_ant_format(next_cond):
                     # print(anc_eff_data.name)
                     # print(f"next cond: {next_cond}")
-                    cons = list(set(anc_eff_data.create_consequent(deepcopy(next_cond))))
+                    cons = anc_eff_data.create_consequent(deepcopy(next_cond))
+                    cons = list(set(cons))
                     # remove extraneous BDI terms)
                     for i in range(len(cons)):
                         if type(cons[i]) is When:

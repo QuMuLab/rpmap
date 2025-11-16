@@ -25,8 +25,10 @@ ADD: "add"
 DEL: "del"
 TRUE_: "true"
 FALSE_: "false"
+AG: "?ag"
+AGENTS: "agents"
 
-start: [anceffs] [domain] [problem]
+start: all_anceffs [domain] [problem]
 
 cond_types: ADD | DEL
 
@@ -35,6 +37,8 @@ var: QMRK NAME
 bdi_term: BELIEF | DESIRE | INTENTION
 
 bdi: LSQB bdi_term COMMA var RSQB | LESSER_OP bdi_term COMMA var GREATER_OP
+
+rml_options: var | list_comp_rml | atomic_formula_term_rml | gd
 
 atomic_formula_term_rml: [EXC] bdi* [LSQB] LPAR [EXC] RML_NAME RPAR [RSQB]
 
@@ -46,13 +50,15 @@ negcond: NEGCOND pos_or_neg_cond
 
 atomic_formula_term_list_comp_r: [EXC] bdi* LPAR [EXC] R RPAR
 
-list_comp: LCRL atomic_formula_term_list_comp_r FOR R IN var RCRL
+list_comp_var: LCRL atomic_formula_term_list_comp_r FOR R IN var RCRL
 
-pos_or_neg_cond_options: var | list_comp | atomic_formula_term_condition
+list_comp_rml: LCRL atomic_formula_term_rml FOR AG IN AGENTS RCRL
+
+pos_or_neg_cond_options: var | list_comp_var | atomic_formula_term_condition | gd
 
 pos_or_neg_cond: pos_or_neg_cond_options (PLUS pos_or_neg_cond_options)*
 
-rml_def: RML_TYPE atomic_formula_term_rml
+rml_def: RML_TYPE rml_options (PLUS rml_options)*
 
 cond_type_def: COND_TYPE cond_types
 
@@ -67,3 +73,5 @@ awareness: AWARENESS TRUE_ | AWARENESS FALSE_
 anceff: LPAR ANCEFF_NAME NAME [anceff_params] ant_def cons_def RPAR
 
 anceffs: LPAR ANCEFFS_NAME anceff* RPAR
+
+all_anceffs: anceffs*

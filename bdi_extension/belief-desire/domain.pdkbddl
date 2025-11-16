@@ -1,0 +1,74 @@
+
+(define (domain proselytize)
+
+    (:agents alice bob cindy)
+    (:requirements :typing)
+    (:types loc agent)
+    (:constants )
+
+    (:predicates
+        (book-teachings)
+        {AK}(leader ?a1 - agent)
+        {AK}(follower ?a1 ?a2 - agent)
+        {AK}(skeptical ?a1 ?a2 - agent)
+        {AK}(book-at ?l - loc)
+        {AK}(at ?agent - agent ?l - loc)
+        {AK}(connected ?l1 ?l2 - loc)
+    )
+
+    (:action move
+        :derive-condition   always
+        :parameters         (?a - agent ?l1 ?l2 - loc)
+        :precondition       (and (at ?a ?l1) (connected ?l1 ?l2))
+        :effect             (and (at ?a ?l2) (!at ?a ?l1))
+    )
+
+    (:action adopt-belief
+        :derive-condition never
+        :parameters         (?a - agent ?l1 - loc)
+        :precondition       (and (leader ?a) (at ?a ?l1) (book-at ?l1))
+        :effect (and 
+            [b, ?a](book-teachings)
+            (forall (?ag - agent)
+                [d, ?a][b, ?ag](book-teachings)
+            )
+        )
+    )
+
+    ; (:action proselytize
+    ;     :derive-condition   (at $agent$ ?l)
+    ;     :parameters         (?a1 ?a2 - agent ?l - loc)
+    ;     :precondition       (and (at ?a1 ?l) [b, ?a1](book-teachings) [d, ?a1][b, ?a2](book-teachings))
+    ;     :effect             (and
+    ;                             (when     
+    ;                                 (at ?a2 ?l)
+    ;                                 [b, ?a2][b, ?a1](book-teachings)
+    ;                             )
+    ;                             (when     
+    ;                                 (skeptical ?a2 ?a1)
+    ;                                 ![b, ?a2](book-teachings)
+    ;                             )
+    ;                             (when     
+    ;                                 (and
+    ;                                     (not (skeptical ?a2 ?a1))
+    ;                                     <b, ?a2>(book-teachings)
+    ;                                 )
+    ;                                 [b, ?a2](book-teachings)
+    ;                             )
+    ;                             (when     
+    ;                                 (and
+    ;                                     (not (skeptical ?a2 ?a1))
+    ;                                     <b, ?a2>(book-teachings)
+    ;                                 )
+    ;                                 (follower ?a2 ?a1)
+    ;                             )
+    ;                             (when     
+    ;                                 (and
+    ;                                     (not (skeptical ?a2 ?a1))
+    ;                                     !<b, ?a2>(book-teachings)
+    ;                                 )
+    ;                                 <b, ?a2>(book-teachings)
+    ;                             )
+    ;                         )
+    ; )
+)

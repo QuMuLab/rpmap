@@ -1,5 +1,5 @@
 {include:ancillary_effects.pdkbddl}
-{include:bdi_mvex_domain.pdkbddl}
+{include:domain.pdkbddl}
 
 (define (problem paper2)
 

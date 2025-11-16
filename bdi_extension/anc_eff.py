@@ -100,22 +100,32 @@ def instantiate_bdi(bdi_args):
                 if bdi_args[0].type == "EXC":
                     return NegateOnly(True)
         negate_inner_rml = False
-        bdi_body = bdi_args[0]
+        bdi_body = bdi_args
         if type(bdi_args[0]) is Token:
             if bdi_args[0].type == "EXC":
                 negate_inner_rml = True
-                bdi_body = bdi_args[1]
-        bdi_type = bdi_body[1][0].type
-        if type(bdi_body[3]) is list:
-            agent = Agent(bdi_body[3][1].value, True)
-        elif type(bdi_body[3]) is Token:
-            agent = Agent(bdi_body[3].value, False)
-        if bdi_type == "BELIEF":
-            return Belief(negate_inner_rml, bdi_body[0].type == "LSQB", agent)
-        elif bdi_type == "DESIRE":
-            return Desire(negate_inner_rml, bdi_body[0].type == "LSQB", agent)
-        elif bdi_type == "INTENTION":
-            return Intention(negate_inner_rml, bdi_body[0].type == "LSQB", agent)
+                bdi_body = bdi_args[1:]
+        all_bdi = []
+        for bdi in bdi_body:
+            # ignore this, this token, if it exists, just indicates nesting
+            if bdi == Token("LSQB", "["):
+                continue
+            bdi_type = bdi[1][0].type
+            if type(bdi[3]) is list:
+                agent = Agent(bdi[3][1].value, True)
+            elif type(bdi[3]) is Token:
+                agent = Agent(bdi[3].value, False)
+            if bdi_type == "BELIEF":
+                all_bdi.append(Belief(negate_inner_rml, bdi[0].type == "LSQB", agent))
+            elif bdi_type == "DESIRE":
+                all_bdi.append(Desire(negate_inner_rml, bdi[0].type == "LSQB", agent))
+            elif bdi_type == "INTENTION":
+                all_bdi.append(Intention(negate_inner_rml, bdi[0].type == "LSQB", agent))
+        main_bdi = all_bdi[0]
+        if len(all_bdi) > 1:
+            print()
+            main_bdi.nested = all_bdi[1:]
+        return main_bdi
 
 
 class ModRML:
@@ -225,7 +235,14 @@ class AncEffTransformer(Transformer):
         """Start method for the AncEffTransformer."""
         return children
     
-    def list_comp(self, args):
+    def list_comp_var(self, args):
+        """Transformer for list comprehension."""
+        if not args or args is None:
+            raise ValueError(f"Invalid definition of tokens: {args}")
+        # "COMPOUND" is a print tag so we can know to print these differently.
+        return ["COMPOUND", *args]
+    
+    def list_comp_rml(self, args):
         """Transformer for list comprehension."""
         if not args or args is None:
             raise ValueError(f"Invalid definition of tokens: {args}")
@@ -279,7 +296,8 @@ class AncEffTransformer(Transformer):
             "bdi",
             "bdi_term",
             "awareness",
-            "nest"
+            "nest",
+            "rml_options"
         ]
         for f in for_bts:
             setattr(AncEffTransformer, f, basic_tokens_transformer)

@@ -149,38 +149,6 @@ class AncEffDomProbParser:
         The call_parser() function is part of pddl package: will build a Tree from text and then an object pddl_parser.app_problem.APPProblem from the Tree
         """
         return call_parser(text, self._parser, self._transformer)
-    
-def new_solve(parsed_pdkbddl_file):
-    with open(parsed_pdkbddl_file, "r") as f:
-        lines = f.readlines()
-    
-    dom_index = -1
-    prob_index = -1
-    for i in range(len(lines)):
-        if '(define (domain' in lines[i]:
-            assert -1 == dom_index
-            dom_index = i
-        if '(define (problem' in lines[i]:
-            assert -1 == prob_index
-            prob_index = i
-    assert dom_index != -1, "Error: No domain type defined"
-    assert prob_index != -1, "Error: No problem type defined"
-    prob = grounder.GroundProblem(lines[dom_index:prob_index], lines[prob_index:])
-
-    fluents = [x for x in prob.fluents if not x.always_known]
-    akfluents = [x for x in prob.fluents if x.always_known]
-
-    props = [parse_rml('_'.join(str(p)[1:-1].split())) for p in fluents]
-    akprops = [parse_rml('_'.join(str(p)[1:-1].split())) for p in akfluents]
-
-    domain = Domain(prob.agents, props, akprops,
-                    [convert_action(a, prob.depth, prob.agents, props, akprops) for a in prob.operators],
-                    prob.depth, prob.types, prob.domain_name)
-
-    problem = parse_problem(prob, domain)
-    problem.preprocess()
-    problem.solve()
-    problem.output_solution()
 
 # ----- GROUNDING FUNCTIONS -----
 def create_valuations(domain, problem, variables: Sequence[Variable]):
@@ -230,6 +198,9 @@ def predicates_to_fluents(predicates: list[Predicate], assignment, domain_preds)
             if p.bdi:  
                 if p.bdi.agent.var:
                     p.bdi.agent = Agent(assignment[p.bdi.agent.name], False)   
+                if p.bdi.nested:
+                    for i in range(len(p.bdi.nested)):
+                        p.bdi.nested[i].agent = Agent(assignment[p.bdi.nested[i].agent.name], False)
             f.bdi = p.bdi
             f.negated = p.negated
             # find the "always known" status by referencing it from the domain predicates
@@ -244,7 +215,7 @@ def ground_formula(domain, problem, formula, assignment):
     if type(formula) is Predicate:
         return predicates_to_fluents([formula], assignment, domain.predicates)[0]
     elif type(formula) is And:
-        return And(*predicates_to_fluents(formula.operands, assignment, domain.predicates))
+        return And(*[ground_formula(domain, problem, o, assignment)  for o in formula.operands])
     elif type(formula) is Forall:
         # need to get all values for this variable
         grounded = []
@@ -304,7 +275,7 @@ def create_operators(domain, problem, fluent_dict):
             operators.add(new_a)
     return operators
 
-def ground(domain, problem):
+def ground(domain, problem, path):
     """Convert this problem into a ground problem."""
 
     fluents = create_fluents(domain, problem)
@@ -337,25 +308,27 @@ def ground(domain, problem):
         functions=domain.functions, 
         actions=operators, 
         agents=domain._agents)
-    write("bdi_extension/bdi_pdkbddl_files/grounded_domain.pdkbddl", str(grounded_domain))
+    write(path, str(grounded_domain))
     print()
     return grounded_domain, problem
-    # self._ground_init(fluent_dict)
-    # self._ground_goal(fluent_dict)
 
 def solve(path=False):
     # Solve the problem
+    domain_path = os.path.join(path, "pdkb-domain.pddl")
+    problem_path = os.path.join(path, "pdkb-problem.pddl")
+    plan_path = os.path.join(path, "pdkb-plan.txt")
+    output_path = os.path.join(path, "pdkb-plan.out")
     planner_path = os.path.dirname(os.path.abspath(__file__))
 
-    planner_cmd = "python3 %s/planners/staged_bfws.py pdkb-domain.pddl pdkb-problem.pddl pdkb-plan.txt" % planner_path
+    planner_cmd = f"python3 {planner_path}/pdkb/planners/staged_bfws.py {domain_path} {problem_path} {plan_path}"
 
     t0 = time.time()
     run_command(planner_cmd,
-                output_file = 'pdkb-plan.out',
+                output_file = output_path,
                 MEMLIMIT = "2000000",
                 TIMELIMIT = "1800")
     print("\nPlan Time: %.5f\n" % (time.time() - t0))
-    plan = parse_output_ipc('pdkb-plan.txt')
+    plan = parse_output_ipc(plan_path)
 
     print("Plan Length: %d\n" % len(plan.actions))
 
@@ -368,24 +341,23 @@ if __name__ == "__main__":
     construct_domain_grammar()
     construct_problem_grammar()
     # grab the PDDL
-    pddl = "\n".join(read_pdkbddl_file("bdi_extension/bdi_pdkbddl_files/bdi_mvex_problem.pdkbddl"))
+    base_path = "bdi_extension/belief-desire"
+    pddl_str = "\n".join(read_pdkbddl_file(f"{base_path}/problem.pdkbddl"))
     # read the lark file
     with open(GRAMMAR_FILE, "r") as f:
         grammar = f.read()
     # set up the parser with the lark and parse the PDDL
     parser = AncEffDomProbParser(grammar)
-    result = parser(pddl)
-
-    # with open("bdi_extension/bdi_pdkbddl_files/parsed.pdkbddl", "w") as f:
-    #     # one result for the ancillary effects, one for the domain, and one for the problem
-    #     for r in result:
-    #         f.write(f"{r}\n")
-    # new_solve("bdi_extension/bdi_pdkbddl_files/parsed.pdkbddl")
+    result = parser(pddl_str)
 
     # from pdkb.pddl.grounder.GroundProblem._ground
-    anc_effs, domain, problem = (result[0:2], *ground(result[-2], result[-1]))
+    grounded_dom_path = f"{base_path}/pdkb-domain.pddl"
+    grounded_prob_path = f"{base_path}/pdkb-problem.pddl"
+    anc_effs, domain, problem = (result[0].children, *ground(result[1], result[2], grounded_dom_path))
     domain, problem = apply_cond_effs(anc_effs, domain, problem)
-    write("bdi_extension/bdi_pdkbddl_files/grounded_domain.pddl", str(domain))
-    write("bdi_extension/bdi_pdkbddl_files/grounded_problem.pddl", str(problem))
+    pddl.core.Domain.grounded_print = True
+    pddl.core.Action.grounded_print = True
+    write(grounded_dom_path, str(domain))
+    write(grounded_prob_path, str(problem))
 
-    solve("bdi_extension/bdi_pdkbddl_files/grounded_problem.pddl")
+    solve(base_path)
