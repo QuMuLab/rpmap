@@ -45,7 +45,7 @@ class BDI(ABC):
         return bdi_str
     
     def __eq__(self, other):
-        if not isinstance(other, BDI):
+        if not isinstance(other, self.__class__):
             return False
         return self.negate_inner_rml == other.negate_inner_rml and \
                self.hard_bdi == other.hard_bdi and \

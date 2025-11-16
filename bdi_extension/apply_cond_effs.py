@@ -1,5 +1,5 @@
 from copy import deepcopy
-from .anc_eff import NegateOnly, Agent, ModRML, Belief
+from .anc_eff import NegateOnly, Agent, ModRML, Belief, Desire
 from lark.lexer import Token
 from lark.tree import Tree
 from pddl.core import Domain, Problem
@@ -533,6 +533,22 @@ def all_rmls(domain, depth):
                     rml_ = deepcopy(rml)
                     rml_.bdi = Belief(negate_inner_rml=True, hard_bdi=False, agent=agent)
                     new_rmls.add(rml_)
+
+                    rml_ = deepcopy(rml)
+                    rml_.bdi = Desire(negate_inner_rml=False, hard_bdi=True, agent=agent)
+                    new_rmls.add(rml_)
+
+                    rml_ = deepcopy(rml)
+                    rml_.bdi = Desire(negate_inner_rml=False, hard_bdi=False, agent=agent)
+                    new_rmls.add(rml_)
+
+                    rml_ = deepcopy(rml)
+                    rml_.bdi = Desire(negate_inner_rml=True, hard_bdi=True, agent=agent)
+                    new_rmls.add(rml_)
+
+                    rml_ = deepcopy(rml)
+                    rml_.bdi = Desire(negate_inner_rml=True, hard_bdi=False, agent=agent)
+                    new_rmls.add(rml_)
                                 
                 if rml.bdi:
                     for r in new_rmls:
@@ -542,6 +558,8 @@ def all_rmls(domain, depth):
                                 r.bdi.negate()
                             to_add.add(r)
                         else:
+                            if type(r) is Desire or type(rml_) is Desire:
+                                print()
                             new_rml = ApplyCondEff.nest_bdi(r, rml_, rml_, False)
                             to_add.add(new_rml)
                 else:
