@@ -1,5 +1,5 @@
 {include:ancillary_effects.pdkbddl}
-; {include:ancillary_effects__belief-desire.pdkbddl}
+{include:ancillary_effects__belief-desire.pdkbddl}
 {include:domain.pdkbddl}
 
 (define (problem paper2)

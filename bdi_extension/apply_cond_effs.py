@@ -357,8 +357,11 @@ class ApplyCondEff:
                     cond = self.create_conds(next_cond.condition, a)
                     # also need to do derived conditions here since that might
                     # have a matching agent parameter.
-                    if self.need_awareness and self.derived_cond[0] != Token("NEVER", "never"):
-                        cond = set(cond + self.get_derived_cond_preds(a))
+                    if self.need_awareness:
+                        if self.derived_cond[0] != Token("NEVER", "never"):
+                            cond = set(cond + self.get_derived_cond_preds(a))
+                        else:
+                            return []
                     and_cond = And(*[])
                     and_cond._operands.extend(sorted(cond))
                     eff = self.modify_predicate_apply_cond_type(deepcopy(next_cond.effect), a)
@@ -369,8 +372,11 @@ class ApplyCondEff:
             else:
                 base_conds = self.create_conds(next_cond.condition)
                 derived_cond_preds = None
-                if self.need_awareness and self.derived_cond[0] != Token("NEVER", "never"):
-                    derived_cond_preds = self.get_derived_cond_preds()
+                if self.need_awareness:
+                    if self.derived_cond[0] != Token("NEVER", "never"):
+                        derived_cond_preds = self.get_derived_cond_preds()
+                    else:
+                        return []
                 if derived_cond_preds:
                     for (p, agent) in derived_cond_preds:
                         # for formatting reasons we want to force this into being an "And"
@@ -399,7 +405,11 @@ class ApplyCondEff:
                     # have a matching agent parameter.                
                     cond = None
                     if self.derived_cond:    
-                        cond = set(self.get_derived_cond_preds(a)) if self.need_awareness and self.derived_cond[0] != Token("NEVER", "never") else None
+                        if self.need_awareness:
+                            if self.derived_cond[0] != Token("NEVER", "never"):
+                                cond = set(self.get_derived_cond_preds(a))
+                            else:
+                                return []
                     if cond:
                         if len(cond) == 1:
                             if list(cond)[0] == next_cond:
@@ -459,10 +469,22 @@ class ApplyCondEff:
         if type(self.ant_rml.bdi) != type(next_cond.bdi):
             return False
         
+        # need to check the nested terms as well
+        if len(self.ant_rml.bdi.nested) != len(next_cond.bdi.nested):
+            return False
+        
         # now we can check the full bdi terms, knowing they're the same type.
         # note: we don't care what the agent is, we're just checking for the overall structure
-        return self.ant_rml.bdi.negate_inner_rml == next_cond.bdi.negate_inner_rml and \
-            self.ant_rml.bdi.hard_bdi == next_cond.bdi.hard_bdi 
+        if self.ant_rml.bdi.negate_inner_rml == next_cond.bdi.negate_inner_rml and \
+            self.ant_rml.bdi.hard_bdi == next_cond.bdi.hard_bdi:
+                for i in range(len(self.ant_rml.bdi.nested)):
+                    if type(self.ant_rml.bdi.nested[i]) != type(next_cond.bdi.nested[i]) or \
+                    self.ant_rml.bdi.nested[i].negate_inner_rml != next_cond.bdi.nested[i].negate_inner_rml or \
+                    self.ant_rml.bdi.nested[i].hard_bdi != next_cond.bdi.nested[i].hard_bdi:
+                        return False
+        else:            
+            return False
+        return True
 
 def check_nesting(cons, depth):
     if type(cons) is When:
@@ -493,8 +515,8 @@ def apply_cond_eff(anc_effs, o, derive_condition, agents, depth, predicates, eff
                 # if anc_eff_data.name not in ["uncertain-firing", "mutual-awareness-pos", "mutual-awareness-neg"]: # "negation-removal", "kd45-un-closure", "uncertain-firing", 
                 #     continue
                 if anc_eff_data.check_ant_format(next_cond):
-                    # print(anc_eff_data.name)
-                    # print(f"next cond: {next_cond}")
+                    print(anc_eff_data.name)
+                    print(f"next cond: {next_cond}")
                     cons = anc_eff_data.create_consequent(deepcopy(next_cond))
                     # cons = list(set(cons))
                     # remove extraneous BDI terms)
@@ -511,10 +533,10 @@ def apply_cond_eff(anc_effs, o, derive_condition, agents, depth, predicates, eff
                             cons[i] = remove_extra_bdi(cons[i])
                     for c in cons:
                         if check_nesting(c, depth):
-                            # if c not in processed_conds and c not in condleft:
-                                # print(c)
+                            if c not in processed_conds and c not in condleft:
+                                print(c)
                             condleft.append(c)
-                    # print("----")
+                    print("----")
     return list(processed_conds - {o}) # already have o
 
 def remove_extra_bdi(term):
@@ -609,8 +631,13 @@ def apply_cond_effs(anc_effs, domain, problem):
         anc_effs = anc_effs._anceffs
     depth = int(problem.depth[2].value)
     for action in domain.actions:   
+        if action.name != "adopt-belief_alice_l1":
+            continue
         for o in action.effect.operands:
+            print(o)
             new_preds = apply_cond_eff(anc_effs, o, action.derive_condition, domain._agents, depth, domain.predicates)
+            for p in new_preds:
+                print(p)
             if new_preds:
                 # apply the consequent
                 action.effect._operands.extend(new_preds)
