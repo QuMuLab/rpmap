@@ -25,12 +25,12 @@
         (leader alice)
         (book-at l1)
         (follower bob alice)
-        ;<b, cindy>(book-teachings) 
+        <b, cindy>(book-teachings) 
     )
 
     (:goal 
-        [d, bob][b, cindy](book-teachings)
-        ;[b, bob][b, alice](book-teachings)
+        [b, cindy][b, bob](book-teachings)
+        (follower cindy bob)
     )
 
     (:plan

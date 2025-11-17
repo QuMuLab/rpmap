@@ -374,7 +374,7 @@ if __name__ == "__main__":
     construct_domain_grammar()
     construct_problem_grammar()
     # grab the PDDL
-    base_path = "bdi_extension/bdi_grapevine"
+    base_path = "bdi_extension/belief-desire"
     pddl_str = "\n".join(read_pdkbddl_file(f"{base_path}/problem.pdkbddl"))
     # read the lark file
     with open(GRAMMAR_FILE, "r") as f:

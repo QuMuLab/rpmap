@@ -138,16 +138,9 @@ class ApplyCondEff:
                         mod_p.bdi.agent = Agent(agent, False)
                         new_pred = self.merge_bdi(mod_p, new_pred, old_p)
                     else:
-                        # we only want to affect the outer BDI
                         new_pred.bdi = deepcopy(mod_p.bdi)
-                        # if type(old_p) is And:
-                        #     if len(old_p._operands) == 1:
-                        #         old_p = old_p._operands[0]
-                            
-                        new_pred.bdi.agent = deepcopy(old_p.bdi.agent)
-                        new_pred.bdi.nested = deepcopy(old_p.bdi.nested)
-                        # new_pred.bdi.agent = deepcopy(mod_p.bdi.agent)
-                        # new_pred.bdi.nested = deepcopy(mod_p.bdi.nested)
+                        new_pred.bdi.agent = deepcopy(mod_p.bdi.agent)
+                        new_pred.bdi.nested = deepcopy(mod_p.bdi.nested)
                 else:
                     if new_pred.always_known:
                         # we don't give "always known" predicates BDI terms.
@@ -602,7 +595,7 @@ def apply_cond_eff(anc_effs, o, derive_condition, agents, depth, predicates, eff
                             eff = set([remove_extra_bdi(c) for c in cons[i].effect.operands]) if type(cons[i].effect) is And else remove_extra_bdi(cons[i].effect)
                             # and_eff = And(*[])
                             # and_eff._operands.extend(sorted(cond))
-                            cons[i] = When(and_cond, eff)
+                            cons[i] = When(and_cond, And(*eff))
                         else:
                             cons[i] = remove_extra_bdi(cons[i])
                     for c in cons:
@@ -730,7 +723,7 @@ def apply_cond_effs(anc_effs, domain, problem):
                     if not any(rml_neg == p for p in init):
                         to_add.add(rml)
         init.update(to_add)
-    goal = set(problem.goal._operands) if type(problem.goal) is And else problem.goal
+    goal = set(problem.goal._operands) if type(problem.goal) is And else set(problem.goal)
     for p in goal:
         goal.update(apply_cond_eff(anc_effs, p, None, domain._agents, depth, domain.predicates, ["kd45closure"]))
 
