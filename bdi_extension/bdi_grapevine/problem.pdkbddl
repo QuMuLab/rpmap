@@ -27,8 +27,10 @@
         [b, b](secret b)
     )
     (:goal
-           [b, a](secret b)
-           ; (at a l2)
+        (and
+            [b, a](secret b)
+           (at a l2)
+        )  
     )
     (:plan )
 )

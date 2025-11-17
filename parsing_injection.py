@@ -299,16 +299,17 @@ def ground(domain, problem, path):
                 p.always_known = dom_p.always_known
                 break
 
-    # if problem.goal[0] == Token("LPAR", "(") and problem.goal[1] == Token("AND", "and") and \
-    #     problem.goal[-1] == Token("RPAR", ")"):
-    #     new_goal = And(*[])
-    #     for g in problem.goal[2:-1]:
-    #         if type(g) is list:
-    #             new_goal._operands.extend(g)
-    #         else:
-    #             new_goal._operands.append(g)
-    # goal = new_goal._operands if new_goal else problem.goal
-    for p in problem.goal:
+    new_goal = None
+    if problem.goal[0] == Token("LPAR", "(") and problem.goal[1] == Token("AND", "and") and \
+        problem.goal[-1] == Token("RPAR", ")"):
+        new_goal = And(*[])
+        for g in problem.goal[2:-1]:
+            if type(g) is list:
+                new_goal._operands.extend(g)
+            else:
+                new_goal._operands.append(g)
+    goal = new_goal._operands if new_goal else problem.goal
+    for p in goal:
         for dom_p in domain.predicates:
             if p.name == dom_p.name:
                 p.always_known = dom_p.always_known
@@ -331,8 +332,8 @@ def ground(domain, problem, path):
         domain.requirements,
         problem.objects,
         problem.init,
-        problem.goal,
-        # new_goal if new_goal else problem.goal,
+        new_goal if new_goal else problem.goal,
+        # problem.goal,
         problem.metric,
         depth=problem.depth,
         task=problem.task,

@@ -591,8 +591,6 @@ def apply_cond_eff(anc_effs, o, derive_condition, agents, depth, predicates, eff
                 if anc_eff_data.check_ant_format(next_cond):
                     print(anc_eff_data.name)
                     print(f"next cond: {next_cond}")
-                    if "negation-removal" in anc_eff_data.name:
-                        print()
                     cons = anc_eff_data.create_consequent(deepcopy(next_cond))
                     # cons = list(set(cons))
                     # remove extraneous BDI terms) 
@@ -697,8 +695,8 @@ def apply_cond_effs(anc_effs, domain, problem):
         anc_effs = anc_effs._anceffs
     depth = int(problem.depth[2].value)
     for action in domain.actions:   
-        if action.name != "share_a_b_l1":
-            continue
+        # if action.name != "share_a_b_l1":
+        #     continue
         for o in action.effect.operands:
             new_preds = apply_cond_eff(anc_effs, o, action.derive_condition, domain._agents, depth, domain.predicates)
             if new_preds:
@@ -732,12 +730,12 @@ def apply_cond_effs(anc_effs, domain, problem):
                     if not any(rml_neg == p for p in init):
                         to_add.add(rml)
         init.update(to_add)
-    goal = set(problem.goal)
-    for p in problem.goal:
+    goal = set(problem.goal._operands) if type(problem.goal) is And else problem.goal
+    for p in goal:
         goal.update(apply_cond_eff(anc_effs, p, None, domain._agents, depth, domain.predicates, ["kd45closure"]))
 
-    # and_goal = And(*[])
-    # and_goal._operands.extend(goal)
+    and_goal = And(*[])
+    and_goal._operands.extend(goal)
 
     domain = Domain(
         name=domain.name, 
@@ -756,7 +754,7 @@ def apply_cond_effs(anc_effs, domain, problem):
         requirements=problem.requirements,
         objects=problem.objects,
         init=init,
-        goal=goal,
+        goal=and_goal,
         depth=int(problem.depth[2].value),
         task=problem.task[2].value,
         init_type=problem.init_type[2].value,

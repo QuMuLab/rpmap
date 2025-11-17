@@ -87,7 +87,7 @@ def new_problem_str(self):
     # body += f"(:task {self.task})\n"
     # body += f"(:init-type {self.init_type})\n"
     body += pprint_pddl_collection("(:init", self.init)
-    body += pprint_pddl_collection("(:goal", self.goal)
+    body += f"(:goal {self.goal})\n"
     body += f"{'(:metric ' + str(self.metric) + ')'}\n" if self.metric else ""
     # body += pprint_pddl_collection("(:plan", self.plan)
     result = result + "\n" + indent(body, "\t") + "\n)"
