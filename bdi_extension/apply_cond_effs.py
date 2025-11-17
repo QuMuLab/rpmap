@@ -1,5 +1,5 @@
 from copy import deepcopy
-from .anc_eff import NegateOnly, Agent, ModRML, Belief, Desire
+from .anc_eff import NegateOnly, Agent, ModRML, Belief, Desire, BDI
 from lark.lexer import Token
 from lark.tree import Tree
 from pddl.core import Domain, Problem
@@ -10,12 +10,12 @@ from pddl.logic.terms import Constant, Variable
 
 
 class ApplyCondEff:
-    def __init__(self, anc_eff, derive_condition, agents, depth, predicates, assignment):
+    def __init__(self, anc_eff, derive_condition, agents, depth, predicates):
         self.derived_cond = derive_condition
         self.agents = agents
         self.depth = depth
         self.predicates = predicates
-        self.assignment = assignment
+        self.assignment = {}
         self.name = anc_eff[2].value
         anc_eff = anc_eff[3:-1] # remove parentheses and anceff name    
         # parameters are optional
@@ -36,20 +36,24 @@ class ApplyCondEff:
         self.cons_pos_cond = cons[0][1] if cons[0] else cons[0]
         self.cons_neg_cond = cons[1][1] if cons[1] else cons[1]
         self.cons_rml = cons[2][1:]
-        if len(self.cons_rml) > 1:
-            self.cons_rml = self.handle_agent_list_comp(self.cons_rml)
-            for r in self.cons_rml:
-                print(r.bdi)
+        # if len(self.cons_rml) > 1:
+        #     self.cons_rml = self.handle_agent_list_comp(self.cons_rml)
+        #     for r in self.cons_rml:
+        #         print(r.bdi)
         self.cons_cond_type = cons[3][1][0].value
 
     def modify_predicate_apply_cond_type(self, old_p, agent=None):
-        preds = []
+        all_preds = []
         for mod in self.cons_rml:
-            p = self.modify_predicate(old_p, mod, agent)
-            if self.cons_cond_type == 'del':
-                p.negated = not p.negated
-            preds.append(p)
-        return preds
+            next_preds = self.gather_preds(mod, old_p, agent)
+            for p in next_preds:
+                if self.cons_cond_type == 'del':
+                    p.negated = not p.negated
+            # p = self.modify_predicate(old_p, mod, agent)
+            # if self.cons_cond_type == 'del':
+            #     p.negated = not p.negated
+            all_preds.extend(next_preds)
+        return all_preds
     
     @staticmethod
     def nest_bdi(mod_p, new_pred, old_p, simplify=True):
@@ -136,12 +140,14 @@ class ApplyCondEff:
                     else:
                         # we only want to affect the outer BDI
                         new_pred.bdi = deepcopy(mod_p.bdi)
-                        if type(old_p) is And:
-                            if len(old_p._operands) == 1:
-                                old_p = old_p._operands[0]
+                        # if type(old_p) is And:
+                        #     if len(old_p._operands) == 1:
+                        #         old_p = old_p._operands[0]
                             
                         new_pred.bdi.agent = deepcopy(old_p.bdi.agent)
                         new_pred.bdi.nested = deepcopy(old_p.bdi.nested)
+                        # new_pred.bdi.agent = deepcopy(mod_p.bdi.agent)
+                        # new_pred.bdi.nested = deepcopy(mod_p.bdi.nested)
                 else:
                     if new_pred.always_known:
                         # we don't give "always known" predicates BDI terms.
@@ -183,7 +189,7 @@ class ApplyCondEff:
                 new_preds[i].negated = False
         return new_preds
     
-    def handle_agent_list_comp(self, next_term):
+    def handle_rml_list_comp(self, next_term):
         # recursively iterate through the condition structure
         if type(next_term) is Predicate:
             terms = list(next_term.terms)  
@@ -205,29 +211,29 @@ class ApplyCondEff:
                 return []
         elif type(next_term) is list:
             if type(next_term) is list:
-                    if type(next_term[0]) is list:
-                        if next_term[0][0] == "COMPOUND":
-                            mod_rmls = []
-                            for a in self.agents:
-                                rml = deepcopy(next_term[0][2])
-                                if rml.bdi.agent.var:
-                                    if rml.bdi.agent.name == "ag":
-                                        rml.bdi.agent = Agent(a, False)
-                                    else:
-                                        rml.bdi.agent = Agent(self.assignment[rml.bdi.agent.name], False)
-                                for i in range(len(rml.bdi.nested)):
-                                    if rml.bdi.nested[i].agent.name == "ag":
-                                        rml.bdi.nested[i].agent = Agent(a, False)
-                                    else:
-                                        rml.bdi.nested[i].agent = Agent(self.assignment[rml.bdi.nested[i].agent.name], False)
-                                mod_rmls.append(rml)
-                            return mod_rmls     
+                if type(next_term[0]) is list:
+                    if next_term[0][0] == "COMPOUND":
+                        mod_rmls = []
+                        for a in self.agents:
+                            rml = deepcopy(next_term[0][2])
+                            if rml.bdi.agent.var:
+                                if rml.bdi.agent.name == "ag":
+                                    rml.bdi.agent = Agent(a, False)
+                                else:
+                                    rml.bdi.agent = Agent(self.assignment[rml.bdi.agent.name], False)
+                            for i in range(len(rml.bdi.nested)):
+                                if rml.bdi.nested[i].agent.name == "ag":
+                                    rml.bdi.nested[i].agent = Agent(a, False)
+                                else:
+                                    rml.bdi.nested[i].agent = Agent(self.assignment[rml.bdi.nested[i].agent.name], False)
+                            mod_rmls.append(rml)
+                        return mod_rmls     
             grounded_terms = []
             for term in next_term:
                 grounded_terms.extend(self.handle_agent_list_comp(term))
             return grounded_terms
 
-    def handle_list_comp(self, list_comp_terms, next_cond, agent=None):
+    def handle_cond_list_comp(self, list_comp_terms, next_cond_or_eff, agent=None):
         if not self.ant_pos_cond and not self.ant_neg_cond:
             return []
         matching_lc = None
@@ -251,54 +257,86 @@ class ApplyCondEff:
                 if type(first_cond_term) is list:
                     if list_comp_terms[var_i] == first_cond_term[0]:
                         matching_lc = 'neg'
-        # if no matches, then we don't know what the list comprehension is referring to
-        if not matching_lc:
-            raise ValueError("No matching list comprehension term found in antecedent conditions.")
-        # if we do have a matching term, we need to construct the new list of predicates
-        new_preds = self.get_pos_or_neg_cond_term(next_cond, matching_lc)
+        if matching_lc:
+            new_preds =  []
+            # if we do have a matching term, we need to construct the new list of predicates
+            new_preds.extend(self.get_pos_or_neg_cond_term(next_cond_or_eff, matching_lc))
+             # finally we need to see if any modifications were made to the predicates by looking
+            # at the first term of the list comprehension
+            for i in range(len(new_preds)):
+                new_preds[i] = self.modify_predicate(deepcopy(new_preds[i]), list_comp_terms[0], agent)
+            return new_preds
+        else:
+            if list_comp_terms[var_i].value == "agents":
+                new_preds = []
+                for a in self.agents:
+                    rml = deepcopy(list_comp_terms[0])
+                    if rml.bdi.agent.var:
+                        if rml.bdi.agent.name == "ag":
+                            rml.bdi.agent = Agent(a, False)
+                        else:
+                            rml.bdi.agent = Agent(self.assignment[rml.bdi.agent.name], False)
+                    for i in range(len(rml.bdi.nested)):
+                        if rml.bdi.nested[i].agent.name == "ag":
+                            rml.bdi.nested[i].agent = Agent(a, False)
+                        else:
+                            rml.bdi.nested[i].agent = Agent(self.assignment[rml.bdi.nested[i].agent.name], False)
+                    
+                    new_preds.append(self.modify_predicate(deepcopy(next_cond_or_eff), rml, agent))
+                return new_preds     
+            else:
+                # if no matches, then we don't know what the list comprehension is referring to
+                raise ValueError("No matching list comprehension term found in antecedent conditions.")
 
-        # finally we need to see if any modifications were made to the predicates by looking
-        # at the first term of the list comprehension
-        for i in range(len(new_preds)):
-            new_preds[i] = self.modify_predicate(deepcopy(new_preds[i]), list_comp_terms[0], agent)
-        return new_preds
+       
 
-    def get_cond_preds(self, cons_cond, next_cond, agent=None):
+    def gather_preds(self, cons_cond_or_rml, next_cond_or_eff, agent=None):
         # recursively iterate through the condition structure
-        if type(cons_cond) is Tree:
-            return self.get_cond_preds(cons_cond.children, next_cond, agent)
-        elif type(cons_cond) is Predicate:
-            terms = list(cons_cond.terms)  
+        if type(cons_cond_or_rml) is Tree:
+            return self.gather_preds(cons_cond_or_rml.children, next_cond_or_eff, agent)
+        elif type(cons_cond_or_rml) is Predicate:
+            terms = list(cons_cond_or_rml.terms)  
             for i in range(len(terms)):
                 if type(terms[i]) is Variable: 
                     terms[i] = Constant(self.assignment[terms[i].name])
-            return [Predicate(cons_cond.name, *terms)]
-        elif type(cons_cond) is Token:
-            if cons_cond.type == 'PLUS':
+            return [Predicate(cons_cond_or_rml.name, *terms)]
+        elif type(cons_cond_or_rml) is ModRML:
+            rml = deepcopy(cons_cond_or_rml)
+            if rml.bdi.agent:
+                if rml.bdi.agent.var:
+                    if rml.bdi.agent.name in self.assignment:
+                        rml.bdi.agent = Agent(self.assignment[rml.bdi.agent.name], False)
+            for i in range(len(rml.bdi.nested)):
+                if rml.bdi.nested[i].agent:
+                    if rml.bdi.nested[i].agent.var:
+                        if rml.bdi.nested[i].agent.name in self.assignment:
+                            rml.bdi.nested[i].agent = Agent(self.assignment[rml.bdi.nested[i].agent.name], False)
+            return [self.modify_predicate(next_cond_or_eff, rml, agent)]
+        elif type(cons_cond_or_rml) is Token:
+            if cons_cond_or_rml.type == 'PLUS':
                 return []
-        elif type(cons_cond) is list:
+        elif type(cons_cond_or_rml) is list:
             cond_preds = []
-            for term in cons_cond:
+            for term in cons_cond_or_rml:
                 if type(term) is list:
-                    if type(term[0]) is list:
-                        if term[0][0] == "COMPOUND":
-                            # we're dealing with a list comprehension
-                            cond_preds.extend(self.handle_list_comp(term[0][2:-1], next_cond, agent))
-                            continue
+                    if term[0] == "COMPOUND":
+                        # we're dealing with a list comprehension
+                        cond_preds.extend(self.handle_cond_list_comp(term[2:-1], next_cond_or_eff, agent))
+                        continue
                     # we're referencing an antecedent condition
                     if term == self.ant_pos_cond[0]:
-                        cond_preds.extend(self.get_pos_or_neg_cond_term(next_cond, 'pos')) 
+                        cond_preds.extend(self.get_pos_or_neg_cond_term(next_cond_or_eff, 'pos')) 
                         continue 
                     elif term == self.ant_neg_cond[0]:
-                        cond_preds.extend(self.get_pos_or_neg_cond_term(next_cond, 'neg')) 
+                        cond_preds.extend(self.get_pos_or_neg_cond_term(next_cond_or_eff, 'neg')) 
                         continue   
                 # regular recursion            
-                cond_preds.extend(self.get_cond_preds(term, next_cond))
-        return cond_preds
+                cond_preds.extend(self.gather_preds(term, next_cond_or_eff, agent))
+            return cond_preds
 
     def create_cond(self, cons_cond, next_cond, agent=None):
         if cons_cond:
-            return self.get_cond_preds(cons_cond, next_cond, agent)
+            return self.gather_preds(cons_cond, next_cond, agent)
         return None
 
     def create_conds(self, next_cond, agent=None):
@@ -395,9 +433,9 @@ class ApplyCondEff:
                     and_cond = And(*[])
                     and_cond._operands.extend(sorted(cond))
                     eff = self.modify_predicate_apply_cond_type(deepcopy(next_cond.effect), a)
-                    and_eff = And(*[])
-                    and_eff._operands.extend(sorted(eff))
-                    consequent_preds.append(When(and_cond, and_eff))
+                    # and_eff = And(*[])
+                    # and_eff._operands.extend(sorted(eff))
+                    consequent_preds.append(When(and_cond, And(*eff)))
                 return consequent_preds
             else:
                 base_conds = self.create_conds(next_cond.condition)
@@ -416,17 +454,17 @@ class ApplyCondEff:
                         and_cond = And(*[])
                         and_cond._operands.extend(sorted(cond))
                         eff = self.modify_predicate_apply_cond_type(deepcopy(next_cond.effect), agent)
-                        and_eff = And(*[])
-                        and_eff._operands.extend(sorted(eff))
-                        consequent_preds.append(When(and_cond, and_eff))
+                        # and_eff = And(*[])
+                        # and_eff._operands.extend(sorted(eff))
+                        consequent_preds.append(When(and_cond, And(*eff)))
                     return consequent_preds
                 else:
                     and_cond = And(*[])
                     and_cond._operands.extend(sorted(base_conds))
                     eff = self.modify_predicate_apply_cond_type(deepcopy(next_cond.effect))
-                    and_eff = And(*[])
-                    and_eff._operands.extend(sorted(eff))
-                    return [When(and_cond, and_eff)]
+                    # and_eff = And(*[])
+                    # and_eff._operands.extend(sorted(eff))
+                    return [When(and_cond, And(*eff))]
         else:
             if not self.ant_rml.bdi and (bdi_in_cons_pos or bdi_in_cons_neg or bdi_in_cons_rml):
                 for a in self.agents:
@@ -447,9 +485,9 @@ class ApplyCondEff:
                         and_cond = And(*[])
                         and_cond._operands.extend(sorted(cond))
                         eff = self.modify_predicate_apply_cond_type(deepcopy(next_cond), a)
-                        and_eff = And(*[])
-                        and_eff._operands.extend(sorted(eff))
-                        consequent_preds.append(When(and_cond, and_eff))
+                        # and_eff = And(*[])
+                        # and_eff._operands.extend(sorted(eff))
+                        consequent_preds.append(When(and_cond, And(*eff)))
                         raise NotImplementedError("Check if working correctly.")
                     else:
                         consequent_preds.extend(self.modify_predicate_apply_cond_type(deepcopy(next_cond), a))
@@ -516,6 +554,10 @@ class ApplyCondEff:
                         return False
         else:            
             return False
+        # gather the assignments
+        self.assignment[self.ant_rml.bdi.agent.name] = next_cond.bdi.agent.name
+        for i in range(len(self.ant_rml.bdi.nested)):
+            self.assignment[self.ant_rml.bdi.nested[i].agent.name] = next_cond.bdi.nested[i].agent.name
         return True
 
 def check_nesting(cons, depth):
@@ -532,7 +574,7 @@ def check_nesting(cons, depth):
         else:
             return len(cons.bdi.nested) + 1 <= depth
 
-def apply_cond_eff(anc_effs, o, derive_condition, agents, depth, predicates, assignment, effs_to_apply=None):
+def apply_cond_eff(anc_effs, o, derive_condition, agents, depth, predicates, effs_to_apply=None):
     """Adapted from pdlb.actions.Action._expand."""
     condleft = [o]
     processed_conds = set()
@@ -543,24 +585,26 @@ def apply_cond_eff(anc_effs, o, derive_condition, agents, depth, predicates, ass
         if next_cond not in processed_conds:
             processed_conds.add(next_cond)
             for anc_eff in anc_effs_to_apply:
-                anc_eff_data = ApplyCondEff(anc_eff, derive_condition, agents, depth, predicates, assignment)
-                # if anc_eff_data.name not in ["uncertain-firing", "mutual-awareness-pos", "mutual-awareness-neg"]: # "negation-removal", "kd45-un-closure", "uncertain-firing", 
+                anc_eff_data = ApplyCondEff(anc_eff, derive_condition, agents, depth, predicates)
+                # if anc_eff_data.name not in ["negation-removal", "kd45closure__belief", "kd45-un-closure__belief", "uncertain-firing", "mutual-awareness-pos__belief", "mutual-awareness-neg__belief"]:#"negation-removal", "kd45-un-closure", "uncertain-firing", 
                 #     continue
                 if anc_eff_data.check_ant_format(next_cond):
                     print(anc_eff_data.name)
                     print(f"next cond: {next_cond}")
+                    if "negation-removal" in anc_eff_data.name:
+                        print()
                     cons = anc_eff_data.create_consequent(deepcopy(next_cond))
                     # cons = list(set(cons))
-                    # remove extraneous BDI terms)
+                    # remove extraneous BDI terms) 
                     for i in range(len(cons)):
                         if type(cons[i]) is When:
                             cond = set([remove_extra_bdi(c) for c in cons[i].condition.operands])
                             and_cond = And(*[])
                             and_cond._operands.extend(sorted(cond))
-                            cond = set([remove_extra_bdi(c) for c in cons[i].effect.operands])
-                            and_eff = And(*[])
-                            and_eff._operands.extend(sorted(cond))
-                            cons[i] = When(and_cond, and_eff)
+                            eff = set([remove_extra_bdi(c) for c in cons[i].effect.operands]) if type(cons[i].effect) is And else remove_extra_bdi(cons[i].effect)
+                            # and_eff = And(*[])
+                            # and_eff._operands.extend(sorted(cond))
+                            cons[i] = When(and_cond, eff)
                         else:
                             cons[i] = remove_extra_bdi(cons[i])
                     for c in cons:
@@ -584,73 +628,63 @@ def remove_extra_bdi(term):
     return term
 
 def all_rmls(domain, depth):
-    # adapted from the pdkb.kd45.PDKB.all_rmls property
+    # we just said screw it here and compared the strings because of set hashing issues.
     all_rmls = set()
-    to_add = domain.predicates
-    all_rmls.update(to_add)
-    for i in range(1, depth + 1):
-        prev_added = to_add.copy()
-        to_add = set()
+    curr = [deepcopy(p) for p in domain.predicates]
+
+    for d in range(1, depth + 1):
+
+        # Generate raw expansions
+        raw = []
         for ag in domain._agents:
-            agent = Agent(ag, False) 
-            for rml in prev_added:
-                new_rmls = set()
-                rml_ = deepcopy(rml)
-                if i == 1:
-                    rml_.bdi = NegateOnly(True)
-                    new_rmls.add(rml_)
-                
+            agent = Agent(ag, False)
+            for rml in curr:
+
+                # ---- generate BDI variants ----
+                variants = []
+
+                if d == 1:
+                    x = deepcopy(rml)
+                    x.bdi = NegateOnly(True)
+                    variants.append(x)
+
                 if not rml.always_known:
-                    rml_ = deepcopy(rml)
-                    rml_.bdi = Belief(negate_inner_rml=False, hard_bdi=True, agent=agent)
-                    new_rmls.add(rml_)
+                    for typ in (Belief, Desire):
+                        for neg in (False, True):
+                            for hard in (True, False):
+                                x = deepcopy(rml)
+                                x.bdi = typ(negate_inner_rml=neg, hard_bdi=hard, agent=agent)
+                                variants.append(x)
 
-                    rml_ = deepcopy(rml)
-                    rml_.bdi = Belief(negate_inner_rml=False, hard_bdi=False, agent=agent)
-                    new_rmls.add(rml_)
-
-                    rml_ = deepcopy(rml)
-                    rml_.bdi = Belief(negate_inner_rml=True, hard_bdi=True, agent=agent)
-                    new_rmls.add(rml_)
-
-                    rml_ = deepcopy(rml)
-                    rml_.bdi = Belief(negate_inner_rml=True, hard_bdi=False, agent=agent)
-                    new_rmls.add(rml_)
-
-                    rml_ = deepcopy(rml)
-                    rml_.bdi = Desire(negate_inner_rml=False, hard_bdi=True, agent=agent)
-                    new_rmls.add(rml_)
-
-                    rml_ = deepcopy(rml)
-                    rml_.bdi = Desire(negate_inner_rml=False, hard_bdi=False, agent=agent)
-                    new_rmls.add(rml_)
-
-                    rml_ = deepcopy(rml)
-                    rml_.bdi = Desire(negate_inner_rml=True, hard_bdi=True, agent=agent)
-                    new_rmls.add(rml_)
-
-                    rml_ = deepcopy(rml)
-                    rml_.bdi = Desire(negate_inner_rml=True, hard_bdi=False, agent=agent)
-                    new_rmls.add(rml_)
-                                
+                # ---- nesting rules ----
                 if rml.bdi:
-                    for r in new_rmls:
-                        rml_ = deepcopy(rml)
-                        if type(rml_.bdi) is NegateOnly:
-                            if rml_.bdi.negate_inner_rml:
-                                r.bdi.negate()
-                            to_add.add(r)
+                    for v in variants:
+                        base = deepcopy(rml)
+                        if isinstance(base.bdi, NegateOnly):
+                            if base.bdi.negate_inner_rml:
+                                v.bdi.negate()
+                            raw.append(v)
                         else:
-                            if type(r) is Desire or type(rml_) is Desire:
-                                print()
-                            new_rml = ApplyCondEff.nest_bdi(r, rml_, rml_, False)
-                            to_add.add(new_rml)
+                            raw.append(ApplyCondEff.nest_bdi(v, base, base, False))
                 else:
-                    to_add.update(new_rmls)
-        to_add = list(to_add)
-        for i in range(len(to_add)):
-            to_add[i] = remove_extra_bdi(to_add[i])
-        all_rmls.update(to_add)
+                    raw.extend(variants)
+
+        # ---- dedupe via signature BEFORE canonicalization ----
+        seen = set()
+        next_layer = []
+
+        for item in raw:
+            # canonicalize internal structure but do NOT mutate later
+            cleaned = remove_extra_bdi(item)
+            sig = str(cleaned)
+            if sig not in seen:
+                seen.add(sig)
+                next_layer.append(cleaned)
+
+        curr = next_layer
+        for r in curr:
+            all_rmls.add(r)
+    all_rmls.update(domain.predicates)
     return all_rmls
 
 def apply_cond_effs(anc_effs, domain, problem):
@@ -663,13 +697,10 @@ def apply_cond_effs(anc_effs, domain, problem):
         anc_effs = anc_effs._anceffs
     depth = int(problem.depth[2].value)
     for action in domain.actions:   
-        if action.name != "proselytize_alice_bob_l1":
+        if action.name != "share_a_b_l1":
             continue
         for o in action.effect.operands:
-            print(o)
-            new_preds = apply_cond_eff(anc_effs, o, action.derive_condition, domain._agents, depth, domain.predicates, action.assignment)
-            for p in new_preds:
-                print(p)
+            new_preds = apply_cond_eff(anc_effs, o, action.derive_condition, domain._agents, depth, domain.predicates)
             if new_preds:
                 # apply the consequent
                 action.effect._operands.extend(new_preds)
@@ -682,7 +713,7 @@ def apply_cond_effs(anc_effs, domain, problem):
     init = set(problem.init)
 
     for p in problem.init:
-        new_preds = apply_cond_eff(anc_effs, p, None, domain._agents, depth, domain.predicates, action.assignment, ["kd45closure"])
+        new_preds = apply_cond_eff(anc_effs, p, None, domain._agents, depth, domain.predicates, ["kd45closure"])
         if new_preds:
             for n in new_preds:
                 if not n.negated:
@@ -703,7 +734,10 @@ def apply_cond_effs(anc_effs, domain, problem):
         init.update(to_add)
     goal = set(problem.goal)
     for p in problem.goal:
-        goal.update(apply_cond_eff(anc_effs, p, None, domain._agents, depth, domain.predicates, action.assignment, ["kd45closure"]))
+        goal.update(apply_cond_eff(anc_effs, p, None, domain._agents, depth, domain.predicates, ["kd45closure"]))
+
+    # and_goal = And(*[])
+    # and_goal._operands.extend(goal)
 
     domain = Domain(
         name=domain.name, 

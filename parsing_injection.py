@@ -13,7 +13,7 @@ from lark.visitors import Transformer
 from bdi_extension.parsing_utils import *
 from pddl.action import Action
 import pddl.core as pddl_core
-from pddl.logic.base import And
+from pddl.logic.base import And, Not
 from pddl.logic.effects import Forall, When
 from pddl.logic.terms import Constant, Variable
 from pddl.parser import GRAMMAR_FILE
@@ -214,6 +214,8 @@ def predicates_to_fluents(predicates: list[Predicate], assignment, domain_preds)
 def ground_formula(domain, problem, formula, assignment):
     if type(formula) is Predicate:
         return predicates_to_fluents([formula], assignment, domain.predicates)[0]
+    elif type(formula) is Not:
+        return Not(ground_formula(domain, problem, formula.argument, assignment))
     elif type(formula) is And:
         return And(*[ground_formula(domain, problem, o, assignment)  for o in formula.operands])
     elif type(formula) is Forall:
@@ -297,6 +299,15 @@ def ground(domain, problem, path):
                 p.always_known = dom_p.always_known
                 break
 
+    # if problem.goal[0] == Token("LPAR", "(") and problem.goal[1] == Token("AND", "and") and \
+    #     problem.goal[-1] == Token("RPAR", ")"):
+    #     new_goal = And(*[])
+    #     for g in problem.goal[2:-1]:
+    #         if type(g) is list:
+    #             new_goal._operands.extend(g)
+    #         else:
+    #             new_goal._operands.append(g)
+    # goal = new_goal._operands if new_goal else problem.goal
     for p in problem.goal:
         for dom_p in domain.predicates:
             if p.name == dom_p.name:
@@ -313,6 +324,22 @@ def ground(domain, problem, path):
         functions=domain.functions, 
         actions=operators, 
         agents=domain._agents)
+    problem = pddl_core.Problem(
+        problem.name,
+        grounded_domain,
+        problem.domain_name,
+        domain.requirements,
+        problem.objects,
+        problem.init,
+        problem.goal,
+        # new_goal if new_goal else problem.goal,
+        problem.metric,
+        depth=problem.depth,
+        task=problem.task,
+        init_type=problem.init_type,
+        plan=problem.plan,
+        projection=problem.projection
+    )
     write(path, str(grounded_domain))
     print()
     return grounded_domain, problem
@@ -346,7 +373,7 @@ if __name__ == "__main__":
     construct_domain_grammar()
     construct_problem_grammar()
     # grab the PDDL
-    base_path = "bdi_extension/belief-desire"
+    base_path = "bdi_extension/bdi_grapevine"
     pddl_str = "\n".join(read_pdkbddl_file(f"{base_path}/problem.pdkbddl"))
     # read the lark file
     with open(GRAMMAR_FILE, "r") as f:

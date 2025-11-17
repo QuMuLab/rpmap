@@ -1,4 +1,4 @@
-(define (domain bdi)
+(define (domain grapevine)
     (:agents a b)
     (:requirements :typing)
     (:types loc)

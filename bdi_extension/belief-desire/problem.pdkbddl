@@ -1,10 +1,10 @@
-;{include:ancillary_effects.pdkbddl}
+{include:ancillary_effects.pdkbddl}
 {include:ancillary_effects__belief-desire.pdkbddl}
 {include:domain.pdkbddl}
 
 (define (problem paper2)
 
-    (:domain belief-desire)
+    (:domain proselytize)
 
     (:objects l1 l2 - loc)
 
@@ -25,9 +25,11 @@
         (leader alice)
         (book-at l1)
         (follower bob alice)
+        <b, cindy>(book-teachings) 
     )
 
-    (:goal
+    (:goal 
+        [d, bob][b, cindy](book-teachings)
         [b, bob][b, alice](book-teachings)
     )
 

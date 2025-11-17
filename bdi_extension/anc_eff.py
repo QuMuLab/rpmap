@@ -38,7 +38,7 @@ class BDI(ABC):
         if class_name != "NegateOnly":
             bdi_str += f"{self.__class__.__name__[0]}{self.agent.name}"
             for n in self.nested:
-                bdi_str += f"_{n.__class__.__name__[0]}{n.agent.name}"
+                bdi_str += f"_{str(n)}"
             if self.negate_inner_rml:
                 bdi_str += "_not"
         else:

@@ -28,6 +28,7 @@
     )
     (:goal
            [b, a](secret b)
+           ; (at a l2)
     )
     (:plan )
 )
