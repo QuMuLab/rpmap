@@ -190,7 +190,7 @@ def predicates_to_fluents(predicates: list[Predicate], assignment, domain_preds)
         if type(p) is not Predicate:
             f = Predicate(p.argument.name, *new_terms)
             f.bdi = p.argument.bdi
-            f.negated = p.argument.negated
+            f.negated = (p.argument.negated == True) # become False if it's None
             f.always_known = p.argument.always_known
             fluents.append(outside_formula_type(f))
         else:
@@ -202,7 +202,7 @@ def predicates_to_fluents(predicates: list[Predicate], assignment, domain_preds)
                     for i in range(len(p.bdi.nested)):
                         p.bdi.nested[i].agent = Agent(assignment[p.bdi.nested[i].agent.name], False)
             f.bdi = p.bdi
-            f.negated = p.negated
+            f.negated = (p.negated == True) # become False if it's None
             # find the "always known" status by referencing it from the domain predicates
             for dp in domain_preds:
                 if dp.name == f.name and len(dp.terms) == len(f.terms):
@@ -214,8 +214,13 @@ def predicates_to_fluents(predicates: list[Predicate], assignment, domain_preds)
 def ground_formula(domain, problem, formula, assignment):
     if type(formula) is Predicate:
         return predicates_to_fluents([formula], assignment, domain.predicates)[0]
-    elif type(formula) is Not:
-        return Not(ground_formula(domain, problem, formula.argument, assignment))
+    # elif type(formula) is Not:
+    #     p = ground_formula(domain, problem, formula.argument, assignment)
+    #     if type(p) is Predicate:
+    #         p.negated = True
+    #         return p
+    #     else:
+    #         raise NotImplementedError("Deal with a complex Not formula?")
     elif type(formula) is And:
         return And(*[ground_formula(domain, problem, o, assignment)  for o in formula.operands])
     elif type(formula) is Forall:
@@ -374,7 +379,7 @@ if __name__ == "__main__":
     construct_domain_grammar()
     construct_problem_grammar()
     # grab the PDDL
-    base_path = "bdi_extension/belief-desire"
+    base_path = "bdi_extension/bdi_grapevine"
     pddl_str = "\n".join(read_pdkbddl_file(f"{base_path}/problem.pdkbddl"))
     # read the lark file
     with open(GRAMMAR_FILE, "r") as f:
