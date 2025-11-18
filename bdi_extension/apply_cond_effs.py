@@ -592,7 +592,7 @@ def apply_cond_eff(anc_effs, o, derive_condition, agents, depth, predicates, eff
                             cond = set([remove_extra_bdi(c) for c in cons[i].condition.operands])
                             and_cond = And(*[])
                             and_cond._operands.extend(sorted(cond))
-                            eff = set([remove_extra_bdi(c) for c in cons[i].effect.operands]) if type(cons[i].effect) is And else remove_extra_bdi(cons[i].effect)
+                            eff = set([remove_extra_bdi(c) for c in cons[i].effect.operands]) if type(cons[i].effect) is And else [remove_extra_bdi(cons[i].effect)]
                             # and_eff = And(*[])
                             # and_eff._operands.extend(sorted(cond))
                             cons[i] = When(and_cond, And(*eff))
@@ -688,7 +688,7 @@ def apply_cond_effs(anc_effs, domain, problem):
         anc_effs = anc_effs._anceffs
     depth = int(problem.depth[2].value)
     for action in domain.actions:   
-        # if action.name != "share_a_b_l1":
+        # if action.name != "proselytize_bob_cindy_l2":
         #     continue
         for o in action.effect.operands:
             new_preds = apply_cond_eff(anc_effs, o, action.derive_condition, domain._agents, depth, domain.predicates)

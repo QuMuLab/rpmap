@@ -1,4 +1,4 @@
-;{include:ancillary_effects.pdkbddl}
+{include:ancillary_effects.pdkbddl}
 {include:ancillary_effects__belief-desire.pdkbddl}
 {include:domain.pdkbddl}
 
@@ -25,12 +25,11 @@
         (leader alice)
         (book-at l1)
         (follower bob alice)
-        <b, cindy>(book-teachings) 
+        (skeptical cindy bob)
     )
 
     (:goal 
-        [b, cindy][b, bob](book-teachings)
-        (follower cindy bob)
+        [d, cindy][b, bob](!book-teachings)
     )
 
     (:plan

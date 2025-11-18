@@ -138,7 +138,7 @@ class ModRML:
         # (because those have their own negations with distinct meanings,
         # and then we're overloading the '!' operator...)
         self.negate_whole_term = False
-        self.negate_inner_rml_rml = False
+        bdi_needs_negation = False
         self.bdi = None
         self.nest = False
         
@@ -157,7 +157,7 @@ class ModRML:
         # check for EXC (negation)
         if args[after_bdi + 1]:
             if "EXC" in args[after_bdi + 1].type:
-                self.negate_inner_rml_rml = True
+                bdi_needs_negation = True
         # get the name
         for a in args[after_bdi + 2:-1]:
             if a:
@@ -184,7 +184,22 @@ class ModRML:
                 raise ValueError(f"Dealing with an unknown ancillary effect atomic formula term type {t}.")   
         self.name = "".join(str(name)) if len(name) > 1 else name[0]
 
+        if args[0] == Token("EXC", "!"):
+            print()
+
         self.bdi = instantiate_bdi(args[:after_bdi])
+        if bdi_needs_negation:
+            print()
+        if self.bdi:
+            if type(self.bdi) != NegateOnly:
+                if bdi_needs_negation:
+                    if self.bdi.nested:
+                        self.bdi.nested[-1].negate_inner_rml = not self.bdi.nested[-1].negate_inner_rml
+                    else:
+                        self.bdi.negate_inner_rml = not self.bdi.negate_inner_rml
+        else:
+            if bdi_needs_negation:
+                self.negate_whole_term = True
         if type(self.bdi) is NegateOnly: # just have negation
             self.negate_whole_term = True  
 

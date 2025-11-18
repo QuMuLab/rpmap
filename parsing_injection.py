@@ -214,13 +214,13 @@ def predicates_to_fluents(predicates: list[Predicate], assignment, domain_preds)
 def ground_formula(domain, problem, formula, assignment):
     if type(formula) is Predicate:
         return predicates_to_fluents([formula], assignment, domain.predicates)[0]
-    # elif type(formula) is Not:
-    #     p = ground_formula(domain, problem, formula.argument, assignment)
-    #     if type(p) is Predicate:
-    #         p.negated = True
-    #         return p
-    #     else:
-    #         raise NotImplementedError("Deal with a complex Not formula?")
+    elif type(formula) is Not:
+        p = ground_formula(domain, problem, formula.argument, assignment)
+        if type(p) is Predicate:
+            p.negated = True
+            return p
+        else:
+            raise NotImplementedError("Deal with a complex Not formula?")
     elif type(formula) is And:
         return And(*[ground_formula(domain, problem, o, assignment)  for o in formula.operands])
     elif type(formula) is Forall:
@@ -379,7 +379,7 @@ if __name__ == "__main__":
     construct_domain_grammar()
     construct_problem_grammar()
     # grab the PDDL
-    base_path = "bdi_extension/bdi_grapevine"
+    base_path = "bdi_extension/belief-desire"
     pddl_str = "\n".join(read_pdkbddl_file(f"{base_path}/problem.pdkbddl"))
     # read the lark file
     with open(GRAMMAR_FILE, "r") as f:

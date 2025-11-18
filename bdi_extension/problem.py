@@ -22,10 +22,10 @@ def atomic_formula_name(self, args):
                 # reached the end of the BDI terms
                 after_bdi = i
                 break
-    negated = False
+    inner_negation = False
     if args[after_bdi + 1]:
         if "EXC" in args[after_bdi + 1].type:
-            negated = True
+            inner_negation = True
     predicate_name = args[after_bdi + 2] # add 2 to skip the EXC space
     # set up terms
     terms = []
@@ -36,7 +36,15 @@ def atomic_formula_name(self, args):
             terms.append(self._objects_by_name.get(str(_term_name)))
     p = Predicate(predicate_name, *terms)
     p.bdi = instantiate_bdi(args[:after_bdi])
-    p.negated = negated # store the negated term, e.g. (!term ?a ?b)
+    if p.bdi:
+        if inner_negation:
+            if p.bdi.nested:
+                p.bdi.nested[-1].negate_inner_rml = not p.bdi.nested[-1].negate_inner_rml
+            else:
+                p.bdi.negate_inner_rml = not p.bdi.negate_inner_rml
+    else:
+        p.negated = inner_negation
+    # p.negated = inner_negation # store the negated term, e.g. (!term ?a ?b)
     return p
 
 def projection_transformer(self, args):

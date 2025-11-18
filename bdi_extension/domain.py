@@ -72,10 +72,10 @@ def atomic_formula_term(self, args):
                 # reached the end of the BDI terms
                 after_bdi = i
                 break
-    negated = False
+    inner_negation = False
     if args[after_bdi + 1]:
         if "EXC" in args[after_bdi + 1].type:
-            negated = True
+            inner_negation = True
     name = args[after_bdi + 2] # add 2 to skip the EXC space
     var_pred = False
     if type(name) is list:
@@ -89,7 +89,15 @@ def atomic_formula_term(self, args):
     else:
         p = Predicate(name, *terms)
     p.bdi = instantiate_bdi(args[:after_bdi])
-    p.negated = negated
+    if p.bdi:
+        if inner_negation:
+            if p.bdi.nested:
+                p.bdi.nested[-1].negate_inner_rml = not p.bdi.nested[-1].negate_inner_rml
+            else:
+                p.bdi.negate_inner_rml = not p.bdi.negate_inner_rml
+    else:
+        p.negated = inner_negation
+    # p.negated = inner_negation
     return p
 
 # ----- STRING AND PRINT FUNCTIONS -----
