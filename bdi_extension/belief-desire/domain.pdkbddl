@@ -38,12 +38,9 @@
     (:action proselytize
         :derive-condition   never
         :parameters         (?a1 ?a2 - agent ?l - loc)
-        :precondition       (and (at ?a1 ?l) [b, ?a1](book-teachings) [d, ?a1][b, ?a2](book-teachings))
+        :precondition       (and (at ?a1 ?l) [b, ?a1](book-teachings) [d, ?a1][b, ?a2](book-teachings) (at ?a2 ?l))
         :effect             (and
-                                (when     
-                                    (at ?a2 ?l)
-                                    [b, ?a2][b, ?a1](book-teachings)
-                                )
+                                [b, ?a2][b, ?a1](book-teachings)
                                 (when     
                                     (skeptical ?a2 ?a1)
                                     ![b, ?a2](book-teachings)

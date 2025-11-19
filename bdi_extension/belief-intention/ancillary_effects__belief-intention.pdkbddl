@@ -1,0 +1,33 @@
+(:ancillary_effects
+    (:anceff defender-suspect-capturer-location
+        :parameters (?a1 ?a2 - agent ?l1 ?l2 - loc)
+        :antecedent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml (at ?a1 ?l)
+            :type add
+        )
+        :consequent (
+            :poscond ?pos + (capturer ?a1) + (defender ?a2) + (at ?a2 ?l2) + (connected ?l1 ?l2)
+            :negcond ?neg
+            :rml <b, ?a2>(at ?a1 ?l2)
+            :type add
+        )
+    )
+    (:anceff defender-
+        :parameters (?a1 ?a2 - agent ?l - loc)
+        :antecedent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml <b, ?a1>(at ?a2 ?l)
+            :type add
+        )
+        :consequent (
+            :poscond ?pos + (defender ?a1) + (capturer ?a2)
+            :negcond ?neg
+            :rml [i, ?a1](go-to ?l)
+            :type add
+        )
+    )
+)
+
