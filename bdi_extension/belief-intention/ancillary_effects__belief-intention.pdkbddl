@@ -1,4 +1,34 @@
 (:ancillary_effects
+    (:anceff catch
+        :parameters (?a1 ?a2 - agent ?l - loc)
+        :antecedent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml (at ?a1 ?l)
+            :type add
+        )
+        :consequent (
+            :poscond ?pos + (capturer ?a1) + (defender ?a2) + (at ?a2 ?l) + (!hiding-at ?a1 ?l)
+            :negcond ?neg
+            :rml (caught ?a1)
+            :type add
+        )
+    )
+    (:anceff catch-hiding
+        :parameters (?a1 ?a2 - agent ?l - loc)
+        :antecedent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml (at ?a1 ?l)
+            :type add
+        )
+        :consequent (
+            :poscond ?pos + (capturer ?a1) + (defender ?a2) + (at ?a2 ?l) + (hiding-at ?a1 ?l) + [b, ?a2](hiding-spot-at ?l)
+            :negcond ?neg
+            :rml (caught ?a1)
+            :type add
+        )
+    )
     ; (:anceff defender-suspect-capturer-location
     ;     :parameters (?a1 ?a2 - agent ?l1 ?l2 - loc)
     ;     :antecedent (
@@ -41,6 +71,21 @@
             :poscond ?pos + (scout ?a1) + (capturer ?a2)
             :negcond ?neg
             :rml [i, ?a1][b, ?a2](flag-at ?l)
+            :type add
+        )
+    )
+    (:anceff scout-share-hiding-spot-info
+        :parameters (?a1 ?a2 - agent ?l - loc)
+        :antecedent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml [b, ?a1](hiding-spot-at ?l)
+            :type add
+        )
+        :consequent (
+            :poscond ?pos + (scout ?a1) + (capturer ?a2)
+            :negcond ?neg
+            :rml [i, ?a1][b, ?a2](hiding-spot-at ?l)
             :type add
         )
     )

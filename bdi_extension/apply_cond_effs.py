@@ -564,8 +564,12 @@ class ApplyCondEff:
         if (not self.ant_rml.bdi and next_f.bdi) or (not self.ant_rml.bdi and not next_f.bdi):
             # get the variable assignments
             if type(self.ant_rml) is Predicate:
+                 # need to check the predicate itself
+                if self.ant_rml.name != next_f.name and len(self.ant_rml.terms) != len(next_f.terms):
+                    return False
                 for i in range(len(self.ant_rml.terms)):
-                    self.assignment[self.ant_rml.terms[i].name] = next_f.terms[i].name
+                    if i < len(next_f.terms):
+                        self.assignment[self.ant_rml.terms[i].name] = next_f.terms[i].name
             return True
 
         # if we've gotten to this point, both have bdi.
@@ -595,7 +599,8 @@ class ApplyCondEff:
         # also get the variable assignments
         if type(self.ant_rml) is Predicate:
             for i in range(len(self.ant_rml.terms)):
-                self.assignment[self.ant_rml.terms[i].name] = next_f.terms[i].name
+                if i < len(next_f.terms):
+                    self.assignment[self.ant_rml.terms[i].name] = next_f.terms[i].name
         return True
 
 def check_nesting(cons, depth):

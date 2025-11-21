@@ -21,16 +21,23 @@
         (connected l3 l2)
 
         (at alice l1)
+        (at cindy l2)
         (at bob l1)
         (capturer alice)
         (scout bob)
+        (defender cindy)
         (flag-at l3)
-        (home-base l1)
+        ; (home-base l1)
+        (hiding-spot-at l2)
+        [b, cindy](hiding-spot-at l2)
         ; [i, bob](go-to l3)
     )
 
     (:goal 
-        (capture-win)
+        ; [b, alice](flag-at l3)
+        (hiding-at alice l2)
+        (caught alice)
+        ; (capture-win)
         ; (at bob l3)
     )
 
