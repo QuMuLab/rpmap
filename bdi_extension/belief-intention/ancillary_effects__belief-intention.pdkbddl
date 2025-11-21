@@ -29,18 +29,18 @@
     ;         :type add
     ;     )
     ; )
-    (:anceff chain-movement-intention
-        :parameters (?ag - agent ?l1 ?l2 - loc)
+    (:anceff scout-share-flag-info
+        :parameters (?a1 ?a2 - agent ?l - loc)
         :antecedent (
             :poscond ?pos
             :negcond ?neg
-            :rml [i, ?ag](go-to ?l1)
+            :rml [b, ?a1](flag-at ?l)
             :type add
         )
         :consequent (
-            :poscond ?pos + (connected ?l1 ?l2) + (at ?ag ?l1)
+            :poscond ?pos + (scout ?a1) + (capturer ?a2)
             :negcond ?neg
-            :rml [i, ?ag](go-to ?l2)
+            :rml [i, ?a1][b, ?a2](flag-at ?l)
             :type add
         )
     )

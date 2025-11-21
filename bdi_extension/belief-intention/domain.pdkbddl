@@ -1,15 +1,15 @@
 
 (define (domain capture_the_flag)
 
-    (:agents bob)
+    (:agents alice bob)
     (:requirements :typing)
     (:types loc agent)
     (:constants )
 
     (:predicates
         ; {AK}(defender ?ag - agent)
-        ; {AK}(capturer ?a1 - agent)
-        (flag_at ?l - loc)
+        {AK}(capturer ?a1 - agent)
+        (flag-at ?l - loc)
         {AK}(caught ?ag - agent)
         ; {AK}(home-base ?l - loc)
         {AK}(connected ?l1 ?l2 - loc)
@@ -17,7 +17,7 @@
         ; {AK}(capture-win)
         ; (hiding-at ?ag - agent ?l - loc)
         (at ?ag - agent ?l - loc)
-        (go-to ?l - loc)
+        ; (go-to ?l - loc)
         ; (hiding-spot-at ?l - loc)
         ; (holding-flag ?ag)
         
@@ -26,8 +26,8 @@
     (:action move
         :derive-condition   never
         :parameters         (?a - agent ?l1 ?l2 - loc)
-        :precondition       (and (at ?a ?l1) (connected ?l1 ?l2) [i, ?a](go-to ?l2) (not (caught ?a)))
-        :effect             (and (at ?a ?l2) (not (at ?a ?l1)) ![i, ?a](go-to ?l2))
+        :precondition       (and (at ?a ?l1) (connected ?l1 ?l2) (not (caught ?a)))
+        :effect             (and (at ?a ?l2) (not (at ?a ?l1)))
     )
 
     ; (:action catch
@@ -43,9 +43,9 @@
     ; (:action grab-flag
     ;     :derive-condition   never
     ;     :parameters         (?ag - agent ?l - loc)
-    ;     :precondition       (and (capturer ?ag) (flag_at ?l) (at ?ag ?l) (not (caught ?ag)))
+    ;     :precondition       (and (capturer ?ag) (flag-at ?l) (at ?ag ?l) (not (caught ?ag)))
     ;     :effect             (and 
-    ;                             (not (flag_at ?l))
+    ;                             (not (flag-at ?l))
     ;                             (holding-flag ?ag)
     ;     )
     ; )
@@ -71,9 +71,9 @@
     ;  (:action find-flag
     ;     :derive-condition never
     ;     :parameters         (?a - agent ?l - loc)
-    ;     :precondition       (and (scout ?a) (flag_at ?l) (not (caught ?a)))
+    ;     :precondition       (and (scout ?a) (flag-at ?l) (not (caught ?a)))
     ;     :effect (and 
-    ;         [b, ?a](flag_at ?l)
+    ;         [b, ?a](flag-at ?l)
     ;     )
     ; )
 
@@ -86,24 +86,23 @@
     ;     )
     ; )
 
-    (:action suspect-flag-location
+    (:action scout-find-flag
         :derive-condition never
         :parameters         (?ag - agent ?l - loc)
-        :precondition       (and (scout ?ag) <b, ?ag>(flag_at ?l) (not (caught ?ag)))
+        :precondition       (and (scout ?ag) (at ?ag ?l) (flag-at ?l) (not (caught ?ag)))
         :effect (and 
-            [i, ?ag](go-to ?l)
+            [b, ?ag](flag-at ?l)
         )
     )
 
-    ; (:action share-flag-location
-    ;     :derive-condition never
-    ;     :parameters         (?a1 ?a2 - agent ?l - loc)
-    ;     :precondition       (and (scout ?a1) (capturer ?a2) [b, ?a1](flag_at ?l) (not (caught ?a1)) (not (caught ?a2)))
-    ;     :effect (and 
-    ;         [b, ?a2](flag_at ?l)
-    ;         [i, ?a2](go-to ?l)
-    ;     )
-    ; )
+    (:action share-flag-location
+        :derive-condition never
+        :parameters         (?a1 ?a2 - agent ?l1 ?l2 - loc)
+        :precondition       (and (scout ?a1) (capturer ?a2) [i, ?a1][b, ?a2](flag-at ?l1) (not (caught ?a1)) (not (caught ?a2)) (at ?a1 ?l2) (at ?a2 ?l2))
+        :effect (and 
+            [b, ?a2](flag-at ?l1)
+        )
+    )
 
     ; (:action share-capturer-agent-location
     ;     :derive-condition never

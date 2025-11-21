@@ -154,6 +154,8 @@ class ApplyCondEff:
         return new_pred
 
     def get_pos_or_neg_cond_term(self, cond, term_type):
+        if not cond:
+            return []
         new_preds = []
         if term_type == 'pos':
             # note: since we have a condition, we assume we're working with a When
@@ -280,17 +282,32 @@ class ApplyCondEff:
         if type(cons_cond_or_rml) is Tree:
             return self.gather_preds(cons_cond_or_rml.children, next_cond_or_eff, agent)
         elif type(cons_cond_or_rml) is Predicate:
-            terms = list(cons_cond_or_rml.terms)  
+            terms = deepcopy(list(cons_cond_or_rml.terms) ) 
             for i in range(len(terms)):
                 if type(terms[i]) is Variable: 
                     terms[i] = Constant(self.assignment[terms[i].name])
-            return [Predicate(cons_cond_or_rml.name, *terms)]
+            p = Predicate(cons_cond_or_rml.name, *terms)
+            p.always_known = cons_cond_or_rml.always_known
+            p.bdi = deepcopy(cons_cond_or_rml.bdi)
+            if p.bdi:
+                if p.bdi.agent:
+                    if p.bdi.agent.var:
+                        if p.bdi.agent.name in self.assignment:
+                            p.bdi.agent = Agent(self.assignment[p.bdi.agent.name], False)
+                for i in range(len(p.bdi.nested)):
+                    if p.bdi.nested[i].agent:
+                        if p.bdi.nested[i].agent.var:
+                            if p.bdi.nested[i].agent.name in self.assignment:
+                                p.bdi.nested[i].agent = Agent(self.assignment[p.bdi.nested[i].agent.name], False)
+            p.negated = cons_cond_or_rml.negated
+            return [p]
         elif type(cons_cond_or_rml) is ModRML:
             rml = deepcopy(cons_cond_or_rml)
-            if rml.bdi.agent:
-                if rml.bdi.agent.var:
-                    if rml.bdi.agent.name in self.assignment:
-                        rml.bdi.agent = Agent(self.assignment[rml.bdi.agent.name], False)
+            if rml.bdi:
+                if rml.bdi.agent:
+                    if rml.bdi.agent.var:
+                        if rml.bdi.agent.name in self.assignment:
+                            rml.bdi.agent = Agent(self.assignment[rml.bdi.agent.name], False)
             for i in range(len(rml.bdi.nested)):
                 if rml.bdi.nested[i].agent:
                     if rml.bdi.nested[i].agent.var:
@@ -433,13 +450,13 @@ class ApplyCondEff:
             return self.vars_to_iterate(formula.condition) +  self.vars_to_iterate(formula.effect)
         return vars
     
-    def create_consequent_core(self, next_cond):
+    def create_consequent_core(self, next_f):
         consequent_preds = []
         # WHEN CONDITION CASE
-        if type(next_cond) is When:
-            if type(next_cond.effect) is not Predicate:
+        if type(next_f) is When:
+            if type(next_f.effect) is not Predicate:
                 raise NotImplementedError("Handle complex when effects later?")
-            cond = self.create_conds(next_cond.condition)
+            cond = self.create_conds(next_f.condition)
             # also need to do derived conditions here since that might
             # have a matching agent parameter.
             if self.need_awareness:
@@ -449,14 +466,13 @@ class ApplyCondEff:
                     return []
             and_cond = And(*[])
             and_cond._operands.extend(sorted(cond))
-            eff = self.modify_predicate_apply_cond_type(deepcopy(next_cond.effect), self.current_agent)
+            eff = self.modify_predicate_apply_cond_type(deepcopy(next_f.effect), self.current_agent)
             consequent_preds.append(When(and_cond, And(*eff)))
         # PREDICATE CASE
         else:
-            # we have an empty condition, so don't worry about that
-            # BUT we need to do derived conditions here since that might
+            # we need to do derived conditions here since that might
             # have a matching agent parameter.                
-            cond = None
+            cond = self.create_conds(None)
             if self.derived_cond:    
                 if self.need_awareness:
                     if self.derived_cond[0] != Token("NEVER", "never"):
@@ -466,22 +482,28 @@ class ApplyCondEff:
             if cond:
                 and_cond = And(*[])
                 and_cond._operands.extend(sorted(cond))
-                eff = self.modify_predicate_apply_cond_type(deepcopy(next_cond), self.current_agent)
+                eff = self.modify_predicate_apply_cond_type(deepcopy(next_f), self.current_agent)
                 consequent_preds.append(When(and_cond, And(*eff)))
             else:
-                consequent_preds.extend(self.modify_predicate_apply_cond_type(deepcopy(next_cond), self.current_agent))
+                consequent_preds.extend(self.modify_predicate_apply_cond_type(deepcopy(next_f), self.current_agent))
         return consequent_preds
 
-    def create_consequent(self, next_cond):
+    def create_consequent(self, next_f):
         
         ant_agents = self.agents_to_iterate(self.ant_rml)
         cons_agents = self.agents_to_iterate(self.cons_pos_cond).union(self.agents_to_iterate(self.cons_neg_cond), self.agents_to_iterate(self.cons_rml))
         ant_vars = self.vars_to_iterate(self.ant_rml)
         cons_vars = self.vars_to_iterate(self.cons_pos_cond).union(self.vars_to_iterate(self.cons_neg_cond), self.vars_to_iterate(self.cons_rml))
 
-        ant_vars_d = {a.name: a for a in ant_agents}
+        ant_agents_d = {a.name: a for a in ant_agents}
+        cons_agents_d = {a.name: a for a in cons_agents}
+        if len(cons_agents_d.keys() - ant_agents_d.keys()) > 1:
+            raise NotImplementedError("Decide how to handle multiple newly introduced agents in a consequent, " \
+                "particularly in mapping to derived conditions (where we are also currently "
+                "only assuming one agent parameter).")
+        ant_vars_d = deepcopy(ant_agents_d)
+        cons_vars_d = deepcopy(cons_agents_d)
         ant_vars_d.update({v.name: v for v in ant_vars})
-        cons_vars_d = {a.name: a for a in cons_agents}
         cons_vars_d.update({a.name: a for a in cons_vars})
         all_vars_to_iter = cons_vars_d.keys() - ant_vars_d.keys()
         all_vars_to_iter = {cons_vars_d[v] for v in all_vars_to_iter}
@@ -492,22 +514,17 @@ class ApplyCondEff:
             for valuation in val_generator:
                 self.current_agent = None
                 for var, val in zip(all_vars_to_iter, valuation):
-                    if type(var) is Agent:
-                        if self.current_agent is not None:
-                            raise NotImplementedError("Decide how to handle multiple newly introduced agents in a consequent, " \
-                                "particularly in mapping to derived conditions (where we are also currently "
-                                "only assuming one agent parameter).")
+                    if type(var) is Agent or var.name in cons_agents_d:                            
                         self.current_agent = val
-                    else:
-                        self.assignment[var.name] = val
-                consequent_preds.extend(self.create_consequent_core(next_cond))
+                    self.assignment[var.name] = val
+                consequent_preds.extend(self.create_consequent_core(next_f))
         else:
             self.current_agent = None
-            consequent_preds.extend(self.create_consequent_core(next_cond))
+            consequent_preds.extend(self.create_consequent_core(next_f))
         return consequent_preds
         
 
-    def check_ant_format(self, next_cond) -> bool:
+    def check_ant_format(self, next_f) -> bool:
         """
         When we just have a predicate, we assume the antecedent conditions are empty. however,
         the RML can still be applied, but we have to check the predicate against the RML format.
@@ -519,16 +536,16 @@ class ApplyCondEff:
         However, if the RML has a BDI term, then the BDI term is of some relevance,
         and the predicate is expected to match it.
         """
-        if type(next_cond) is And:
-                if len(next_cond._operands) == 1:
-                    next_cond = next_cond._operands[0]
-        elif type(next_cond) is When:
+        if type(next_f) is And:
+                if len(next_f._operands) == 1:
+                    next_f = next_f._operands[0]
+        elif type(next_f) is When:
             # check the when effect against the rml 
-            next_cond = next_cond.effect
-            if type(next_cond) is And:
-                if len(next_cond._operands) == 1:
-                    next_cond = next_cond._operands[0]
-            if type(next_cond) is not Predicate:
+            next_f = next_f.effect
+            if type(next_f) is And:
+                if len(next_f._operands) == 1:
+                    next_f = next_f._operands[0]
+            if type(next_f) is not Predicate:
                 # TODO: we now do have when formulas with effects with multiple predicates.
                 # but let's handle that later
                 return False
@@ -537,46 +554,48 @@ class ApplyCondEff:
         # easiest thing to check first is the cond_type.
         # if the cond_type is 'add', but the predicate is negated, 
         # or vice versa, we know it doesn't match.
-        if self.ant_cond_type == 'add' and next_cond.negated or self.ant_cond_type == 'del' and not next_cond.negated:
+        if self.ant_cond_type == 'add' and next_f.negated or self.ant_cond_type == 'del' and not next_f.negated:
             return False
         
         # explained in the docstring
-        if self.ant_rml.bdi and not next_cond.bdi:
+        if self.ant_rml.bdi and not next_f.bdi:
             return False
 
-        if (not self.ant_rml.bdi and next_cond.bdi) or (not self.ant_rml.bdi and not next_cond.bdi):
+        if (not self.ant_rml.bdi and next_f.bdi) or (not self.ant_rml.bdi and not next_f.bdi):
             # get the variable assignments
-            # for i in range(len(self.ant_rml.terms)):
-            #     self.assignment[self.ant_rml.terms[i].name] = next_cond.terms[i].name
+            if type(self.ant_rml) is Predicate:
+                for i in range(len(self.ant_rml.terms)):
+                    self.assignment[self.ant_rml.terms[i].name] = next_f.terms[i].name
             return True
 
         # if we've gotten to this point, both have bdi.
         # however these could still be different kinds.
-        if type(self.ant_rml.bdi) != type(next_cond.bdi):
+        if type(self.ant_rml.bdi) != type(next_f.bdi):
             return False
         
         # need to check the nested terms as well
-        if len(self.ant_rml.bdi.nested) != len(next_cond.bdi.nested):
+        if len(self.ant_rml.bdi.nested) != len(next_f.bdi.nested):
             return False
         
         # now we can check the full bdi terms, knowing they're the same type.
         # note: we don't care what the agent is, we're just checking for the overall structure
-        if self.ant_rml.bdi.negate_inner_rml == next_cond.bdi.negate_inner_rml and \
-            self.ant_rml.bdi.hard_bdi == next_cond.bdi.hard_bdi:
+        if self.ant_rml.bdi.negate_inner_rml == next_f.bdi.negate_inner_rml and \
+            self.ant_rml.bdi.hard_bdi == next_f.bdi.hard_bdi:
                 for i in range(len(self.ant_rml.bdi.nested)):
-                    if type(self.ant_rml.bdi.nested[i]) != type(next_cond.bdi.nested[i]) or \
-                    self.ant_rml.bdi.nested[i].negate_inner_rml != next_cond.bdi.nested[i].negate_inner_rml or \
-                    self.ant_rml.bdi.nested[i].hard_bdi != next_cond.bdi.nested[i].hard_bdi:
+                    if type(self.ant_rml.bdi.nested[i]) != type(next_f.bdi.nested[i]) or \
+                    self.ant_rml.bdi.nested[i].negate_inner_rml != next_f.bdi.nested[i].negate_inner_rml or \
+                    self.ant_rml.bdi.nested[i].hard_bdi != next_f.bdi.nested[i].hard_bdi:
                         return False
         else:            
             return False
         # gather the assignments
-        self.assignment[self.ant_rml.bdi.agent.name] = next_cond.bdi.agent.name
+        self.assignment[self.ant_rml.bdi.agent.name] = next_f.bdi.agent.name
         for i in range(len(self.ant_rml.bdi.nested)):
-            self.assignment[self.ant_rml.bdi.nested[i].agent.name] = next_cond.bdi.nested[i].agent.name
+            self.assignment[self.ant_rml.bdi.nested[i].agent.name] = next_f.bdi.nested[i].agent.name
         # also get the variable assignments
-        # for i in range(len(self.ant_rml.terms)):
-        #     self.assignment[self.ant_rml.terms[i].name] = next_cond.terms[i].name
+        if type(self.ant_rml) is Predicate:
+            for i in range(len(self.ant_rml.terms)):
+                self.assignment[self.ant_rml.terms[i].name] = next_f.terms[i].name
         return True
 
 def check_nesting(cons, depth):
@@ -599,18 +618,18 @@ def apply_cond_eff(anc_effs, o, derive_condition, agents, depth, predicates, obj
     processed_conds = set()
     anc_effs_to_apply = [a for a in anc_effs if a[2].value in effs_to_apply] if effs_to_apply else anc_effs
     while condleft:
-        next_cond = condleft.pop(0)
+        next_f = condleft.pop(0)
         # check the antecedent format
-        if next_cond not in processed_conds:
-            processed_conds.add(next_cond)
+        if next_f not in processed_conds:
+            processed_conds.add(next_f)
             for anc_eff in anc_effs_to_apply:
                 anc_eff_data = ApplyCondEff(anc_eff, derive_condition, agents, depth, predicates, objects)
                 # if anc_eff_data.name != "follower-adopt-belief":#not in ["negation-removal", "kd45closure__belief", "kd45-un-closure__belief", "uncertain-firing", "mutual-awareness-pos__belief", "mutual-awareness-neg__belief"]:#"negation-removal", "kd45-un-closure", "uncertain-firing", 
                 #     continue
-                if anc_eff_data.check_ant_format(next_cond):
+                if anc_eff_data.check_ant_format(next_f):
                     print(anc_eff_data.name)
-                    print(f"next cond: {next_cond}")
-                    cons = anc_eff_data.create_consequent(deepcopy(next_cond))
+                    print(f"next cond: {next_f}")
+                    cons = anc_eff_data.create_consequent(deepcopy(next_f))
                     # cons = list(set(cons))
                     # remove extraneous BDI terms) 
                     for i in range(len(cons)):
@@ -714,7 +733,7 @@ def apply_cond_effs(anc_effs, domain, problem):
         anc_effs = anc_effs._anceffs
     depth = int(problem.depth[2].value)
     for action in domain.actions:   
-        # if action.name != "proselytize_alice_alice_l1":
+        # if action.name != "suspect-flag-location_bob_l3":
         #     continue
         for o in action.effect.operands:
             new_preds = apply_cond_eff(anc_effs, o, action.derive_condition, domain._agents, depth, domain.predicates, problem.objects)
