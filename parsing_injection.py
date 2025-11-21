@@ -5,7 +5,7 @@ import pddl
 import sys
 import time
 from bdi_extension.domain import construct_domain_grammar
-from bdi_extension.anc_eff import Agent
+from bdi_extension.anc_eff import Agent, NegateOnly
 from lark import Lark
 from lark.visitors import Transformer
 from bdi_extension.parsing_utils import *
@@ -195,6 +195,15 @@ def predicates_to_fluents(predicates: list[Predicate], assignment, domain_preds)
                 if dp.name == f.name and len(dp.terms) == len(f.terms):
                     f.always_known = dp.always_known
                     break
+            if not f.always_known and f.negated:
+                f.negated = False
+                if f.bdi:
+                    if f.bdi.nested:
+                        f.bdi.nested[-1].negate_inner_rml = not p.bdi.nested[-1].negate_inner_rml
+                    else:
+                        f.bdi.negate_inner_rml = not f.bdi.negate_inner_rml
+                else:
+                    f.bdi = NegateOnly(True)
             fluents.append(f)
     return fluents
 
@@ -290,6 +299,15 @@ def ground(domain, problem, path):
             if p.name == dom_p.name:
                 p.always_known = dom_p.always_known
                 break
+        if not p.always_known and p.negated:
+            p.negated = False
+            if p.bdi:
+                if p.bdi.nested:
+                    p.bdi.nested[-1].negate_inner_rml = not p.bdi.nested[-1].negate_inner_rml
+                else:
+                    p.bdi.negate_inner_rml = not p.bdi.negate_inner_rml
+            else:
+                p.bdi = NegateOnly(True)
 
     new_goal = None
     if problem.goal[0] == Token("LPAR", "(") and problem.goal[1] == Token("AND", "and") and \
@@ -306,6 +324,15 @@ def ground(domain, problem, path):
             if p.name == dom_p.name:
                 p.always_known = dom_p.always_known
                 break
+        if not p.always_known and p.negated:
+            p.negated = False
+            if p.bdi:
+                if p.bdi.nested:
+                    p.bdi.nested[-1].negate_inner_rml = not p.bdi.nested[-1].negate_inner_rml
+                else:
+                    p.bdi.negate_inner_rml = not p.bdi.negate_inner_rml
+            else:
+                p.bdi = NegateOnly(True)
     
     grounded_domain = pddl_core.Domain(
         name=domain.name, 
@@ -366,7 +393,7 @@ if __name__ == "__main__":
     construct_domain_grammar()
     construct_problem_grammar()
     # grab the PDDL
-    base_path = "bdi_extension/belief-desire"
+    base_path = "bdi_extension/full-bdi"
     pddl_str = "\n".join(read_pdkbddl_file(f"{base_path}/problem.pdkbddl"))
     # read the lark file
     with open(GRAMMAR_FILE, "r") as f:

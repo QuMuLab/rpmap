@@ -564,8 +564,8 @@ class ApplyCondEff:
         if (not self.ant_rml.bdi and next_f.bdi) or (not self.ant_rml.bdi and not next_f.bdi):
             # get the variable assignments
             if type(self.ant_rml) is Predicate:
-                 # need to check the predicate itself
-                if self.ant_rml.name != next_f.name and len(self.ant_rml.terms) != len(next_f.terms):
+                # need to check the predicate itself
+                if self.ant_rml.name != next_f.name or len(self.ant_rml.terms) != len(next_f.terms):
                     return False
                 for i in range(len(self.ant_rml.terms)):
                     if i < len(next_f.terms):
@@ -598,6 +598,9 @@ class ApplyCondEff:
             self.assignment[self.ant_rml.bdi.nested[i].agent.name] = next_f.bdi.nested[i].agent.name
         # also get the variable assignments
         if type(self.ant_rml) is Predicate:
+            # need to check the predicate itself
+            if self.ant_rml.name != next_f.name or len(self.ant_rml.terms) != len(next_f.terms):
+                return False
             for i in range(len(self.ant_rml.terms)):
                 if i < len(next_f.terms):
                     self.assignment[self.ant_rml.terms[i].name] = next_f.terms[i].name

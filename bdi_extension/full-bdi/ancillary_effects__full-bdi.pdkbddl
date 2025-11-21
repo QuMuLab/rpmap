@@ -1,0 +1,48 @@
+(:ancillary_effects
+    (:anceff set-love-desire
+            :parameters (?a1 ?a2 - agent)
+            :antecedent (
+                :poscond ?pos
+                :negcond ?neg
+                :rml (loves ?a1 ?a2)
+                :type add
+            )
+            :consequent (
+                :poscond ?pos
+                :negcond ?neg
+                :rml [d, ?a1](loves ?a2 ?a1)
+                :type add
+            )
+    )
+    (:anceff decide-gift
+        :parameters (?a1 ?a2 - agent ?g - gift)
+        :antecedent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml [i, ?a1](get-gift-for ?a2)
+            :type add
+        )
+        :consequent (
+            :poscond ?pos + [b, ?a1](likes-gift ?a2 ?g)
+            :negcond ?neg
+            :rml [i, ?a1](retrieve-gift ?g)
+            :type add
+        )
+    )
+    (:anceff become-rival
+        :parameters (?a1 ?a2 ?a3 - agent)
+        :antecedent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml [b, ?a1](loves ?a2 ?a3)
+            :type add
+        )
+        :consequent (
+            :poscond ?pos + (loves ?a1 ?a3) + (!together ?a1 ?a3) + (!together ?a2 ?a3)
+            :negcond ?neg
+            :rml (rivals ?a1 ?a2)
+            :type add
+        )
+    )
+)
+
