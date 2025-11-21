@@ -1,15 +1,32 @@
+import itertools
 import re
+from typing import Sequence
 from lark.lexer import Token
 from pddl.custom_types import namelike, _check_not_a_keyword, name
 from pddl.helpers.base import RegexConstrainedString
 from pddl.logic.predicates import Predicate, _check_terms_consistency
-from pddl.logic.terms import Term
+from pddl.logic.terms import Term, Variable
 from pddl.parser import GRAMMAR_FILE
+
 
 NL = "\n"
 NL_AND_TAB = "\n" + "\t"
 NL_AND_TABS = "\n" + "\t" * 2
 NL_AND_3_TABS = "\n" + "\t" * 3
+
+# ----- GROUNDING/ASSIGNMENTS
+
+def create_valuations(agents, objects, variables: Sequence[Variable]):
+    assignment = {}
+    for var in variables:
+        if type(var) is Variable:
+            if var.type_tags == frozenset({"agent"}):
+                assignment[var.name] = list(agents)
+            else:
+                assignment[var.name] = [o.name for o in objects if o.type_tags == var.type_tags]
+        else:
+            assignment[var.name] = list(agents)
+    return itertools.product(*assignment.values())
 
 # ----- PRINT AND FILE WRITE FUNCTIONS -----
 

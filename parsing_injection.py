@@ -1,6 +1,4 @@
 from copy import deepcopy
-import itertools
-from typing import Sequence
 import bdi_extension.anc_eff as anc_eff
 import os
 import pddl
@@ -15,17 +13,15 @@ from pddl.action import Action
 import pddl.core as pddl_core
 from pddl.logic.base import And, Not
 from pddl.logic.effects import Forall, When
-from pddl.logic.terms import Constant, Variable
+from pddl.logic.terms import Constant
 from pddl.parser import GRAMMAR_FILE
 from pddl.parser.domain import DomainTransformer
 from pddl.parser.problem import ProblemTransformer
-import pdkb.pddl.grounder as grounder
 from pdkb.planner import solve
-from pdkb.rml import parse_rml
-from pdkb.problems import Domain, convert_action, parse_problem
 from pdkb.test.utils import run_command, parse_output_ipc
 from bdi_extension.problem import construct_problem_grammar
 from bdi_extension.apply_cond_effs import apply_cond_effs
+from bdi_extension.parsing_utils import create_valuations
 
 
 def write(file_path, content):
@@ -151,21 +147,12 @@ class AncEffDomProbParser:
         return call_parser(text, self._parser, self._transformer)
 
 # ----- GROUNDING FUNCTIONS -----
-def create_valuations(domain, problem, variables: Sequence[Variable]):
-    assignment = {}
-    for var in variables:
-        if var.type_tags == frozenset({"agent"}):
-            assignment[var.name] = list(domain._agents)
-        else:
-            assignment[var.name] = [o.name for o in problem.objects if o.type_tags == var.type_tags]
-    return itertools.product(*assignment.values())
-
 def create_fluents(domain, problem):
     """Create the set of fluents by grounding the predicates.
     Adapted from the pdkb.pddl.grounder.GroundProblem._create_fluents method."""
     fluents = set([])
     for p in domain.predicates:
-        val_generator = create_valuations(domain, problem, p.terms)
+        val_generator = create_valuations(domain._agents, problem.objects, p.terms)
         for valuation in val_generator:
             grounded_p = Predicate(p.name, *(Constant(c) for c in valuation))
             grounded_p.bdi = p.bdi
@@ -227,7 +214,7 @@ def ground_formula(domain, problem, formula, assignment):
         # need to get all values for this variable
         grounded = []
         var_names = [v.name for v in formula.variables]
-        val_generator = create_valuations(domain, problem, formula.variables)
+        val_generator = create_valuations(domain._agents, problem.objects, formula.variables)
         for valuation in val_generator:
             # need to add onto the existing assignment so we retain knowledge of outer variables
             for var_name, val in zip(var_names, valuation):
@@ -252,7 +239,7 @@ def create_operators(domain, problem, fluent_dict):
 
     for a in domain.actions:
         var_names = [v.name for v in a.parameters]
-        val_generator = create_valuations(domain, problem, a.parameters)
+        val_generator = create_valuations(domain._agents, problem.objects, a.parameters)
         for valuation in val_generator:
             assignment = {var_name: val for var_name, val in zip(var_names, valuation)}
             op_name_suffix = "_".join([assignment[var.name] for var in a.parameters])
@@ -379,7 +366,7 @@ if __name__ == "__main__":
     construct_domain_grammar()
     construct_problem_grammar()
     # grab the PDDL
-    base_path = "bdi_extension/belief-desire"
+    base_path = "bdi_extension/belief-intention"
     pddl_str = "\n".join(read_pdkbddl_file(f"{base_path}/problem.pdkbddl"))
     # read the lark file
     with open(GRAMMAR_FILE, "r") as f:
