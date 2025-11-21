@@ -9,17 +9,18 @@
     (:predicates
         ; {AK}(defender ?ag - agent)
         {AK}(capturer ?a1 - agent)
-        (flag-at ?l - loc)
         {AK}(caught ?ag - agent)
-        ; {AK}(home-base ?l - loc)
+        {AK}(home-base ?l - loc)
         {AK}(connected ?l1 ?l2 - loc)
         {AK}(scout ?ag - agent)
-        ; {AK}(capture-win)
+        {AK}(capture-win)
+        {AK}(holding-flag ?ag - agent)
+        (flag-at ?l - loc)
         ; (hiding-at ?ag - agent ?l - loc)
         (at ?ag - agent ?l - loc)
         ; (go-to ?l - loc)
         ; (hiding-spot-at ?l - loc)
-        ; (holding-flag ?ag)
+        
         
     )
 
@@ -40,24 +41,24 @@
     ;     )
     ; )
 
-    ; (:action grab-flag
-    ;     :derive-condition   never
-    ;     :parameters         (?ag - agent ?l - loc)
-    ;     :precondition       (and (capturer ?ag) (flag-at ?l) (at ?ag ?l) (not (caught ?ag)))
-    ;     :effect             (and 
-    ;                             (not (flag-at ?l))
-    ;                             (holding-flag ?ag)
-    ;     )
-    ; )
+    (:action grab-flag
+        :derive-condition   never
+        :parameters         (?ag - agent ?l - loc)
+        :precondition       (and (capturer ?ag) (flag-at ?l) (at ?ag ?l) (not (caught ?ag)) [b, ?ag](flag-at ?l))
+        :effect             (and 
+                                (not (flag-at ?l))
+                                (holding-flag ?ag)
+        )
+    )
 
-    ; (:action capture-win
-    ;     :derive-condition   never
-    ;     :parameters         (?ag - agent ?l - loc)
-    ;     :precondition       (and (capturer ?ag) (holding-flag ?ag) (at ?ag ?l) (not (caught ?ag)) (home-base ?l))
-    ;     :effect             (and 
-    ;                             (capture-win)
-    ;     )
-    ; )
+    (:action capture-win
+        :derive-condition   never
+        :parameters         (?ag - agent ?l - loc)
+        :precondition       (and (capturer ?ag) (holding-flag ?ag) (at ?ag ?l) (not (caught ?ag)) (home-base ?l))
+        :effect             (and 
+                                (capture-win)
+        )
+    )
 
     ; (:action find-hiding-spot
     ;     :derive-condition never

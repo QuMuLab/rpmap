@@ -25,11 +25,12 @@
         (capturer alice)
         (scout bob)
         (flag-at l3)
+        (home-base l1)
         ; [i, bob](go-to l3)
     )
 
     (:goal 
-        [b, alice](flag-at l3)
+        (capture-win)
         ; (at bob l3)
     )
 
