@@ -379,10 +379,13 @@ def solve(path=False):
                 output_file = output_path,
                 MEMLIMIT = "2000000",
                 TIMELIMIT = "1800")
-    print("\nPlan Time: %.5f\n" % (time.time() - t0))
+    plan_time = time.time() - t0
+    print("\nPlan Time: %.5f\n" % plan_time)
     plan = parse_output_ipc(plan_path)
 
     print("Plan Length: %d\n" % len(plan.actions))
+
+    return len(plan.actions), plan_time
 
 if __name__ == "__main__":
     # read the ancillary effects grammar file and add to the main grammar file
@@ -393,8 +396,8 @@ if __name__ == "__main__":
     construct_domain_grammar()
     construct_problem_grammar()
     # grab the PDDL
-    base_path = "bdi_extension/full-bdi"
-    pddl_str = "\n".join(read_pdkbddl_file(f"{base_path}/problem.pdkbddl"))
+    base_path = "bdi_extension/bdi-grapevine"
+    pddl_str = "\n".join(read_pdkbddl_file(f"{base_path}/problem_2.pdkbddl"))
     # read the lark file
     with open(GRAMMAR_FILE, "r") as f:
         grammar = f.read()
@@ -402,7 +405,6 @@ if __name__ == "__main__":
     parser = AncEffDomProbParser(grammar)
     result = parser(pddl_str)
 
-    # from pdkb.pddl.grounder.GroundProblem._ground
     grounded_dom_path = f"{base_path}/pdkb-domain.pddl"
     grounded_prob_path = f"{base_path}/pdkb-problem.pddl"
     anc_effs, domain, problem = (result[0].children, *ground(result[1], result[2], grounded_dom_path))

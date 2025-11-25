@@ -635,8 +635,8 @@ def apply_cond_eff(anc_effs, o, derive_condition, agents, depth, predicates, obj
                 # if anc_eff_data.name != "follower-adopt-belief":#not in ["negation-removal", "kd45closure__belief", "kd45-un-closure__belief", "uncertain-firing", "mutual-awareness-pos__belief", "mutual-awareness-neg__belief"]:#"negation-removal", "kd45-un-closure", "uncertain-firing", 
                 #     continue
                 if anc_eff_data.check_ant_format(next_f):
-                    print(anc_eff_data.name)
-                    print(f"next cond: {next_f}")
+                    # print(anc_eff_data.name)
+                    # print(f"next cond: {next_f}")
                     cons = anc_eff_data.create_consequent(deepcopy(next_f))
                     # cons = list(set(cons))
                     # remove extraneous BDI terms) 
@@ -653,10 +653,10 @@ def apply_cond_eff(anc_effs, o, derive_condition, agents, depth, predicates, obj
                             cons[i] = remove_extra_bdi(cons[i])
                     for c in cons:
                         if check_nesting(c, depth):
-                            if c not in processed_conds and c not in condleft:
-                                print(c)
+                            # if c not in processed_conds and c not in condleft:
+                            #     print(c)
                             condleft.append(c)
-                    print("----")
+                    # print("----")
     return list(processed_conds - {o}) # already have o
 
 def remove_extra_bdi(term):

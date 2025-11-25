@@ -1,7 +1,7 @@
 {include:ancillary_effects.pdkbddl}
 {include:domain.pdkbddl}
 
-(define (problem paper2)
+(define (problem paper1)
 
     (:domain grapevine)
 
@@ -17,19 +17,15 @@
         (connected l1 l2)
         (connected l2 l1)
 
-        ; (forall ?ag - agent (at ?ag l1))
-        (at a l1)
-        (at b l2)
+        (at alice l1)
+        (at bob l2)
 
-        ; (forall (?ag - agent)
-        ;     [b, ?ag](secret ?ag))
-        [b, a](secret a)
-        [b, b](secret b)
+        [b, alice](secret alice)
+        [b, bob](secret bob)
     )
     (:goal
         (and
-            [b, a](secret b)
-           (at a l2)
+            [b, alice](secret bob)
         )  
     )
     (:plan )
