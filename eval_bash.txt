@@ -1,0 +1,1 @@
+cd pdkb-planning && source .venv/bin/activate && cd bdi_extension && cd bdi-grapevine && python3 evaluation.py
