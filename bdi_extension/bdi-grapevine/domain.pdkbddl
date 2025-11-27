@@ -1,5 +1,5 @@
 (define (domain grapevine)
-	(:agents alice bob cindy derek evelyn)
+	(:agents alice bob cindy)
     (:requirements :typing)
     (:types loc)
     (:predicates
