@@ -1,0 +1,2 @@
+[console_scripts]
+pddl = pddl.__main__:cli
