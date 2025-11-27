@@ -17,7 +17,6 @@ from pddl.logic.terms import Constant
 from pddl.parser import GRAMMAR_FILE
 from pddl.parser.domain import DomainTransformer
 from pddl.parser.problem import ProblemTransformer
-from pdkb.planner import solve
 from pdkb.test.utils import run_command, parse_output_ipc
 from bdi_extension.problem import construct_problem_grammar
 from bdi_extension.apply_cond_effs import apply_cond_effs

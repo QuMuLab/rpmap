@@ -63,8 +63,10 @@ class ApplyCondEff:
             # easiest case, they are equal
             if mod_p.bdi == new_pred.bdi:
                 return old_p
-        new_nested = [new_pred.bdi, *new_pred.bdi.nested]
-        new_pred.bdi = mod_p.bdi
+        outer_bdi = deepcopy(new_pred.bdi)
+        outer_bdi.nested = []
+        new_nested = [outer_bdi, *deepcopy(new_pred.bdi.nested)]
+        new_pred.bdi = deepcopy(mod_p.bdi)
         new_pred.bdi.nested = new_nested
         # first, check if we have a new negation added
         if new_pred.bdi.negate_inner_rml:
@@ -677,7 +679,7 @@ def all_rmls(domain, depth):
     curr = [deepcopy(p) for p in domain.predicates]
 
     for d in range(1, depth + 1):
-
+        
         # Generate raw expansions
         raw = []
         for ag in domain._agents:
@@ -709,7 +711,10 @@ def all_rmls(domain, depth):
                                 v.bdi.negate()
                             raw.append(v)
                         else:
-                            raw.append(ApplyCondEff.nest_bdi(v, base, base, False))
+                            # if base.bdi.nested and v.bdi.negate_inner_rml:
+                            #     print(base)
+                            #     print(v)
+                            raw.append(ApplyCondEff.nest_bdi(v, base, base))
                 else:
                     raw.extend(variants)
 
