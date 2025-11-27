@@ -17,9 +17,9 @@ NUM_AGENTS = [2, 3, 4, 5] # note: these are baked into problem files 1-4 for eac
 def get_agents_str(num_agents):
     return f"\t(:agents {' '.join(['alice', 'bob', 'cindy', 'derek', 'evelyn'][:num_agents])})"
 
-def thread_solve(domain, i, parser):
+def thread_solve(dom, i, parser):
     for dep in DEPTH:   
-        base_path = os.path.join("bdi_extension", domain)
+        base_path = os.path.join("bdi_extension", dom)
         domain_path = os.path.join(base_path, "domain.pdkbddl")
         with open(domain_path) as f:
             lines = f.readlines()
