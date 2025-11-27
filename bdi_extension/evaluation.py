@@ -7,17 +7,15 @@ import csv
 import os
 import pddl
 import time
-import threading
 import time
 
 DEPTH = [2, 2, 3, 3]
-NUM_AGENTS = [2, 3, 4, 5] # note: these are baked into problem files 1-4 for each domain.
 
 
 def get_agents_str(num_agents):
     return f"\t(:agents {' '.join(['alice', 'bob', 'cindy', 'derek', 'evelyn'][:num_agents])})"
 
-def thread_solve(dom, i, parser):
+def eval_solve(dom, i, parser):
     for dep in DEPTH:   
         base_path = os.path.join("bdi_extension", dom)
         domain_path = os.path.join(base_path, "domain.pdkbddl")
@@ -56,7 +54,7 @@ def thread_solve(dom, i, parser):
             writer = csv.writer(file)
             writer.writerows([[domain, problem_name, len(domain._agents), problem.depth, num_fluents_before_pre, num_fluents_after_pre, preprocessing_time, solve_time, plan_length]])
 
-def evaluate():
+def evaluate(domain):
     # --- GENERAL PARSING SETUP ---
     # read the ancillary effects grammar file and add to the main grammar file
     with open("bdi_extension/ancillary_effects.lark", "r") as f:
@@ -78,20 +76,6 @@ def evaluate():
         writer = csv.writer(file)
         writer.writerows([["Domain Name", "Problem Name", "Number of Agents", "Depth", "Number of Fluents before Preprocessing", "Number of Fluents after Preprocessing", "Preprocessing Time", "Solve Time", "Plan Length"]])
 
-    threads = []
-
     # --- MAIN EVALUATION BODY ---
-    for domain in domains:
-        for i in range(4):
-            # make a new thread here
-            t = threading.Thread(target=thread_solve, args=(domain, i, parser))
-            t.start()
-            threads.append(t)
-
-    for t in threads:
-        t.join()
-
-            
-
-if __name__ == "__main__":
-    evaluate()
+    for i in range(4):
+        eval_solve(domain, i, parser)
