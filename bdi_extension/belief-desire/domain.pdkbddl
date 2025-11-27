@@ -1,7 +1,7 @@
 
 (define (domain proselytize)
 
-    (:agents alice bob cindy)
+    (:agents alice bob cindy derek)
     (:requirements :typing)
     (:types loc agent)
     (:constants )
@@ -17,16 +17,16 @@
     )
 
     (:action move
-        :derive-condition   always
+        :derive-condition   never
         :parameters         (?a - agent ?l1 ?l2 - loc)
         :precondition       (and (at ?a ?l1) (connected ?l1 ?l2))
         :effect             (and (at ?a ?l2) (!at ?a ?l1))
     )
 
     (:action adopt-belief
-        :derive-condition never
-        :parameters         (?a - agent ?l1 - loc)
-        :precondition       (and (leader ?a) (at ?a ?l1) (book-at ?l1))
+        :derive-condition (at $agent$ ?l)
+        :parameters         (?a - agent ?l - loc)
+        :precondition       (and (leader ?a) (at ?a ?l) (book-at ?l))
         :effect (and 
             [b, ?a](book-teachings)
             (forall (?ag - agent)

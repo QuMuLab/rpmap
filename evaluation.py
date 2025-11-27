@@ -8,6 +8,9 @@ import os
 import pddl
 import time
 
+DEPTH = [2, 2, 3, 3]
+NUM_AGENTS = [2, 3, 4, 5] # note: these are baked into problem files 1-4 for each domain.
+
 
 def get_agents_str(num_agents):
     return f"\t(:agents {' '.join(['alice', 'bob', 'cindy', 'derek', 'evelyn'][:num_agents])})"
@@ -29,53 +32,51 @@ def evaluate():
 
     # --- DEFINE DOMAINS + PROBLEMS ---
     domains = ["bdi-grapevine"]#, "belief-desire", "belief-intention", "full-bdi"]
-    problems = {
-        "bdi-grapevine": [2, 3], # list of the # of agents in each problem
-        # "belief-desire": [],
-        # "belief-intention": [],
-        # "full-bdi": []
-    }
+    
     with open("evaluation.csv", "w", newline="") as file:
         writer = csv.writer(file)
         writer.writerows([["Domain Name", "Problem Name", "Number of Agents", "Depth", "Number of Fluents before Preprocessing", "Number of Fluents after Preprocessing", "Preprocessing Time", "Solve Time", "Plan Length"]])
 
     # --- MAIN EVALUATION BODY ---
-    for d in domains:
-        for i in range(len(problems[d])):
-            base_path = os.path.join("bdi_extension", d)
-            domain_path = os.path.join(base_path, "domain.pdkbddl")
-            with open(domain_path) as f:
-                lines = f.readlines()
+    for dom in domains:
+        for dep in DEPTH: 
+            for i in range(4):
+                base_path = os.path.join("bdi_extension", dom)
+                domain_path = os.path.join(base_path, "domain.pdkbddl")
+                with open(domain_path) as f:
+                    lines = f.readlines()
 
-            with open(domain_path, "w") as f:
-                for line in lines:
-                    if line.lstrip().startswith("(:agents"):
-                        f.write(get_agents_str(problems[d][i]) + "\n")
-                    else:
-                        f.write(line)
+                with open(domain_path, "w") as f:
+                    for line in lines:
+                        if line.lstrip().startswith("(:agents"):
+                            f.write(get_agents_str(i + 2) + "\n") # iterating through [0-3], number of agents is [2-5]
+                        elif line.lstrip().startswith("(:depth"):
+                            f.write(f"(:depth {dep})")
+                        else:
+                            f.write(line)
 
-            # add the correct number of agents to the domain
-            t0 = time.time()
-            # grab the PDDL
-            problem_name = f"problem_{i + 1}"
-            pddl_str = "\n".join(read_pdkbddl_file(os.path.join(base_path, f"{problem_name}.pdkbddl")))
-            
-            result = parser(pddl_str)
-            grounded_dom_path = os.path.join(base_path, "pdkb-domain.pddl")
-            grounded_prob_path = os.path.join(base_path, "pdkb-problem.pddl")
-            anc_effs, domain, problem = (result[0].children, *ground(result[1], result[2], grounded_dom_path))
-            num_fluents_before_pre = len(domain.predicates)
-            domain, problem = apply_cond_effs(anc_effs, domain, problem)
-            num_fluents_after_pre = len(domain.predicates)
-            pddl.core.Domain.grounded_print = True
-            pddl.core.Action.grounded_print = True
-            write(grounded_dom_path, str(domain))
-            write(grounded_prob_path, str(problem))
-            preprocessing_time = time.time() - t0
-            plan_length, solve_time = solve(base_path)
-            with open("evaluation.csv", "a", newline="") as file:
-                writer = csv.writer(file)
-                writer.writerows([[d, problem_name, len(domain._agents), problem.depth, num_fluents_before_pre, num_fluents_after_pre, preprocessing_time, solve_time, plan_length]])
+                # add the correct number of agents to the domain
+                t0 = time.time()
+                # grab the PDDL
+                problem_name = f"problem_{i + 1}" # iterating through [0-3], problem files are [1-4]
+                pddl_str = "\n".join(read_pdkbddl_file(os.path.join(base_path, f"{problem_name}.pdkbddl")))
+                
+                result = parser(pddl_str)
+                grounded_dom_path = os.path.join(base_path, "pdkb-domain.pddl")
+                grounded_prob_path = os.path.join(base_path, "pdkb-problem.pddl")
+                anc_effs, domain, problem = (result[0].children, *ground(result[1], result[2], grounded_dom_path))
+                num_fluents_before_pre = len(domain.predicates)
+                domain, problem = apply_cond_effs(anc_effs, domain, problem)
+                num_fluents_after_pre = len(domain.predicates)
+                pddl.core.Domain.grounded_print = True
+                pddl.core.Action.grounded_print = True
+                write(grounded_dom_path, str(domain))
+                write(grounded_prob_path, str(problem))
+                preprocessing_time = time.time() - t0
+                plan_length, solve_time = solve(base_path)
+                with open("evaluation.csv", "a", newline="") as file:
+                    writer = csv.writer(file)
+                    writer.writerows([[dom, problem_name, len(domain._agents), problem.depth, num_fluents_before_pre, num_fluents_after_pre, preprocessing_time, solve_time, plan_length]])
 
 if __name__ == "__main__":
     evaluate()

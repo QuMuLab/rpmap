@@ -361,7 +361,6 @@ def ground(domain, problem, path):
         projection=problem.projection
     )
     write(path, str(grounded_domain))
-    print()
     return grounded_domain, problem
 
 def solve(path=False):
@@ -396,8 +395,8 @@ if __name__ == "__main__":
     construct_domain_grammar()
     construct_problem_grammar()
     # grab the PDDL
-    base_path = "bdi_extension/bdi-grapevine"
-    pddl_str = "\n".join(read_pdkbddl_file(f"{base_path}/problem_2.pdkbddl"))
+    base_path = "bdi_extension/belief-desire"
+    pddl_str = "\n".join(read_pdkbddl_file(f"{base_path}/problem_3.pdkbddl"))
     # read the lark file
     with open(GRAMMAR_FILE, "r") as f:
         grammar = f.read()

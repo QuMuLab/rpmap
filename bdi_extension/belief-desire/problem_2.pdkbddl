@@ -2,7 +2,7 @@
 {include:ancillary_effects__belief-desire.pdkbddl}
 {include:domain.pdkbddl}
 
-(define (problem paper2)
+(define (problem depth_2_agents_3)
 
     (:domain proselytize)
 

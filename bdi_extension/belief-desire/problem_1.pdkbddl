@@ -1,9 +1,10 @@
 {include:ancillary_effects.pdkbddl}
+{include:ancillary_effects__belief-desire.pdkbddl}
 {include:domain.pdkbddl}
 
 (define (problem depth_2_agents_2)
 
-    (:domain grapevine)
+    (:domain proselytize)
 
     (:objects l1 l2 - loc)
 
@@ -20,13 +21,17 @@
         (at alice l1)
         (at bob l2)
 
-        [b, alice](secret alice)
-        [b, bob](secret bob)
+        (leader alice)
+        (book-at l1)
+        (follower bob alice)
     )
-    (:goal
-        (and
-            [b, alice](secret bob)
-        )  
+
+    (:goal 
+        [b, bob][b, alice](book-teachings)
+        [b, bob](book-teachings)
     )
-    (:plan )
+
+    (:plan
+    
+    )
 )
