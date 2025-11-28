@@ -38,10 +38,6 @@ class ApplyCondEff:
         self.cons_pos_cond = cons[0][1] if cons[0] else cons[0]
         self.cons_neg_cond = cons[1][1] if cons[1] else cons[1]
         self.cons_rml = cons[2][1:]
-        # if len(self.cons_rml) > 1:
-        #     self.cons_rml = self.handle_agent_list_comp(self.cons_rml)
-        #     for r in self.cons_rml:
-        #         print(r.bdi)
         self.cons_cond_type = cons[3][1][0].value
 
     def modify_predicate_apply_cond_type(self, old_p, agent=None):
@@ -74,16 +70,25 @@ class ApplyCondEff:
             new_pred.bdi.negate(True)
         if simplify:
             # check if they reference the same agents
-            if new_pred.bdi.agent == new_pred.bdi.nested[0].agent:
-                # if we have possible belief then belief, return just the belief
+            if new_pred.bdi.agent == new_pred.bdi.nested[0].agent and type(new_pred.bdi) == type(new_pred.bdi.nested[0]):
+                # if we have possible BDI then BDI, return just the BDI
                 if not new_pred.bdi.hard_bdi and new_pred.bdi.nested[0].hard_bdi:
                     new_bdi = new_pred.bdi.nested[0]
                     nested = new_pred.bdi.nested[1:]
                     new_pred.bdi = new_bdi
                     new_pred.bdi.nested = nested
                     return new_pred
-                # if we have belief then possible belief, return just the possible belief
+                # if we have BDI then possible BDI, return just the possible BDI
                 elif new_pred.bdi.hard_bdi and not new_pred.bdi.nested[0].hard_bdi:
+                    new_bdi = new_pred.bdi.nested[0]
+                    nested = new_pred.bdi.nested[1:]
+                    new_pred.bdi = new_bdi
+                    new_pred.bdi.nested = nested
+                    return new_pred
+                # if after nesting we created a duplicate BDI term, simplify by lobbing off the outer one.
+                # note that if there is a negation of any kind, that would at this point already be moved all the way in.
+                # so there's no danger in lobbing off the outer one as the negation will stay the same in any case.
+                elif new_pred.bdi.hard_bdi == new_pred.bdi.nested[0].hard_bdi:
                     new_bdi = new_pred.bdi.nested[0]
                     nested = new_pred.bdi.nested[1:]
                     new_pred.bdi = new_bdi
@@ -711,9 +716,6 @@ def all_rmls(domain, depth):
                                 v.bdi.negate()
                             raw.append(v)
                         else:
-                            # if base.bdi.nested and v.bdi.negate_inner_rml:
-                            #     print(base)
-                            #     print(v)
                             raw.append(ApplyCondEff.nest_bdi(v, base, base))
                 else:
                     raw.extend(variants)
