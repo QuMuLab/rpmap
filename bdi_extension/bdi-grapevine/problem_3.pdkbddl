@@ -8,7 +8,7 @@
     (:objects l1 l2 l3 - loc)
 
     (:projection )
-	(:depth 2)
+	(:depth 3)
     (:task valid_generation)
 
     (:init-type complete)

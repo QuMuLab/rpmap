@@ -9,16 +9,13 @@ import pddl
 import time
 import time
 
-DEPTH = [2, 3]
-
 
 def get_agents_str(num_agents):
     return f"\t(:agents {' '.join(['alice', 'bob', 'cindy', 'derek', 'evelyn'][:num_agents])})"
 
-def solve_single(dom, problem_num, num_agents, dep, parser):
+def solve_single(dom, problem_num, num_agents, parser):
     base_path = os.path.join("bdi_extension", dom)
     domain_path = os.path.join(base_path, "domain.pdkbddl")
-    problem_path = os.path.join(base_path, f"problem_{problem_num}.pdkbddl")
     with open(domain_path) as f:
         lines = f.readlines()
 
@@ -26,17 +23,6 @@ def solve_single(dom, problem_num, num_agents, dep, parser):
         for line in lines:
             if line.lstrip().startswith("(:agents"):
                 f.write(get_agents_str(num_agents) + "\n") 
-
-            else:
-                f.write(line)
-
-    with open(problem_path) as f:
-        lines = f.readlines()
-
-    with open(problem_path, "w") as f:
-        for line in lines:
-            if line.lstrip().startswith("(:depth"):
-                f.write(f"\t(:depth {dep})\n")
             else:
                 f.write(line)
 
@@ -64,18 +50,17 @@ def solve_single(dom, problem_num, num_agents, dep, parser):
     plan_length, solve_time = solve(base_path)
     with open("evaluation.csv", "a", newline="") as file:
         writer = csv.writer(file)
-        writer.writerows([[dom, problem.name, num_agents, dep, problem_num >= 2, num_fluents_before_pre, num_fluents_after_pre, preprocessing_time, solve_time, plan_length]])
+        writer.writerows([[dom, problem_num, num_agents, problem.depth, problem_num >= 2, num_fluents_before_pre, num_fluents_after_pre, preprocessing_time, solve_time, plan_length]])
 
     if plan_length == 0:
         raise ValueError("No plan found!")
 
 def eval_solve_domain(dom, parser):
     for i in range(4):
-        for dep in DEPTH:   
-            problem = i + 1 # iterating through [0-3], problem files are [1-4]
-            num_agents = i + 2 # iterating through [0-3], number of agents is [2-5]
-            print(f"Domain: {dom}, Problem: {problem}, Agents: {num_agents}, Depth: {dep}")
-            solve_single(dom, problem, num_agents, dep, parser)     
+        problem = i + 1 # iterating through [0-3], problem files are [1-4]
+        num_agents = i + 2 # iterating through [0-3], number of agents is [2-5]
+        print(f"Domain: {dom}, Problem: {problem}, Agents: {num_agents}")
+        solve_single(dom, problem, num_agents, parser)     
 
 def evaluate(domain, prob=None, num_agents=None, dep=None):
     # --- GENERAL PARSING SETUP ---
