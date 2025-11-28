@@ -8,15 +8,45 @@ import os
 import pddl
 import time
 import time
+import sys
+
+
+def write_plan_output():
+    time_output_path = "time_output.txt"
+    plan_output_path = "sas_plan"
+
+    with open(time_output_path, "r") as f:
+        lines = f.readlines()
+    time = lines[0].strip()[:-1]
+    print()
+
+    # read the CSV into a list of rows
+    with open("evaluation.csv", "r", newline="") as f:
+        reader = csv.reader(f)
+        rows = list(reader)
+
+    # append the time value to the last row
+    rows[-1].append(time)
+
+    with open(plan_output_path, "r", newline="") as f:
+        lines = f.readlines()
+
+    # append the plan length to the last row
+    rows[-1].append(len(lines) - 1)
+
+    # write the updated rows back to the CSV
+    with open("evaluation.csv", "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerows(rows)
 
 
 def get_agents_str(num_agents):
     return f"\t(:agents {' '.join(['alice', 'bob', 'cindy', 'derek', 'evelyn'][:num_agents])})"
 
-def solve_single(dom, problem_num, num_agents, parser):
+def eval_single(dom, problem_num, num_agents, parser):
     base_path = os.path.join("bdi_extension", dom)
     domain_path = os.path.join(base_path, "domain.pdkbddl")
-    with open(domain_path) as f:
+    with open(domain_path, "r") as f:
         lines = f.readlines()
 
     with open(domain_path, "w") as f:
@@ -46,23 +76,11 @@ def solve_single(dom, problem_num, num_agents, parser):
     write(grounded_dom_path, str(domain))
     write(grounded_prob_path, str(problem))
     preprocessing_time = time.time() - t0
-    print("Solving...")
-    plan_length, solve_time = solve(base_path)
     with open("evaluation.csv", "a", newline="") as file:
         writer = csv.writer(file)
-        writer.writerows([[dom, problem_num, num_agents, problem.depth, problem_num >= 2, num_fluents_before_pre, num_fluents_after_pre, preprocessing_time, solve_time, plan_length]])
+        writer.writerows([[dom, problem_num, num_agents, problem.depth, num_fluents_before_pre, num_fluents_after_pre, preprocessing_time]])
 
-    if plan_length == 0:
-        raise ValueError("No plan found!")
-
-def eval_solve_domain(dom, parser):
-    for i in range(4):
-        problem = i + 1 # iterating through [0-3], problem files are [1-4]
-        num_agents = i + 2 # iterating through [0-3], number of agents is [2-5]
-        print(f"Domain: {dom}, Problem: {problem}, Agents: {num_agents}")
-        solve_single(dom, problem, num_agents, parser)     
-
-def evaluate(domain, prob=None, num_agents=None, dep=None):
+def evaluate(domain, prob, num_agents):
     # --- GENERAL PARSING SETUP ---
     # read the ancillary effects grammar file and add to the main grammar file
     with open("bdi_extension/ancillary_effects.lark", "r") as f:
@@ -77,12 +95,21 @@ def evaluate(domain, prob=None, num_agents=None, dep=None):
     # set up the parser with the lark and parse the PDDL
     parser = AncEffDomProbParser(grammar)
     
-    with open("evaluation.csv", "w", newline="") as file:
-        writer = csv.writer(file)
-        writer.writerows([["Domain Name", "Problem Name", "Number of Agents", "Depth", "Requires Depth 3", "Number of Fluents before Preprocessing", "Number of Fluents after Preprocessing", "Preprocessing Time", "Solve Time", "Plan Length"]])
+    # to create a new database
+    # with open("evaluation.csv", "w", newline="") as file:
+    #     writer = csv.writer(file)
+    #     writer.writerows([["Domain Name", "Problem Name", "Number of Agents", "Depth", "Number of Fluents before Preprocessing", "Number of Fluents after Preprocessing", "Preprocessing Time", "Solve Time", "Plan Length"]])
 
     # --- MAIN EVALUATION BODY ---
-    if prob and num_agents and dep:
-        solve_single(domain, prob, num_agents, dep, parser)
+    eval_single(domain, prob, num_agents, parser)
+
+if __name__ == "__main__":
+    args = sys.argv[1:]   # everything after the script name
+    if len(args) == 3:
+        args[1] = int(args[1])
+        args[2] = int(args[2])
+        evaluate(*args)
+    elif len(args) == 0:
+        write_plan_output()
     else:
-        eval_solve_domain(domain, parser)
+        raise ValueError("Unexpected arguments.")
