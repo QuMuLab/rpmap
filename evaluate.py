@@ -9,16 +9,26 @@ import pddl
 import time
 import time
 import sys
+import re
 
 
 def write_plan_output():
-    time_output_path = "time_output.txt"
-    plan_output_path = "sas_plan"
+    output = "planner_output.txt"
 
-    with open(time_output_path, "r") as f:
-        lines = f.readlines()
-    time = lines[0].strip()[:-1]
-    print()
+    with open(output, "r") as f:
+        output_text = f.read()
+    # 1. Check if solution was found
+    solution_found = bool(re.search(r"Solution found\.", output_text))
+    if not solution_found:
+        raise ValueError("No plan found!")
+
+    # 2. Extract planner time (INFO     Planner time: 0.39s)
+    planner_time_match = re.search(r"Planner time:\s*([0-9.]+)s", output_text)
+    planner_time = float(planner_time_match.group(1)) if planner_time_match else None
+
+    # 3. Extract plan length (Plan length: 4 step(s).)
+    plan_len_match = re.search(r"Plan length:\s*(\d+)", output_text)
+    plan_length = int(plan_len_match.group(1)) if plan_len_match else None
 
     # read the CSV into a list of rows
     with open("evaluation.csv", "r", newline="") as f:
@@ -26,13 +36,7 @@ def write_plan_output():
         rows = list(reader)
 
     # append the time value to the last row
-    rows[-1].append(time)
-
-    with open(plan_output_path, "r", newline="") as f:
-        lines = f.readlines()
-
-    # append the plan length to the last row
-    rows[-1].append(len(lines) - 1)
+    rows[-1].extend([planner_time, plan_length])
 
     # write the updated rows back to the CSV
     with open("evaluation.csv", "w", newline="") as f:

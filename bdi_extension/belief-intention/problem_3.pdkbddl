@@ -9,7 +9,7 @@
     (:objects l1 l2 l3 - loc)
 
     (:projection )
-    (:depth 2)
+    (:depth 3)
     (:task valid_generation)
 
     (:init-type complete)
@@ -20,25 +20,24 @@
         (connected l2 l3)
         (connected l3 l2)
 
-        (at alice l1)
-        (at cindy l2)
-        (at bob l1)
+        (at alice l2)
+        (at cindy l1)
+        (at bob l2)
+        (at derek l1)
+
         (capturer alice)
         (scout bob)
         (defender cindy)
+        (defender derek)
+
         (flag-at l3)
-        ; (home-base l1)
-        (hiding-spot-at l2)
-        [b, cindy](hiding-spot-at l2)
-        ; [i, bob](go-to l3)
+        (home-base l1)
+        (hiding-spot-at l3)
     )
 
     (:goal 
-        ; [b, alice](flag-at l3)
-        (hiding-at alice l2)
-        (caught alice)
-        ; (capture-win)
-        ; (at bob l3)
+        (capture-win)
+        [b, alice](hiding-spot-at l3)
     )
 
     (:plan

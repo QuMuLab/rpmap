@@ -1,7 +1,7 @@
 
 (define (domain capture_the_flag)
 
-    (:agents alice bob cindy)
+	(:agents alice bob cindy derek)
     (:requirements :typing)
     (:types loc agent)
     (:constants )
@@ -15,9 +15,9 @@
         {AK}(scout ?ag - agent)
         {AK}(capture-win)
         {AK}(holding-flag ?ag - agent)
+        {AK}(hiding-at ?ag - agent ?l - loc)
+        {AK}(at ?ag - agent ?l - loc)
         (flag-at ?l - loc)
-        (hiding-at ?ag - agent ?l - loc)
-        (at ?ag - agent ?l - loc)
         (hiding-spot-at ?l - loc)        
     )
 
@@ -39,7 +39,7 @@
     )
 
     (:action capture-win
-        :derive-condition   never
+        :derive-condition   (at $agent$ ?l)
         :parameters         (?ag - agent ?l - loc)
         :precondition       (and (capturer ?ag) (holding-flag ?ag) (at ?ag ?l) (not (caught ?ag)) (home-base ?l))
         :effect             (and 
@@ -91,15 +91,6 @@
             [b, ?a2](flag-at ?l1)
         )
     )
-
-    ; (:action share-capturer-agent-location
-    ;     :derive-condition never
-    ;     :parameters         (?a1 ?a2 ?a3 - agent ?l1 ?l2 - loc)
-    ;     :precondition       (and (defender ?a1) (defender ?a2) (at ?a1 ?l1) (at ?a2 ?l1) (capturer ?a3) [b, ?a1](at ?a3 ?l2) (not (caught ?a3)))
-    ;     :effect (and 
-    ;         [b, ?a2](at ?a3 ?l2)
-    ;     )
-    ; )
 
     (:action hide
         :derive-condition never

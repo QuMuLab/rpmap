@@ -666,16 +666,31 @@ def apply_cond_eff(anc_effs, o, derive_condition, agents, depth, predicates, obj
                     # print("----")
     return list(processed_conds - {o}) # already have o
 
+# TODO: clean this up
 def remove_extra_bdi(term):
-    if term:
+    if term.bdi:
         if type(term.bdi) is NegateOnly:
             if not term.bdi.negate_inner_rml:
                 if not term.bdi.nested:
                     term.bdi = None
                 else:
-                    new_nested = deepcopy(term.bdi.nested[1:])
-                    term.bdi = deepcopy(term.bdi.nested[0])
-                    term.bdi.nested = new_nested
+                    new_nested = []
+                    for n in term.bdi.nested:
+                        if type(n.bdi) is NegateOnly:
+                            if not n.bdi.negate_inner_rml:
+                                continue
+                        new_nested.append(deepcopy(n))
+                    term.bdi.nested = new_nested[1:]
+                    term.bdi = deepcopy(new_nested[0])
+        else:
+            if term.bdi.nested:
+                new_nested = []
+                for n in term.bdi.nested:
+                    if type(n) is NegateOnly:
+                        if not n.negate_inner_rml:
+                            continue
+                    new_nested.append(deepcopy(n))
+                term.bdi.nested = new_nested
     return term
 
 def all_rmls(domain, depth):

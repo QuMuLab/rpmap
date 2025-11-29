@@ -1,0 +1,38 @@
+{include:ancillary_effects.pdkbddl}
+{include:ancillary_effects__belief-intention.pdkbddl}
+{include:domain.pdkbddl}
+
+(define (problem paper2)
+
+    (:domain capture_the_flag)
+
+    (:objects l1 l2 l3 - loc)
+
+    (:projection )
+    (:depth 2)
+    (:task valid_generation)
+
+    (:init-type complete)
+    (:init
+
+        (connected l1 l2)
+        (connected l2 l1)
+        (connected l2 l3)
+        (connected l3 l2)
+
+        (at alice l2)
+        (at bob l1)
+        (scout alice)
+        (defender bob)
+        (flag-at l3)
+    )
+
+    (:goal 
+        (caught alice)
+        [b, alice](flag-at l3)
+    )
+
+    (:plan
+    
+    )
+)
