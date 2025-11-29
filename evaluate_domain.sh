@@ -1,6 +1,6 @@
 #!/bin/bash
 
-for ((i=1, j=2; i<=3; i++, j++)); do
+for ((i=1, j=2; i<=4; i++, j++)); do
     echo "Running: python3 evaluate.py \"$1\" $i $j"
     python3 evaluate.py "$1" "$i" "$j"
     echo "Running the planner... $i $j"
