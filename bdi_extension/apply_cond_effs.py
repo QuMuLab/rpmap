@@ -136,7 +136,7 @@ class ApplyCondEff:
                 new_pred.bdi = NegateOnly(True)
         elif mod_p.bdi:
                 if new_pred.bdi:
-                    if type(new_pred.bdi) is NegateOnly and new_pred.always_known:
+                    if (type(new_pred.bdi) is NegateOnly or new_pred.bdi.negate_inner_rml) and new_pred.always_known:
                         if mod_p.bdi.negate_inner_rml:
                             new_pred.bdi.negate()
                             return new_pred
@@ -144,10 +144,21 @@ class ApplyCondEff:
                     if mod_p.nest:
                         mod_p.bdi.agent = Agent(agent, False)
                         new_pred = self.merge_bdi(mod_p, new_pred, old_p)
-                    else:
-                        new_pred.bdi = deepcopy(mod_p.bdi)
-                        new_pred.bdi.agent = deepcopy(mod_p.bdi.agent)
-                        new_pred.bdi.nested = deepcopy(mod_p.bdi.nested)
+                    else:                            
+                        if agent is not None:
+                            mod_p.bdi.agent = Agent(agent, False)
+                        # if new_pred.bdi.negate_inner_rml:
+                        #     # we're adding a BDI term into an "inner negated" term.
+                        #     # we aren't nesting, but we still want to keep that negation.
+                        #     if mod_p.bdi.nested:
+                        #         mod_p.bdi.nested[-1].negate_inner_rml = new_pred.bdi.negate_inner_rml
+                        #     else:
+                        #         mod_p.bdi.negate_inner_rml = new_pred.bdi.negate_inner_rml
+                        if type(new_pred.bdi) is NegateOnly:
+                            new_pred = self.merge_bdi(mod_p, new_pred, old_p)
+                        else:
+                            new_pred.bdi = deepcopy(mod_p.bdi)
+                            new_pred.bdi.nested = deepcopy(mod_p.bdi.nested)
                 else:
                     if new_pred.always_known:
                         # we don't give "always known" predicates BDI terms.
@@ -294,7 +305,10 @@ class ApplyCondEff:
                 if type(terms[i]) is Variable: 
                     terms[i] = Constant(self.assignment[terms[i].name])
             p = Predicate(cons_cond_or_rml.name, *terms)
-            p.always_known = cons_cond_or_rml.always_known
+            for dp in self.predicates:
+                if p.name == dp.name and len(p.terms) == len(dp.terms):
+                    p.always_known = dp.always_known
+                    break
             p.bdi = deepcopy(cons_cond_or_rml.bdi)
             if p.bdi:
                 if p.bdi.agent:
@@ -463,7 +477,7 @@ class ApplyCondEff:
         if type(next_f) is When:
             if type(next_f.effect) is not Predicate:
                 raise NotImplementedError("Handle complex when effects later?")
-            cond = self.create_conds(next_f.condition)
+            cond = self.create_conds(next_f.condition, self.current_agent)
             # also need to do derived conditions here since that might
             # have a matching agent parameter.
             if self.need_awareness:
@@ -644,6 +658,10 @@ def apply_cond_eff(anc_effs, o, derive_condition, agents, depth, predicates, obj
                 if anc_eff_data.check_ant_format(next_f):
                     # print(anc_eff_data.name)
                     # print(f"next cond: {next_f}")
+                    
+                    # if anc_eff_data.name == "mutual-awareness-neg__belief":
+                    #     if str(next_f) == "(when (and (not (not_loves_bob_alice))) (not (PBalice_not_loves_bob_alice)))":
+                    #         print()
                     cons = anc_eff_data.create_consequent(deepcopy(next_f))
                     # cons = list(set(cons))
                     # remove extraneous BDI terms) 
@@ -658,11 +676,14 @@ def apply_cond_eff(anc_effs, o, derive_condition, agents, depth, predicates, obj
                             cons[i] = When(and_cond, And(*eff))
                         else:
                             cons[i] = remove_extra_bdi(cons[i])
+                        cons[i].comment = anc_eff_data.name
                     for c in cons:
                         if check_nesting(c, depth):
                             # if c not in processed_conds and c not in condleft:
                             #     print(c)
                             condleft.append(c)
+                    # if anc_eff_data.name == "mutual-awareness-neg__belief":
+                    #     print()
                     # print("----")
     return list(processed_conds - {o}) # already have o
 
@@ -763,7 +784,7 @@ def apply_cond_effs(anc_effs, domain, problem):
         anc_effs = anc_effs._anceffs
     depth = int(problem.depth[2].value)
     for action in domain.actions:   
-        # if action.name != "suspect-flag-location_bob_l3":
+        # if action.name != "confess_alice_bob_l3":
         #     continue
         for o in action.effect.operands:
             new_preds = apply_cond_eff(anc_effs, o, action.derive_condition, domain._agents, depth, domain.predicates, problem.objects)

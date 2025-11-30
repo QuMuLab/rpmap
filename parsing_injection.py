@@ -394,8 +394,8 @@ if __name__ == "__main__":
     construct_domain_grammar()
     construct_problem_grammar()
     # grab the PDDL
-    base_path = "bdi_extension/belief-intention"
-    pddl_str = "\n".join(read_pdkbddl_file(f"{base_path}/problem_1.pdkbddl"))
+    base_path = "bdi_extension/full-bdi"
+    pddl_str = "\n".join(read_pdkbddl_file(f"{base_path}/problem_3.pdkbddl"))
     # read the lark file
     with open(GRAMMAR_FILE, "r") as f:
         grammar = f.read()
@@ -412,4 +412,4 @@ if __name__ == "__main__":
     write(grounded_dom_path, str(domain))
     write(grounded_prob_path, str(problem))
 
-    # solve(base_path)
+    solve(base_path)

@@ -1,7 +1,7 @@
 
 (define (domain romance)
 
-    (:agents alice bob cindy)
+	(:agents alice bob cindy derek)
     (:requirements :typing)
     (:types loc agent gift)
     (:constants )
@@ -48,12 +48,14 @@
     )
 
     (:action confess
-        :derive-condition   never
+        :derive-condition   (at $agent$ ?l)
         :parameters         (?a1 ?a2 - agent ?l - loc)
         :precondition       (and (at ?a1 ?l) (at ?a2 ?l) (loves ?a1 ?a2) <b, ?a1>(loves ?a2 ?a1))
         :effect             (and 
                                 (when (loves ?a2 ?a1) (together ?a1 ?a2))
+                                (when (loves ?a2 ?a1) [b, ?a1](loves ?a2 ?a1))
                                 (when (!loves ?a2 ?a1) (sad ?a1))
+                                (when (!loves ?a2 ?a1) [b, ?a1](!loves ?a2 ?a1))
                             )
     )
 
@@ -82,7 +84,9 @@
         :precondition       (and [i, ?a1](get-gift-for ?a2) (has-gift ?a1 ?g) (at ?a1 ?l) (at ?a2 ?l))
         :effect             (and 
                                 (when (likes-gift ?a2 ?g) (loves ?a2 ?a1))
+                                (when (likes-gift ?a2 ?g) [b, ?a2](loves ?a2 ?a1))
                                 (when (!likes-gift ?a2 ?g) (!loves ?a2 ?a1))
+                                (when (!likes-gift ?a2 ?g) [b, ?a2](!loves ?a2 ?a1))
                             )
     
     )

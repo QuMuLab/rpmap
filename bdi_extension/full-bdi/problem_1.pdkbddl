@@ -1,4 +1,4 @@
-; {include:ancillary_effects.pdkbddl}
+{include:ancillary_effects.pdkbddl}
 {include:ancillary_effects__full-bdi.pdkbddl}
 {include:domain.pdkbddl}
 
@@ -21,20 +21,15 @@
 
         (at alice l1)
         (at bob l2)
-        (at cindy l2)
-        (feel-chemistry cindy bob)
         (feel-chemistry alice bob)
-        ; (gift-at chocolate l3)
-        ; [b, alice](likes-gift bob chocolate)
-        ; (!likes-gift bob chocolate)
+        (gift-at chocolate l3)
+        [b, alice](likes-gift bob chocolate)
+        (!likes-gift bob chocolate)
     )
 
     (:goal 
-        (rivals alice cindy)
-        ; [b, alice](loves cindy bob)
-        ; [i, alice](retrieve-gift chocolate)
-        ; (sad alice)
-        ;(!loves alice bob)
+        (sad alice)
+        [b, alice](!loves bob alice)
     )
 
     (:plan

@@ -119,7 +119,12 @@ def new_action_str(self):
     if self.precondition is not None:
         operator_str += f"    :precondition ({self.precondition.SYMBOL}{NL_AND_TABS}{NL_AND_TABS.join(map(str, self.precondition.operands))}{NL_AND_TAB})\n"
     if self.effect is not None:
-        operator_str += f"    :effect ({self.effect.SYMBOL}{NL_AND_TABS}{NL_AND_TABS.join(map(str, self.effect.operands))}{NL_AND_TAB})\n"
+        operator_str += f"    :effect ({self.effect.SYMBOL}{NL_AND_TABS}" #{NL_AND_TABS.join(map(str, self.effect.operands))}{NL_AND_TAB})\n"
+        for o in self.effect.operands:
+            operator_str += f"{NL_AND_TABS}{o}"
+            if hasattr(o, "comment"):
+                operator_str += f"; {o.comment}"
+        operator_str += f"{NL_AND_TAB})" + "\n"
     operator_str += ")"
     return operator_str
 
