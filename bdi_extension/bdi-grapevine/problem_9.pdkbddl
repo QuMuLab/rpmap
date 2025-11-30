@@ -1,19 +1,18 @@
 {include:ancillary_effects.pdkbddl}
 {include:domain.pdkbddl}
 
-(define (problem depth_2_agents_3)
+(define (problem depth_3_agents_4)
 
     (:domain grapevine)
 
     (:objects l1 l2 l3 - loc)
 
     (:projection )
-	(:depth 2)
+	(:depth 3)
     (:task valid_generation)
 
     (:init-type complete)
     (:init
-
         (connected l1 l2)
         (connected l2 l1)
         (connected l2 l3)
@@ -22,12 +21,13 @@
         (at alice l1)
         (at bob l2)
         (at cindy l3)
+        (at derek l3)
 
         [b, alice](secret alice)
     )
     (:goal
         (and
-            <b, bob>(secret alice)
+            [b, derek][b, cindy][b, bob](secret alice)
         )  
     )
     (:plan )

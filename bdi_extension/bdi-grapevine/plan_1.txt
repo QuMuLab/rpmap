@@ -1,0 +1,3 @@
+(move_bob_l2_l1 )
+(share_bob_bob_l1 )
+; cost = 2 (unit cost)

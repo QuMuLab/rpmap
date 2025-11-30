@@ -9,27 +9,27 @@ import pddl
 import time
 import time
 import sys
-import re
 
 
-def write_plan_output(dom):
-    output = "planner_output.txt"
+
+def get_num_agents(prob):
+    if prob == 1:
+        return 2
+    elif prob >= 2 and prob <= 8:
+        return 3
+    elif prob == 9:
+        return 4
+    elif prob == 10:
+        return 5
+
+def write_plan_output(dom, prob):
+    time_output_path = "time_output.txt"
+    plan_output_path = os.path.join("bdi_extension", dom, f"plan_{prob}.txt")
     db_path = os.path.join("evaluation", f"{dom}_evaluation.csv")
 
-    with open(output, "r") as f:
-        output_text = f.read()
-    # 1. check if solution was found
-    solution_found = bool(re.search(r"Solution found\.", output_text))
-    if not solution_found:
-        raise ValueError("No plan found!")
-
-    # 2. extract planner time (INFO     Planner time: 0.39s)
-    planner_time_match = re.search(r"Planner time:\s*([0-9.]+)s", output_text)
-    planner_time = float(planner_time_match.group(1)) if planner_time_match else None
-
-    # 3. extract plan length (Plan length: 4 step(s).)
-    plan_len_match = re.search(r"Plan length:\s*(\d+)", output_text)
-    plan_length = int(plan_len_match.group(1)) if plan_len_match else None
+    with open(time_output_path, "r") as f:
+        lines = f.readlines()
+    time = lines[0].strip()[:-1].split(" ")[-1]
 
     # read the CSV into a list of rows
     with open(db_path, "r", newline="") as f:
@@ -37,7 +37,13 @@ def write_plan_output(dom):
         rows = list(reader)
 
     # append the time value to the last row
-    rows[-1].extend([planner_time, plan_length])
+    rows[-1].append(time)
+
+    with open(plan_output_path, "r", newline="") as f:
+        lines = f.readlines()
+
+    # append the plan length to the last row
+    rows[-1].append(len(lines) - 1)
 
     # write the updated rows back to the CSV
     with open(db_path, "w", newline="") as f:
@@ -86,7 +92,7 @@ def eval_single(dom, problem_num, num_agents, parser):
         writer = csv.writer(file)
         writer.writerows([[dom, problem_num, num_agents, problem.depth, num_fluents_before_pre, num_fluents_after_pre, preprocessing_time]])
 
-def evaluate(domain, prob, num_agents):
+def evaluate(domain, prob):
     # --- GENERAL PARSING SETUP ---
     # read the ancillary effects grammar file and add to the main grammar file
     with open("bdi_extension/ancillary_effects.lark", "r") as f:
@@ -107,15 +113,16 @@ def evaluate(domain, prob, num_agents):
     #     writer.writerows([["Domain Name", "Problem Name", "Number of Agents", "Depth", "Number of Fluents before Preprocessing", "Number of Fluents after Preprocessing", "Preprocessing Time", "Solve Time", "Plan Length"]])
 
     # --- MAIN EVALUATION BODY ---
+    num_agents = get_num_agents(prob)
     eval_single(domain, prob, num_agents, parser)
 
 if __name__ == "__main__":
     args = sys.argv[1:]   # everything after the script name
-    if len(args) == 3:
-        args[1] = int(args[1])
-        args[2] = int(args[2])
-        evaluate(*args)
-    elif len(args) == 1:
-        write_plan_output(args[0])
+    args = ["bdi-grapevine", 1, "write-plan"]
+    args[1] = int(args[1]) # problem number (args[0] is the domain name)
+    if args[-1] == "solve":
+        evaluate(*args[:-1])
+    elif args[-1] == "write-plan":
+        write_plan_output(*args[:-1])
     else:
         raise ValueError("Unexpected arguments.")

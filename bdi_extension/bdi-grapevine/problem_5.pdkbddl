@@ -27,7 +27,7 @@
     )
     (:goal
         (and
-            <b, bob>(secret alice)
+            <b, cindy>[b, bob](secret alice)
         )  
     )
     (:plan )

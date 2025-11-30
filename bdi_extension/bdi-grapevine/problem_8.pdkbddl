@@ -24,10 +24,11 @@
         (at cindy l3)
 
         [b, alice](secret alice)
+        !<b, bob>(secret alice)
     )
     (:goal
         (and
-            <b, bob>(secret alice)
+            [b, bob](secret alice)
         )  
     )
     (:plan )
