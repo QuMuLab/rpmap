@@ -12,26 +12,27 @@ import sys
 import re
 
 
-def write_plan_output():
+def write_plan_output(dom):
     output = "planner_output.txt"
+    db_path = os.path.join("evaluation", f"{dom}_evaluation.csv")
 
     with open(output, "r") as f:
         output_text = f.read()
-    # 1. Check if solution was found
+    # 1. check if solution was found
     solution_found = bool(re.search(r"Solution found\.", output_text))
     if not solution_found:
         raise ValueError("No plan found!")
 
-    # 2. Extract planner time (INFO     Planner time: 0.39s)
+    # 2. extract planner time (INFO     Planner time: 0.39s)
     planner_time_match = re.search(r"Planner time:\s*([0-9.]+)s", output_text)
     planner_time = float(planner_time_match.group(1)) if planner_time_match else None
 
-    # 3. Extract plan length (Plan length: 4 step(s).)
+    # 3. extract plan length (Plan length: 4 step(s).)
     plan_len_match = re.search(r"Plan length:\s*(\d+)", output_text)
     plan_length = int(plan_len_match.group(1)) if plan_len_match else None
 
     # read the CSV into a list of rows
-    with open("evaluation.csv", "r", newline="") as f:
+    with open(db_path, "r", newline="") as f:
         reader = csv.reader(f)
         rows = list(reader)
 
@@ -39,7 +40,7 @@ def write_plan_output():
     rows[-1].extend([planner_time, plan_length])
 
     # write the updated rows back to the CSV
-    with open("evaluation.csv", "w", newline="") as f:
+    with open(db_path, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerows(rows)
 
@@ -50,6 +51,7 @@ def get_agents_str(num_agents):
 def eval_single(dom, problem_num, num_agents, parser):
     base_path = os.path.join("bdi_extension", dom)
     domain_path = os.path.join(base_path, "domain.pdkbddl")
+    db_path = os.path.join("evaluation", f"{dom}_evaluation.csv")
     with open(domain_path, "r") as f:
         lines = f.readlines()
 
@@ -80,7 +82,7 @@ def eval_single(dom, problem_num, num_agents, parser):
     write(grounded_dom_path, str(domain))
     write(grounded_prob_path, str(problem))
     preprocessing_time = time.time() - t0
-    with open("evaluation.csv", "a", newline="") as file:
+    with open(db_path, "a", newline="") as file:
         writer = csv.writer(file)
         writer.writerows([[dom, problem_num, num_agents, problem.depth, num_fluents_before_pre, num_fluents_after_pre, preprocessing_time]])
 
@@ -113,7 +115,7 @@ if __name__ == "__main__":
         args[1] = int(args[1])
         args[2] = int(args[2])
         evaluate(*args)
-    elif len(args) == 0:
-        write_plan_output()
+    elif len(args) == 1:
+        write_plan_output(args[0])
     else:
         raise ValueError("Unexpected arguments.")
