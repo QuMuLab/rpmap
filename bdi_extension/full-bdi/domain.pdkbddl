@@ -11,7 +11,7 @@
         {AK}(at ?ag - agent ?l - loc)
         {AK}(gift-at ?g - gift ?l - loc)
         {AK}(together ?a1 ?a2 - agent)
-        {AK}(has-gift ?ag - agent ?g - gift)
+        {AK}(bought-gift ?ag - agent ?g - gift)
         {AK}(feel-chemistry ?a1 ?a2 - agent)
         {AK}(rivals ?a1 ?a2 - agent)
         (get-gift-for ?ag - agent)
@@ -65,7 +65,7 @@
         :precondition       (and [i, ?ag](retrieve-gift ?g) (at ?ag ?l) (gift-at ?g ?l))
         :effect             (and 
                                 (not (gift-at ?g ?l))
-                                (has-gift ?ag ?g)
+                                (bought-gift ?ag ?g)
                                 !<i, ?ag>(retrieve-gift ?g)
                             )
     )
@@ -73,7 +73,7 @@
     (:action gift
         :derive-condition   never
         :parameters         (?a1 ?a2 - agent ?g - gift ?l - loc)
-        :precondition       (and [i, ?a1](get-gift-for ?a2) (has-gift ?a1 ?g) (at ?a1 ?l) (at ?a2 ?l))
+        :precondition       (and [i, ?a1](get-gift-for ?a2) (bought-gift ?a1 ?g) (at ?a1 ?l) (at ?a2 ?l))
         :effect             (and 
                                 (when (likes-gift ?a2 ?g) (loves ?a2 ?a1))
                                 (when (likes-gift ?a2 ?g) [b, ?a2](loves ?a2 ?a1))

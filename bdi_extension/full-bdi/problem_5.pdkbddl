@@ -25,13 +25,16 @@
         (feel-chemistry cindy bob)
         (feel-chemistry alice bob)
         (gift-at chocolate l2)
+        (gift-at teddy_bear l3)
+        [b, alice](likes-gift bob chocolate)
+        [b, cindy](likes-gift bob teddy_bear)
         (!likes-gift bob chocolate)
         (likes-gift bob teddy_bear)
     )
 
     (:goal 
-        (has-gift alice chocolate)
-        (has-gift cindy teddy_bear)
+        (bought-gift alice chocolate)
+        (bought-gift cindy teddy_bear)
         (loves bob cindy)
         (sad alice)
     )

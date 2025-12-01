@@ -23,6 +23,8 @@ R: "r"
 RML_NAME: "rml"
 ADD: "add"
 DEL: "del"
+ADD_SOFT: "add-soft"
+DEL_SOFT: "del-soft"
 TRUE_: "true"
 FALSE_: "false"
 AG: "?ag"
@@ -30,7 +32,7 @@ AGENTS: "agents"
 
 start: all_anceffs [domain] [problem]
 
-cond_types: ADD | DEL
+cond_types: ADD | DEL | ADD_SOFT | DEL_SOFT
 
 var: QMRK NAME
 

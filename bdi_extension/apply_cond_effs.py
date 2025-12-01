@@ -45,7 +45,7 @@ class ApplyCondEff:
         for mod in self.cons_rml:
             next_preds = self.gather_preds(mod, old_p, agent)
             for p in next_preds:
-                if self.cons_cond_type == 'del':
+                if "del" in self.cons_cond_type:
                     p.negated = not p.negated
             # p = self.modify_predicate(old_p, mod, agent)
             # if self.cons_cond_type == 'del':
@@ -122,7 +122,7 @@ class ApplyCondEff:
 
         # if the antecedent has a type "del," then we only want to
         # pass in the "raw" RML, a.k.a. leave the negation at the door.
-        if self.ant_cond_type == 'del':
+        if "del" in self.ant_cond_type:
             new_pred.negated = False
 
         # broadest case: we are just negating the whole thing
@@ -575,11 +575,17 @@ class ApplyCondEff:
         # easiest thing to check first is the cond_type.
         # if the cond_type is 'add', but the predicate is negated, 
         # or vice versa, we know it doesn't match.
-        if self.ant_cond_type == 'add' and next_f.negated or self.ant_cond_type == 'del' and not next_f.negated:
+        if "add" in self.ant_cond_type and next_f.negated or "del" in self.ant_cond_type and not next_f.negated:
             return False
         
         # explained in the docstring
         if self.ant_rml.bdi and not next_f.bdi:
+            return False
+
+        # "soft" adds/deletes allow for cases where the antecedent term has no BDI term and the next
+        # formula term does, and we allow for that term to "pass through." however, hard add/deletes
+        # only return True on a STRICT match.
+        if not self.ant_rml.bdi and next_f.bdi and "soft" not in self.ant_cond_type:
             return False
 
         if (not self.ant_rml.bdi and next_f.bdi) or (not self.ant_rml.bdi and not next_f.bdi):
@@ -655,12 +661,15 @@ def apply_cond_eff(anc_effs, o, derive_condition, agents, depth, predicates, obj
                 anc_eff_data = ApplyCondEff(anc_eff, derive_condition, agents, depth, predicates, objects)
                 # if anc_eff_data.name != "follower-adopt-belief":#not in ["negation-removal", "kd45closure__belief", "kd45-un-closure__belief", "uncertain-firing", "mutual-awareness-pos__belief", "mutual-awareness-neg__belief"]:#"negation-removal", "kd45-un-closure", "uncertain-firing", 
                 #     continue
+
+                # if str(next_f) == "(Dcindy_loves_bob_cindy)":
+                #     print()
                 if anc_eff_data.check_ant_format(next_f):
                     # print(anc_eff_data.name)
                     # print(f"next cond: {next_f}")
                     
-                    # if anc_eff_data.name == "negation-removal":
-                    #     if str(next_f) == "(when (and (Bcindy_likes-gift_bob_chocolate)) (Icindy_retrieve-gift_chocolate))":
+                    # if anc_eff_data.name == "set-love-desire":
+                    # #     if str(next_f) == "(when (and (Bcindy_likes-gift_bob_chocolate)) (Icindy_retrieve-gift_chocolate))":
                     #         print()
                     cons = anc_eff_data.create_consequent(deepcopy(next_f))
                     # cons = list(set(cons))
@@ -784,7 +793,7 @@ def apply_cond_effs(anc_effs, domain, problem):
         anc_effs = anc_effs._anceffs
     depth = int(problem.depth[2].value)
     for action in domain.actions:   
-        # if action.name != "intend-get-gift_cindy_bob":
+        # if action.name != "fall-in-love_cindy_bob_l1":
         #     continue
         for o in action.effect.operands:
             new_preds = apply_cond_eff(anc_effs, o, action.derive_condition, domain._agents, depth, domain.predicates, problem.objects)

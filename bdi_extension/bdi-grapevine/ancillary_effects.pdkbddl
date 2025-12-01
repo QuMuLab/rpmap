@@ -5,7 +5,7 @@
             :poscond ?pos
             :negcond ?neg
             :rml (rml)
-            :type add
+            :type add-soft
         )
         :consequent (
             :poscond ?pos
@@ -19,7 +19,7 @@
             :poscond ?pos
             :negcond ?neg
             :rml (rml)
-            :type add
+            :type add-soft
         )
         :consequent (
             :negcond {!(r) for r in ?pos} + ?neg
@@ -140,7 +140,7 @@
             :negcond ?neg
             :need_awareness true
             :rml (rml)
-            :type add
+            :type add-soft
         )
         :consequent (
             :poscond {[b, ?a](r) for r in ?pos} + {![b, ?a](r) for r in ?neg}
@@ -155,7 +155,7 @@
             :negcond ?neg
             :need_awareness true
             :rml (rml)
-            :type del
+            :type del-soft
         )
         :consequent (
             :poscond {[b, ?a](r) for r in ?pos} + {![b, ?a](r) for r in ?neg}

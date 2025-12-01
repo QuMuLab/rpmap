@@ -10,16 +10,6 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            "justMyCode": false
-        },
-        {
-            "name": "Python Debugger",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "pdkb.planner",
-            "args": [
-                "bdi_testing/witch.pdkbddl"
-            ]
         }
     ]
 }
