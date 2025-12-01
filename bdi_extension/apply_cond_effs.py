@@ -659,8 +659,8 @@ def apply_cond_eff(anc_effs, o, derive_condition, agents, depth, predicates, obj
                     # print(anc_eff_data.name)
                     # print(f"next cond: {next_f}")
                     
-                    # if anc_eff_data.name == "mutual-awareness-neg__belief":
-                    #     if str(next_f) == "(when (and (not (not_loves_bob_alice))) (not (PBalice_not_loves_bob_alice)))":
+                    # if anc_eff_data.name == "negation-removal":
+                    #     if str(next_f) == "(when (and (Bcindy_likes-gift_bob_chocolate)) (Icindy_retrieve-gift_chocolate))":
                     #         print()
                     cons = anc_eff_data.create_consequent(deepcopy(next_f))
                     # cons = list(set(cons))
@@ -784,7 +784,7 @@ def apply_cond_effs(anc_effs, domain, problem):
         anc_effs = anc_effs._anceffs
     depth = int(problem.depth[2].value)
     for action in domain.actions:   
-        # if action.name != "confess_alice_bob_l3":
+        # if action.name != "intend-get-gift_cindy_bob":
         #     continue
         for o in action.effect.operands:
             new_preds = apply_cond_eff(anc_effs, o, action.derive_condition, domain._agents, depth, domain.predicates, problem.objects)

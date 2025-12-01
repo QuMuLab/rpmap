@@ -1,7 +1,7 @@
 
 (define (domain romance)
 
-	(:agents alice bob cindy derek)
+	(:agents alice bob cindy)
     (:requirements :typing)
     (:types loc agent gift)
     (:constants )
@@ -66,6 +66,7 @@
         :effect             (and 
                                 (not (gift-at ?g ?l))
                                 (has-gift ?ag ?g)
+                                !<i, ?ag>(retrieve-gift ?g)
                             )
     )
 

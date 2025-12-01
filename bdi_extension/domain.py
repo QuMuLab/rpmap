@@ -97,6 +97,8 @@ def atomic_formula_term(self, args):
                 p.bdi.negate_inner_rml = not p.bdi.negate_inner_rml
     else:
         p.negated = inner_negation
+    if p.negated is None:
+        p.negated = False
     # p.negated = inner_negation
     return p
 
