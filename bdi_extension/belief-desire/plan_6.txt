@@ -1,0 +1,4 @@
+(move_alice_l1_l2 )
+(adopt-belief_alice_l2 )
+(proselytize_bob_cindy_l2 )
+; cost = 3 (unit cost)
