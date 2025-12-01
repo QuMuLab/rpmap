@@ -1,7 +1,7 @@
 
 (define (domain proselytize)
 
-    (:agents alice bob cindy derek)
+	(:agents alice bob cindy)
     (:requirements :typing)
     (:types loc agent)
     (:constants )
@@ -43,7 +43,7 @@
                                 [b, ?a2][b, ?a1](book-teachings)
                                 (when     
                                     (skeptical ?a2 ?a1)
-                                    ![b, ?a2](book-teachings)
+                                    !<b, ?a2>(book-teachings)
                                 )
                                 (when     
                                     (and

@@ -752,7 +752,7 @@ def all_rmls(domain, depth):
                                 v.bdi.negate()
                             raw.append(v)
                         else:
-                            raw.append(ApplyCondEff.nest_bdi(v, base, base))
+                            raw.append(ApplyCondEff.nest_bdi(v, base, base, False))
                 else:
                     raw.extend(variants)
 

@@ -2,14 +2,14 @@
 {include:ancillary_effects__belief-desire.pdkbddl}
 {include:domain.pdkbddl}
 
-(define (problem depth_2_agents_3)
+(define (problem depth_3_agents_4)
 
     (:domain proselytize)
 
     (:objects l1 l2 - loc)
 
     (:projection )
-    (:depth 2)
+    (:depth 3)
     (:task valid_generation)
 
     (:init-type complete)
@@ -19,17 +19,20 @@
         (connected l2 l1)
 
         (at alice l1)
-        (at bob l2)
+        (at bob l1)
         (at cindy l2)
+        (at derek l2)
 
         (leader alice)
+        (leader bob)
         (book-at l1)
         (follower bob alice)
         (skeptical cindy bob)
     )
 
     (:goal 
-        <d, cindy>[b, bob](!book-teachings)
+        [d, cindy][b, bob](!book-teachings)
+        [b, derek][b, alice][b, bob](book-teachings)
     )
 
     (:plan

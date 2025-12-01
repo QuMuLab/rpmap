@@ -23,13 +23,13 @@
         (at cindy l2)
 
         (leader alice)
-        (book-at l1)
+        (book-at l2)
         (follower bob alice)
-        (skeptical cindy bob)
+        <b, cindy>(book-teachings)
     )
 
     (:goal 
-        <d, cindy>[b, bob](!book-teachings)
+        (follower cindy alice)
     )
 
     (:plan

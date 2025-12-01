@@ -14,7 +14,6 @@
 
     (:init-type complete)
     (:init
-
         (connected l1 l2)
         (connected l2 l1)
 
@@ -23,13 +22,12 @@
         (at cindy l2)
 
         (leader alice)
-        (book-at l1)
-        (follower bob alice)
-        (skeptical cindy bob)
+        (book-at l2)
+        (skeptical bob alice)
     )
 
     (:goal 
-        <d, cindy>[b, bob](!book-teachings)
+        [b, bob](!book-teachings)
     )
 
     (:plan

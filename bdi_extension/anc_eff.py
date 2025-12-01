@@ -88,7 +88,7 @@ class Intention(BDI):
     def __init__(self, negate_inner_rml, hard_bdi, agent):
         super().__init__(negate_inner_rml, hard_bdi, agent)
 
-def instantiate_bdi(bdi_args):
+def instantiate_bdi(bdi_args, ground=True):
     """Instantiate the appropriate BDI class based on the type of BDI term."""
     if not bdi_args:
         return None
@@ -117,15 +117,18 @@ def instantiate_bdi(bdi_args):
                 agent = Agent(bdi[3][1].value, True)
             elif type(bdi[3]) is Token:
                 agent = Agent(bdi[3].value, False)
+            hard_bdi = bdi[0].type == "LSQB"
+            if ground:
+                if negate_inner_rml:
+                    hard_bdi = not hard_bdi
             if bdi_type == "BELIEF":
-                all_bdi.append(Belief(negate_inner_rml, bdi[0].type == "LSQB", agent))
+                all_bdi.append(Belief(negate_inner_rml, hard_bdi, agent))
             elif bdi_type == "DESIRE":
-                all_bdi.append(Desire(negate_inner_rml, bdi[0].type == "LSQB", agent))
+                all_bdi.append(Desire(negate_inner_rml, hard_bdi, agent))
             elif bdi_type == "INTENTION":
-                all_bdi.append(Intention(negate_inner_rml, bdi[0].type == "LSQB", agent))
+                all_bdi.append(Intention(negate_inner_rml, hard_bdi, agent))
         main_bdi = all_bdi[0]
         if len(all_bdi) > 1:
-            print()
             main_bdi.nested = all_bdi[1:]
         return main_bdi
 
@@ -187,7 +190,7 @@ class ModRML:
         if args[0] == Token("EXC", "!"):
             print()
 
-        self.bdi = instantiate_bdi(args[:after_bdi])
+        self.bdi = instantiate_bdi(args[:after_bdi], ground=False)
         if bdi_needs_negation:
             print()
         if self.bdi:
