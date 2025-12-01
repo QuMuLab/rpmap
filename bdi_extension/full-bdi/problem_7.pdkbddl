@@ -25,6 +25,7 @@
         (feel-chemistry cindy bob)
         (feel-chemistry alice bob)
         (gift-at chocolate l2)
+        (gift-at teddy_bear l1)
         [b, alice](likes-gift bob chocolate)
         [b, cindy](likes-gift bob teddy_bear)
         (likes-gift bob chocolate)
@@ -35,7 +36,6 @@
         (bought-gift alice chocolate)
         (bought-gift cindy teddy_bear)
         (together bob alice)
-        (sad cindy)
     )
 
     (:plan

@@ -33,11 +33,10 @@
     )
 
     (:goal 
-        !<i, cindy>(get-gift-for bob)
+        !<i, cindy>(retrieve-gift teddy_bear)
         (bought-gift alice chocolate)
         (bought-gift cindy teddy_bear)
         (together bob cindy)
-        (sad alice)
     )
 
     (:plan
