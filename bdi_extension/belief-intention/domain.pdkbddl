@@ -1,7 +1,7 @@
 
 (define (domain capture_the_flag)
 
-	(:agents alice bob cindy derek evelyn)
+	(:agents alice bob cindy)
     (:requirements :typing)
     (:types loc agent)
     (:constants )
@@ -25,7 +25,8 @@
         :derive-condition   never
         :parameters         (?a - agent ?l1 ?l2 - loc)
         :precondition       (and (at ?a ?l1) (connected ?l1 ?l2) (not (caught ?a)))
-        :effect             (and (at ?a ?l2) (not (at ?a ?l1)))
+        :effect             (and (at ?a ?l2) (not (at ?a ?l1))
+                                (when (hiding-at ?a ?l1) (not (hiding-at ?a ?l1))))
     )
 
     (:action grab-flag

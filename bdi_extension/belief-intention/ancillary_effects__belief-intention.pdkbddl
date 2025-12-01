@@ -8,7 +8,7 @@
             :type add
         )
         :consequent (
-            :poscond ?pos + (capturer ?a1) + (defender ?a2) + (at ?a2 ?l) + (!hiding-at ?a1 ?l)
+            :poscond ?pos + (capturer ?a1) + (defender ?a2) + (at ?a2 ?l) + (!hiding-at ?a1 ?l) + (!capture-win)
             :negcond ?neg
             :rml (caught ?a1)
             :type add
@@ -23,7 +23,7 @@
             :type add
         )
         :consequent (
-            :poscond ?pos + (capturer ?a1) + (defender ?a2) + (at ?a1 ?l) + (!hiding-at ?a1 ?l)
+            :poscond ?pos + (capturer ?a1) + (defender ?a2) + (at ?a1 ?l) + (!hiding-at ?a1 ?l) + (!capture-win)
             :negcond ?neg
             :rml (caught ?a1)
             :type add
@@ -38,7 +38,7 @@
             :type add
         )
         :consequent (
-            :poscond ?pos + (scout ?a1) + (defender ?a2) + (at ?a2 ?l) + (!hiding-at ?a1 ?l)
+            :poscond ?pos + (scout ?a1) + (defender ?a2) + (at ?a2 ?l) + (!hiding-at ?a1 ?l) + (!capture-win)
             :negcond ?neg
             :rml (caught ?a1)
             :type add
@@ -53,7 +53,7 @@
             :type add
         )
         :consequent (
-            :poscond ?pos + (scout ?a1) + (defender ?a2) + (at ?a1 ?l) + (!hiding-at ?a1 ?l)
+            :poscond ?pos + (scout ?a1) + (defender ?a2) + (at ?a1 ?l) + (!hiding-at ?a1 ?l) + (!capture-win)
             :negcond ?neg
             :rml (caught ?a1)
             :type add
@@ -68,9 +68,9 @@
             :type add
         )
         :consequent (
-            :poscond ?pos + (capturer ?a1) + (defender ?a2) + (at ?a2 ?l) + (hiding-at ?a1 ?l) + [b, ?a2](hiding-spot-at ?l)
+            :poscond ?pos + (capturer ?a2) + (defender ?a1) + (at ?a2 ?l) + (hiding-at ?a2 ?l) + [b, ?a1](hiding-spot-at ?l) + (!capture-win)
             :negcond ?neg
-            :rml (caught ?a1)
+            :rml (caught ?a2)
             :type add
         )
     )

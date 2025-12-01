@@ -26,12 +26,14 @@
         (scout bob)
         (defender cindy)
         (flag-at l3)
-        (home-base l1)
+        (home-base l3)
         (hiding-spot-at l2)
+        [b, cindy](hiding-spot-at l2)
     )
 
     (:goal 
-        (hiding-at alice l2)
+        (caught alice)
+        (caught bob)
     )
 
     (:plan

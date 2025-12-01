@@ -19,7 +19,7 @@
         (connected l2 l3)
         (connected l3 l2)
 
-        (at alice l2)
+        (at alice l3)
         (at cindy l1)
         (at bob l2)
         (capturer alice)
@@ -28,10 +28,11 @@
         (flag-at l3)
         (home-base l1)
         (hiding-spot-at l2)
+        [b, bob](hiding-spot-at l2)
     )
 
     (:goal 
-        (hiding-at alice l2)
+        (capture-win)
     )
 
     (:plan

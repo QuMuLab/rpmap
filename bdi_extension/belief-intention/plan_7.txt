@@ -1,0 +1,2 @@
+(move_cindy_l1_l2 )
+; cost = 1 (unit cost)
