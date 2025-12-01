@@ -130,7 +130,7 @@ dmypy.json
 
 # .vscode/launch.json
 
-*.csv
+# *.csv
 
 .problem-cache/
 
