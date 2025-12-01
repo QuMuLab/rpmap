@@ -1,4 +1,0 @@
-(move_cindy_l3_l2 )
-(move_cindy_l2_l1 )
-(share_alice_alice_l1 )
-; cost = 3 (unit cost)
