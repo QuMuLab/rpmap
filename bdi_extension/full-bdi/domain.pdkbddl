@@ -28,15 +28,6 @@
         :effect             (and (at ?a ?l2) (not (at ?a ?l1)))
     )
 
-    ; (:action fall-in-love
-    ;     :derive-condition   (at $agent$ ?l)
-    ;     :parameters         (?a1 ?a2 - agent ?l - loc)
-    ;     :precondition       (and (at ?a1 ?l) (at ?a2 ?l) (feel-chemistry ?a1 ?a2))
-    ;     :effect             (and 
-    ;                             (loves ?a1 ?a2)
-    ;                         )
-    ; )
-
     (:action fall-in-love
         :derive-condition   never
         :parameters         (?a1 ?a2 - agent ?l - loc)

@@ -1,4 +1,4 @@
-; {include:ancillary_effects.pdkbddl}
+{include:ancillary_effects.pdkbddl}
 {include:ancillary_effects__belief-intention.pdkbddl}
 {include:domain.pdkbddl}
 

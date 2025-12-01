@@ -47,21 +47,21 @@
                                 )
                                 (when     
                                     (and
-                                        (not (skeptical ?a2 ?a1))
+                                        (!skeptical ?a2 ?a1)
                                         <b, ?a2>(book-teachings)
                                     )
                                     [b, ?a2](book-teachings)
                                 )
                                 (when     
                                     (and
-                                        (not (skeptical ?a2 ?a1))
+                                        (!skeptical ?a2 ?a1)
                                         <b, ?a2>(book-teachings)
                                     )
                                     (follower ?a2 ?a1)
                                 )
                                 (when     
                                     (and
-                                        (not (skeptical ?a2 ?a1))
+                                        (!skeptical ?a2 ?a1)
                                         !<b, ?a2>(book-teachings)
                                     )
                                     <b, ?a2>(book-teachings)
