@@ -33,7 +33,6 @@
 
     (:goal 
         (caught bob)
-        (capture-win)
     )
 
     (:plan

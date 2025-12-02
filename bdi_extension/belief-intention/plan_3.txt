@@ -1,0 +1,4 @@
+(find-hiding-spot_bob_l2 )
+(share-hiding-spot-location_bob_alice_l2_l2 )
+(hide_alice_cindy_l2_l1 )
+; cost = 3 (unit cost)

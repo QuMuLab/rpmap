@@ -1,0 +1,4 @@
+(move_derek_l2_l1 )
+(move_cindy_l2_l1 )
+(adopt-belief_bob_l1 )
+; cost = 3 (unit cost)

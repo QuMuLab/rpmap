@@ -1,7 +1,7 @@
 
 (define (domain romance)
 
-	(:agents alice bob cindy derek evelyn)
+	(:agents alice bob cindy)
     (:requirements :typing)
     (:types loc agent gift)
     (:constants )
@@ -76,11 +76,9 @@
         :precondition       (and [i, ?a1](get-gift-for ?a2) (bought-gift ?a1 ?g) (at ?a1 ?l) (at ?a2 ?l))
         :effect             (and 
                                 (when (likes-gift ?a2 ?g) (loves ?a2 ?a1))
-                                (when (likes-gift ?a2 ?g) <b, ?a1>(loves ?a2 ?a1))
                                 (when (likes-gift ?a2 ?g) [b, ?a2](loves ?a2 ?a1))
                                 (when (!likes-gift ?a2 ?g) (!loves ?a2 ?a1))
                                 (when (!likes-gift ?a2 ?g) [b, ?a2](!loves ?a2 ?a1))
-                                (when (likes-gift ?a2 ?g) !<b, ?a1>(loves ?a2 ?a1))
                             )
     
     )
