@@ -1,0 +1,16 @@
+INFO     planner time limit: None
+INFO     planner memory limit: None
+
+INFO     Running translator.
+INFO     translator stdin: None
+INFO     translator time limit: None
+INFO     translator memory limit: None
+INFO     translator command line string: /usr/bin/python3 /workspace/downward/builds/release/bin/translate/translate.py bdi_extension/full-bdi/pdkb-domain.pddl bdi_extension/full-bdi/pdkb-problem.pddl --invariant-generation-max-time 10 --sas-file output.sas
+Parsing...
+Parsing domain
+Expected a non-empty block starting with any of the following words: :requirements, :types, :constants, :predicates, :functions, :derived, :action
+Got: [':agents', 'alice', 'bob', 'cindy', 'derek', 'evelyn']
+translate exit code: 31
+
+Driver aborting after translate
+INFO     Planner time: 0.90s

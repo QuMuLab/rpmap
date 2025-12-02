@@ -1,8 +1,8 @@
 #!/bin/bash
 
 for ((i=1; i<=10; i++)); do
-    echo "Running: python3 evaluate.py \"$1\" $i"
-    python3 evaluate.py "$1" "$i" solve
+    # echo "Running: python3 evaluate.py \"$1\" $i"
+    # python3 evaluate.py "$1" "$i" solve
     echo "Running the planner..."
     plan_out=$(lama-first bdi_extension/$1/pdkb-domain.pddl bdi_extension/$1/pdkb-problem.pddl --translate-options --invariant-generation-max-time 10)
     last_line="$(printf "%s\n" "$plan_out" | tail -n 1)"
