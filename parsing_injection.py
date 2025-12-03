@@ -395,7 +395,7 @@ if __name__ == "__main__":
     construct_problem_grammar()
     # grab the PDDL
     base_path = "bdi_extension/full-bdi"
-    pddl_str = "\n".join(read_pdkbddl_file(f"{base_path}/problem_4.pdkbddl"))
+    pddl_str = "\n".join(read_pdkbddl_file(f"{base_path}/problem_1.pdkbddl"))
     # read the lark file
     with open(GRAMMAR_FILE, "r") as f:
         grammar = f.read()

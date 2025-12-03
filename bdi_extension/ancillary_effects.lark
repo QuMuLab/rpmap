@@ -50,7 +50,7 @@ poscond: POSCOND pos_or_neg_cond
 
 negcond: NEGCOND pos_or_neg_cond
 
-atomic_formula_term_list_comp_r: [EXC] bdi* LPAR [EXC] R RPAR
+atomic_formula_term_list_comp_r: [EXC] bdi* [LSQB] LPAR [EXC] R RPAR [RSQB]
 
 list_comp_var: LCRL atomic_formula_term_list_comp_r FOR R IN var RCRL
 

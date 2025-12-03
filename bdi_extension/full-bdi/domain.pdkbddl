@@ -1,7 +1,7 @@
 
 (define (domain romance)
 
-	(:agents alice bob cindy derek evelyn)
+	(:agents alice bob)
     (:requirements :typing)
     (:types loc agent gift)
     (:constants )

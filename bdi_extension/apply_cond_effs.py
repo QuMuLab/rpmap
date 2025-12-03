@@ -48,18 +48,24 @@ class ApplyCondEff:
             for p in next_preds:
                 if "del" in self.cons_cond_type:
                     p.negated = not p.negated
-            # p = self.modify_predicate(old_p, mod, agent)
-            # if self.cons_cond_type == 'del':
-            #     p.negated = not p.negated
             all_preds.extend(next_preds)
         return all_preds
     
     @staticmethod
     def nest_bdi(mod_p, new_pred, old_p, simplify=True):
-        if simplify:
-            # easiest case, they are equal
-            if mod_p.bdi == new_pred.bdi:
-                return old_p
+        if type(new_pred.bdi) is NegateOnly:
+            # we are nesting on top of a negate_only!
+            # take the new BDI term and set the negate_inner_rml.
+            # NOTE: we don't negate the whole term because that would be a negation OUTER to the BDI!
+            # this negation was just already here.
+            if new_pred.bdi.negate_inner_rml:
+                mod_bdi = deepcopy(mod_p.bdi)
+                if mod_bdi.negate_inner_rml:
+                    mod_bdi.negate()
+                else:
+                    mod_bdi.negate_inner_rml = True
+                new_pred.bdi = deepcopy(mod_bdi)
+                return new_pred
         outer_bdi = deepcopy(new_pred.bdi)
         outer_bdi.nested = []
         new_nested = [outer_bdi, *deepcopy(new_pred.bdi.nested)]
@@ -138,7 +144,7 @@ class ApplyCondEff:
         elif mod_p.bdi:
                 if new_pred.bdi:
                     if (type(new_pred.bdi) is NegateOnly or new_pred.bdi.negate_inner_rml) and new_pred.always_known:
-                        if mod_p.bdi.negate_inner_rml:
+                        if type(mod_p.bdi) is NegateOnly and mod_p.bdi.negate_inner_rml:
                             new_pred.bdi.negate()
                             return new_pred
                         return old_p
@@ -164,7 +170,7 @@ class ApplyCondEff:
                     if new_pred.always_known:
                         # we don't give "always known" predicates BDI terms.
                         # however a negation can still happen!
-                        if mod_p.bdi.negate_inner_rml:
+                        if type(mod_p.bdi) is NegateOnly and mod_p.bdi.negate_inner_rml:
                             new_pred.bdi = NegateOnly(True)
                         return new_pred
                     else:
@@ -666,12 +672,12 @@ def apply_cond_eff(anc_effs, o, derive_condition, agents, depth, predicates, obj
                 # if str(next_f) == "(Dcindy_loves_bob_cindy)":
                 #     print()
                 if anc_eff_data.check_ant_format(next_f):
-                    # print(anc_eff_data.name)
-                    # print(f"next cond: {next_f}")
+                    print(anc_eff_data.name)
+                    print(f"next cond: {next_f}")
                     
-                    # if anc_eff_data.name == "set-love-desire":
-                    # #     if str(next_f) == "(when (and (Bcindy_likes-gift_bob_chocolate)) (Icindy_retrieve-gift_chocolate))":
-                    #         print()
+                    if anc_eff_data.name == "mutual-awareness-neg__belief":
+                        if str(next_f) == "(when (and (not (not_at_alice_l1)) (not (Balice_not_loves_bob_alice))) (not (PBalice_not_loves_bob_alice)))":#"(when (and (at_alice_l1) (Balice_not_loves_bob_alice)) (Balice_loves_bob_alice))":
+                            print()
                     cons = anc_eff_data.create_consequent(deepcopy(next_f))
                     # cons = list(set(cons))
                     # remove extraneous BDI terms) 
@@ -689,12 +695,12 @@ def apply_cond_eff(anc_effs, o, derive_condition, agents, depth, predicates, obj
                         cons[i].comment = anc_eff_data.name
                     for c in cons:
                         if check_nesting(c, depth):
-                            # if c not in processed_conds and c not in condleft:
-                            #     print(c)
+                            if c not in processed_conds and c not in condleft:
+                                print(c)
                             condleft.append(c)
                     # if anc_eff_data.name == "mutual-awareness-neg__belief":
                     #     print()
-                    # print("----")
+                    print("----")
     return list(processed_conds - {o}) # already have o
 
 # TODO: clean this up
@@ -707,8 +713,8 @@ def remove_extra_bdi(term):
                 else:
                     new_nested = []
                     for n in term.bdi.nested:
-                        if type(n.bdi) is NegateOnly:
-                            if not n.bdi.negate_inner_rml:
+                        if type(n) is NegateOnly:
+                            if not n.negate_inner_rml:
                                 continue
                         new_nested.append(deepcopy(n))
                     term.bdi.nested = new_nested[1:]

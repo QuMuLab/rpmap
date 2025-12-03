@@ -143,7 +143,7 @@
             :type add-soft
         )
         :consequent (
-            :poscond {[b, ?a](r) for r in ?pos} + {![b, ?a](r) for r in ?neg}
+            :poscond {[b, ?a][(r)] for r in ?pos} + {![b, ?a][(r)] for r in ?neg}
             :rml [b, ?a][(rml)]
             :type add
         )
@@ -158,7 +158,7 @@
             :type del-soft
         )
         :consequent (
-            :poscond {[b, ?a](r) for r in ?pos} + {![b, ?a](r) for r in ?neg}
+            :poscond {[b, ?a][(r)] for r in ?pos} + {![b, ?a][(r)] for r in ?neg}
             :rml ![b, ?a][(rml)]
             :type add
         )
