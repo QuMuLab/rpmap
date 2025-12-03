@@ -1,3 +1,3 @@
-(move_bob_l2_l1 )
-(share_alice_alice_l1 )
+(move_alice_l1_l2 )
+(share_alice_alice_l2 )
 ; cost = 2 (unit cost)

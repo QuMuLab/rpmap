@@ -672,12 +672,12 @@ def apply_cond_eff(anc_effs, o, derive_condition, agents, depth, predicates, obj
                 # if str(next_f) == "(Dcindy_loves_bob_cindy)":
                 #     print()
                 if anc_eff_data.check_ant_format(next_f):
-                    print(anc_eff_data.name)
-                    print(f"next cond: {next_f}")
+                    # print(anc_eff_data.name)
+                    # print(f"next cond: {next_f}")
                     
-                    if anc_eff_data.name == "mutual-awareness-neg__belief":
-                        if str(next_f) == "(when (and (not (not_at_alice_l1)) (not (Balice_not_loves_bob_alice))) (not (PBalice_not_loves_bob_alice)))":#"(when (and (at_alice_l1) (Balice_not_loves_bob_alice)) (Balice_loves_bob_alice))":
-                            print()
+                    # if anc_eff_data.name == "mutual-awareness-neg__belief":
+                    #     if str(next_f) == "(when (and (not (not_at_alice_l1)) (not (Balice_not_loves_bob_alice))) (not (PBalice_not_loves_bob_alice)))":#"(when (and (at_alice_l1) (Balice_not_loves_bob_alice)) (Balice_loves_bob_alice))":
+                    #         print()
                     cons = anc_eff_data.create_consequent(deepcopy(next_f))
                     # cons = list(set(cons))
                     # remove extraneous BDI terms) 
@@ -695,12 +695,12 @@ def apply_cond_eff(anc_effs, o, derive_condition, agents, depth, predicates, obj
                         cons[i].comment = anc_eff_data.name
                     for c in cons:
                         if check_nesting(c, depth):
-                            if c not in processed_conds and c not in condleft:
-                                print(c)
+                            # if c not in processed_conds and c not in condleft:
+                            #     print(c)
                             condleft.append(c)
                     # if anc_eff_data.name == "mutual-awareness-neg__belief":
                     #     print()
-                    print("----")
+                    # print("----")
     return list(processed_conds - {o}) # already have o
 
 # TODO: clean this up
