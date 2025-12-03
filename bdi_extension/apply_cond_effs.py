@@ -8,6 +8,7 @@ from pddl.logic.base import And
 from pddl.logic.predicates import Predicate
 from pddl.logic.effects import When
 from pddl.logic.terms import Constant, Variable
+import time
 
 
 class ApplyCondEff:
@@ -784,6 +785,8 @@ def all_rmls(domain, depth):
     return all_rmls
 
 def apply_cond_effs(anc_effs, domain, problem):
+    start = time.time()
+    timeout = 30*60
     if type(anc_effs) is list:
         new_anc_effs = []
         for e in anc_effs:
@@ -797,6 +800,8 @@ def apply_cond_effs(anc_effs, domain, problem):
         #     continue
         for o in action.effect.operands:
             new_preds = apply_cond_eff(anc_effs, o, action.derive_condition, domain._agents, depth, domain.predicates, problem.objects)
+            if time.time() - start > timeout:
+                raise TimeoutError("Preprocessing exceeded 30-minute time limit.")
             if new_preds:
                 # apply the consequent
                 action.effect._operands.extend(new_preds)
