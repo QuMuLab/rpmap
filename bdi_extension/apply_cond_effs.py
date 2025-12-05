@@ -127,7 +127,7 @@ class ApplyCondEff:
         """Assuming both predicates have the same "base,"
         modify the old predicate according to the attributes of the new predicate"""
 
-        # print(f"\nModifying predicate {old_p} with {mod_p} for agent {agent}")
+        # print(f"\nModifying predicate {old_p} with {mod_p.bdi} ({mod_p.bdi.__class__.__name__}) for agent {agent}")
 
         mod_p = deepcopy(mod_p)
         new_pred = deepcopy(old_p)
@@ -136,6 +136,11 @@ class ApplyCondEff:
         if type(new_pred) is And:
             if len(new_pred._operands) == 1:
                 new_pred = new_pred._operands[0]
+
+        # Special case if we're negating an AK predicate
+        if new_pred.always_known and mod_p.negate_whole_term:
+            new_pred.negated = not new_pred.negated
+            return new_pred
 
         # if the antecedent has a type "del," then we only want to
         # pass in the "raw" RML, a.k.a. leave the negation at the door.
@@ -873,7 +878,8 @@ def all_rmls(domain, depth):
                 # ---- generate BDI variants ----
                 variants = []
 
-                if d == 1:
+                # Only add the negation variation at depth 1 for the non-AK fluents
+                if d == 1 and not rml.always_known:
                     x = deepcopy(rml)
                     x.bdi = NegateOnly(True)
                     variants.append(x)
