@@ -58,10 +58,21 @@ class BDI(ABC):
         return hash((self.negate_inner_rml, self.hard_bdi, self.agent, tuple(self.nested)))
 
     def negate(self, already_negated: bool=False):
+        """Propagate a negation through this BDI term and any nested ones.
+        - Flip ``hard_bdi``/``possible`` status at every level (mirrors how apply_cond_effs
+          treats negations when nesting new BDI wrappers).
+        - Toggle the inner RML negation unless the caller already handled it
+          (``already_negated=True`` is used when the raw predicate was negated upstream).
+        - If we have nesting, push the inner-negation marker down to the deepest term so
+          only one layer carries it, avoiding duplicate `!` flags after nesting/merging.
+        """
+        # Will only be None for NegateOnly terms
         if self.hard_bdi is not None:
             self.hard_bdi = not self.hard_bdi
+        # Toggle inner RML negation unless already handled
         if not already_negated:
             self.negate_inner_rml = not self.negate_inner_rml
+        # Push inner RML negation to deepest nested term
         if self.nested:
             for b in self.nested:
                 b.hard_bdi = not b.hard_bdi

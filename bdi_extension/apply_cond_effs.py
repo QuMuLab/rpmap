@@ -126,9 +126,13 @@ class ApplyCondEff:
     def modify_predicate(self, old_p, mod_p, agent=None):
         """Assuming both predicates have the same "base,"
         modify the old predicate according to the attributes of the new predicate"""
+
+        # print(f"\nModifying predicate {old_p} with {mod_p} for agent {agent}")
+
         mod_p = deepcopy(mod_p)
         new_pred = deepcopy(old_p)
 
+        # Special case for (and (...)) structure
         if type(new_pred) is And:
             if len(new_pred._operands) == 1:
                 new_pred = new_pred._operands[0]
@@ -176,14 +180,18 @@ class ApplyCondEff:
                         new_pred.bdi.nested = deepcopy(mod_p.bdi.nested)
             else:
                 if new_pred.always_known:
-                    # we don't give "always known" predicates BDI terms.
-                    # however a negation can still happen!
-                    if type(mod_p.bdi) is NegateOnly and mod_p.bdi.negate_inner_rml:
-                        new_pred.bdi = NegateOnly(True)
+
+                    # Never have this predicate be NegateOnly, since AK's are either true or false.
+                    new_pred.bdi = None
+
+                    if mod_p.bdi.negate_inner_rml:
+                        new_pred.negated = not new_pred.negated
+
                     return new_pred
                 else:
                     mod_p.bdi.agent = Agent(agent, False)
                     new_pred.bdi = deepcopy(mod_p.bdi)
+        # print(f"Modified predicate to {new_pred}")
         return new_pred
 
     def get_pos_or_neg_cond_term(self, cond, term_type):
