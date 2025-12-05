@@ -759,6 +759,14 @@ def check_nesting(cons, depth):
             return len(cons.bdi.nested) + 1 <= depth
 
 
+def gen_id(cond):
+    """Generate a unique ID for a condition based on its string representation."""
+    # make it a unique 5-character hash
+    import hashlib
+    m = hashlib.md5()
+    m.update(str(hash(cond)).encode("utf-8"))
+    return m.hexdigest()[:8]
+
 def apply_cond_eff(
     anc_effs,
     o,
@@ -770,6 +778,16 @@ def apply_cond_eff(
     effs_to_apply=None,
 ):
     """Adapted from pdlb.actions.Action._expand."""
+
+    mapping = {}
+    debug_condeffs = [
+        "(when (and (not_at_alice_l1) (at_alice_l1) (not_at_bob_l1) (at_bob_l1)) (Bbob_Balice_secret_alice))",
+        "(when (and (not_at_alice_l1) (not_at_bob_l1) (at_bob_l1)) (not (PBbob_Balice_not_secret_alice)))",
+        "(when (and (at_bob_l1) (not_at_bob_l1)) (PBbob_secret_alice))"
+    ]
+
+    o.id = gen_id(o)
+    o.parent = None
     condleft = [o]
     processed_conds = set()
     anc_effs_to_apply = (
@@ -781,6 +799,7 @@ def apply_cond_eff(
         next_f = condleft.pop(0)
         # check the antecedent format
         if next_f not in processed_conds:
+            mapping[str(next_f).strip()] = next_f
             processed_conds.add(next_f)
             for anc_eff in anc_effs_to_apply:
                 anc_eff_data = ApplyCondEff(
@@ -826,15 +845,29 @@ def apply_cond_eff(
                             cons[i] = When(and_cond, And(*eff))
                         else:
                             cons[i] = remove_extra_bdi(cons[i])
-                        cons[i].comment = anc_eff_data.name
+                        cons[i].id = gen_id(cons[i])
+                        cons[i].comment = anc_eff_data.name + f" id({cons[i].id}) / parent({next_f.id})"
                     for c in cons:
                         if check_nesting(c, depth):
                             # if c not in processed_conds and c not in condleft:
                             #     print(c)
+                            c.parent = next_f
                             condleft.append(c)
                     # if anc_eff_data.name == "mutual-awareness-neg__belief":
                     #     print()
                     # print("----")
+
+    for debug_condeff in debug_condeffs:
+        if debug_condeff and debug_condeff.strip() in mapping:
+            debug_condeff = mapping[debug_condeff]
+            print("=====\n")
+            print(f"Original: {debug_condeff}")
+            while debug_condeff.parent:
+                print(f"\nDerived via {debug_condeff.comment.split(' ')[0]} from...\n")
+                debug_condeff = debug_condeff.parent
+                print(debug_condeff)
+            print("\n=====")
+
     return list(processed_conds - {o})  # already have o
 
 
