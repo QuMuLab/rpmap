@@ -220,63 +220,8 @@ class ApplyCondEff:
                 new_preds[i].negated = False
         return new_preds
 
-    def handle_rml_list_comp(self, next_term):
-        """Ground a list-comprehension term to concrete predicates or RMLs."""
-        # recursively iterate through the condition structure
-        if type(next_term) is Predicate:
-            terms = list(next_term.terms)
-            for i in range(len(terms)):
-                if type(terms[i]) is Variable:
-                    terms[i] = Constant(self.assignment[terms[i].name])
-            return [Predicate(next_term.name, *terms)]
-        elif type(next_term) is ModRML:
-            if next_term.bdi:
-                if next_term.bdi.agent.var:
-                    next_term.bdi.agent = Agent(
-                        self.assignment[next_term.bdi.agent.name], False
-                    )
-                if next_term.bdi.nested:
-                    for i in range(len(next_term.bdi.nested)):
-                        if next_term.bdi.nested[i].agent.var:
-                            next_term.bdi.nested[i].agent = Agent(
-                                self.assignment[next_term.bdi.nested[i].agent.name],
-                                False,
-                            )
-            return [next_term]
-        elif type(next_term) is Token:
-            if next_term.type == "PLUS":
-                return []
-        elif type(next_term) is list:
-            if type(next_term) is list:
-                if type(next_term[0]) is list:
-                    if next_term[0][0] == "COMPOUND":
-                        mod_rmls = []
-                        for a in self.agents:
-                            rml = deepcopy(next_term[0][2])
-                            if rml.bdi.agent.var:
-                                if rml.bdi.agent.name == "ag":
-                                    rml.bdi.agent = Agent(a, False)
-                                else:
-                                    rml.bdi.agent = Agent(
-                                        self.assignment[rml.bdi.agent.name], False
-                                    )
-                            for i in range(len(rml.bdi.nested)):
-                                if rml.bdi.nested[i].agent.name == "ag":
-                                    rml.bdi.nested[i].agent = Agent(a, False)
-                                else:
-                                    rml.bdi.nested[i].agent = Agent(
-                                        self.assignment[rml.bdi.nested[i].agent.name],
-                                        False,
-                                    )
-                            mod_rmls.append(rml)
-                        return mod_rmls
-            grounded_terms = []
-            for term in next_term:
-                grounded_terms.extend(self.handle_agent_list_comp(term))
-            return grounded_terms
-
-    def handle_cond_list_comp(self, list_comp_terms, next_cond_or_eff, agent=None):
-        """Resolve list comprehensions that reference antecedent conditions."""
+    def handle_list_comp(self, list_comp_terms, next_cond_or_eff, agent=None):
+        """Resolve list comprehensions."""
         if not self.ant_pos_cond and not self.ant_neg_cond:
             return []
         matching_lc = None
@@ -344,7 +289,7 @@ class ApplyCondEff:
                 )
 
     def gather_preds(self, cons_cond_or_rml, next_cond_or_eff, agent=None):
-        """Recursively collect predicates from a consequent condition or RML."""
+        """Recursively collect predicates from a consequent condition or RML based on the next condition/effect RML it receives."""
         # recursively iterate through the condition structure
         if type(cons_cond_or_rml) is Tree:
             return self.gather_preds(cons_cond_or_rml.children, next_cond_or_eff, agent)
@@ -402,9 +347,7 @@ class ApplyCondEff:
                     if term[0] == "COMPOUND":
                         # we're dealing with a list comprehension
                         cond_preds.extend(
-                            self.handle_cond_list_comp(
-                                term[2:-1], next_cond_or_eff, agent
-                            )
+                            self.handle_list_comp(term[2:-1], next_cond_or_eff, agent)
                         )
                         continue
                     # we're referencing an antecedent condition
@@ -771,9 +714,11 @@ def gen_id(cond):
     """Generate a unique ID for a condition based on its string representation."""
     # make it a unique 5-character hash
     import hashlib
+
     m = hashlib.md5()
     m.update(str(hash(cond)).encode("utf-8"))
     return m.hexdigest()[:8]
+
 
 def apply_cond_eff(
     anc_effs,
@@ -791,7 +736,7 @@ def apply_cond_eff(
     debug_condeffs = [
         "(when (and (not_at_alice_l1) (at_alice_l1) (not_at_bob_l1) (at_bob_l1)) (Bbob_Balice_secret_alice))",
         "(when (and (not_at_alice_l1) (not_at_bob_l1) (at_bob_l1)) (not (PBbob_Balice_not_secret_alice)))",
-        "(when (and (at_bob_l1) (not_at_bob_l1)) (PBbob_secret_alice))"
+        "(when (and (at_bob_l1) (not_at_bob_l1)) (PBbob_secret_alice))",
     ]
 
     o.id = gen_id(o)
@@ -854,7 +799,10 @@ def apply_cond_eff(
                         else:
                             cons[i] = remove_extra_bdi(cons[i])
                         cons[i].id = gen_id(cons[i])
-                        cons[i].comment = anc_eff_data.name + f" id({cons[i].id}) / parent({next_f.id})"
+                        cons[i].comment = (
+                            anc_eff_data.name
+                            + f" id({cons[i].id}) / parent({next_f.id})"
+                        )
                     for c in cons:
                         if check_nesting(c, depth):
                             # if c not in processed_conds and c not in condleft:
