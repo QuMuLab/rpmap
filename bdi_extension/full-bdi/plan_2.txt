@@ -1,5 +1,3 @@
-(move_cindy_l2_l1 )
-(move_bob_l2_l1 )
-(fall-in-love_alice_bob_l1 )
-(fall-in-love_cindy_bob_l1 )
-; cost = 4 (unit cost)
+(move_alice_l1_l2 )
+(fall-in-love_cindy_bob_l2 )
+; cost = 2 (unit cost)
