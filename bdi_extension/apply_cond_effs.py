@@ -13,6 +13,7 @@ import time
 
 class ApplyCondEff:
     def __init__(self, anc_eff, derive_condition, agents, depth, predicates, objects):
+        """Parse ancillary effect structure into antecedent/consequent components."""
         self.derived_cond = derive_condition
         self.agents = agents
         self.depth = depth
@@ -42,6 +43,7 @@ class ApplyCondEff:
         self.cons_cond_type = cons[3][1][0].value
 
     def modify_predicate_apply_cond_type(self, old_p, agent=None):
+        """Apply the consequent's add/del semantics to an existing predicate."""
         all_preds = []
         for mod in self.cons_rml:
             next_preds = self.gather_preds(mod, old_p, agent)
@@ -53,6 +55,7 @@ class ApplyCondEff:
 
     @staticmethod
     def nest_bdi(mod_p, new_pred, old_p, simplify=True):
+        """Nest BDI annotations from ``mod_p`` onto ``new_pred``, simplifying when possible."""
         if type(new_pred.bdi) is NegateOnly:
             # we are nesting on top of a negate_only!
             # take the new BDI term and set the negate_inner_rml.
@@ -107,6 +110,7 @@ class ApplyCondEff:
 
     @staticmethod
     def merge_bdi(mod_p, new_pred, old_p):
+        """Nest or return the original predicate depending on BDI compatibility."""
         # we only want to nest by adding a NEGATIVE BDI term IF
         # the original BDI term is NOT a belief of the corresponding
         # agent (positive or negative)
@@ -183,6 +187,7 @@ class ApplyCondEff:
         return new_pred
 
     def get_pos_or_neg_cond_term(self, cond, term_type):
+        """Extract positive or negative predicates from a condition while normalizing negation."""
         if not cond:
             return []
         new_preds = []
@@ -208,6 +213,7 @@ class ApplyCondEff:
         return new_preds
 
     def handle_rml_list_comp(self, next_term):
+        """Ground a list-comprehension term to concrete predicates or RMLs."""
         # recursively iterate through the condition structure
         if type(next_term) is Predicate:
             terms = list(next_term.terms)
@@ -262,6 +268,7 @@ class ApplyCondEff:
             return grounded_terms
 
     def handle_cond_list_comp(self, list_comp_terms, next_cond_or_eff, agent=None):
+        """Resolve list comprehensions that reference antecedent conditions."""
         if not self.ant_pos_cond and not self.ant_neg_cond:
             return []
         matching_lc = None
@@ -329,6 +336,7 @@ class ApplyCondEff:
                 )
 
     def gather_preds(self, cons_cond_or_rml, next_cond_or_eff, agent=None):
+        """Recursively collect predicates from a consequent condition or RML."""
         # recursively iterate through the condition structure
         if type(cons_cond_or_rml) is Tree:
             return self.gather_preds(cons_cond_or_rml.children, next_cond_or_eff, agent)
@@ -407,11 +415,13 @@ class ApplyCondEff:
             return cond_preds
 
     def create_cond(self, cons_cond, next_cond, agent=None):
+        """Build predicates for a single consequent condition section."""
         if cons_cond:
             return self.gather_preds(cons_cond, next_cond, agent)
         return None
 
     def create_conds(self, next_cond, agent=None):
+        """Create combined positive/negative consequent conditions with proper negation."""
         new_pos_cond = self.create_cond(self.cons_pos_cond, next_cond, agent)
         new_neg_cond = self.create_cond(self.cons_neg_cond, next_cond, agent)
 
@@ -425,6 +435,7 @@ class ApplyCondEff:
         return new_cond
 
     def create_dcond_pred(self, index, agent):
+        """Ground a derived condition template at ``index`` for ``agent``."""
         d_par_copy = deepcopy(self.derived_cond)
         d_par_copy[index] = Constant(agent)
         d_par_copy = d_par_copy[1:-1]
@@ -437,6 +448,7 @@ class ApplyCondEff:
         return p
 
     def get_derived_cond_preds(self, agent=None):
+        """Return grounded derived-condition predicates, optionally for a specific agent."""
         if type(self.derived_cond) is list:
             if self.derived_cond[0] == Token("ALWAYS", "always"):
                 return []
@@ -466,6 +478,7 @@ class ApplyCondEff:
 
     @staticmethod
     def bdi_in_cond(cond):
+        """Check whether a condition contains any non-negation BDI term."""
         if not cond:
             return False
         elif type(cond) is ModRML:
@@ -479,6 +492,7 @@ class ApplyCondEff:
             return False
 
     def vars_to_iterate(self, formula):
+        """Collect non-agent variables that should be grounded during expansion."""
         vars = set()
         if type(formula) is Predicate:
             for t in formula.terms:
@@ -494,6 +508,7 @@ class ApplyCondEff:
         return vars
 
     def agents_to_iterate(self, formula):
+        """Collect agent variables (including nested BDI agents) that require grounding."""
         vars = set()
         if type(formula) is Predicate:
             if formula.bdi:
@@ -525,6 +540,7 @@ class ApplyCondEff:
         return vars
 
     def create_consequent_core(self, next_f):
+        """Generate consequents for a single valuation (optionally within a When)."""
         consequent_preds = []
         # WHEN CONDITION CASE
         if type(next_f) is When:
@@ -571,7 +587,7 @@ class ApplyCondEff:
         return consequent_preds
 
     def create_consequent(self, next_f):
-
+        """Ground any new variables/agents and build consequents for ``next_f``."""
         ant_agents = self.agents_to_iterate(self.ant_rml)
         cons_agents = self.agents_to_iterate(self.cons_pos_cond).union(
             self.agents_to_iterate(self.cons_neg_cond),
@@ -726,6 +742,7 @@ class ApplyCondEff:
 
 
 def check_nesting(cons, depth):
+    """Ensure nested BDI depth in a consequent does not exceed ``depth``."""
     if type(cons) is When:
         return check_nesting(cons.condition, depth) and check_nesting(
             cons.effect, depth
@@ -823,6 +840,7 @@ def apply_cond_eff(
 
 # TODO: clean this up
 def remove_extra_bdi(term):
+    """Strip redundant NegateOnly nesting introduced during expansion."""
     if term.bdi:
         if type(term.bdi) is NegateOnly:
             if not term.bdi.negate_inner_rml:
@@ -850,6 +868,7 @@ def remove_extra_bdi(term):
 
 
 def all_rmls(domain, depth):
+    """Generate all reachable RMLs up to ``depth`` levels of nesting for a domain."""
     # we just said screw it here and compared the strings because of set hashing issues.
     all_rmls = set()
     curr = [deepcopy(p) for p in domain.predicates]
@@ -913,6 +932,7 @@ def all_rmls(domain, depth):
 
 
 def apply_cond_effs(anc_effs, domain, problem):
+    """Apply ancillary effects to every action/init/goal and return updated domain/problem."""
     start = time.time()
     timeout = 30 * 60
     if type(anc_effs) is list:
