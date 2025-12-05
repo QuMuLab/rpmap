@@ -24,14 +24,14 @@
     (:action move
         :derive-condition   never
         :parameters         (?a - agent ?l1 ?l2 - loc)
-        :precondition       (and (at ?a ?l1) (connected ?l1 ?l2) (!caught ?a))
-        :effect             (and (at ?a ?l2) (!at ?a ?l1) (when (hiding-at ?a ?l1) (!hiding-at ?a ?l1)) )
+        :precondition       (and (at ?a ?l1) (connected ?l1 ?l2) (not (caught ?a)))
+        :effect             (and (at ?a ?l2) (not (at ?a ?l1)) (when (hiding-at ?a ?l1) (not (hiding-at ?a ?l1))) )
     )
 
     (:action grab-flag
         :derive-condition   never
         :parameters         (?ag - agent ?l - loc)
-        :precondition       (and (capturer ?ag) (flag-at ?l) (at ?ag ?l) (!caught ?ag) [b, ?ag](flag-at ?l))
+        :precondition       (and (capturer ?ag) (flag-at ?l) (at ?ag ?l) (not (caught ?ag)) [b, ?ag](flag-at ?l))
         :effect             (and 
                                 (!flag-at ?l)
                                 (holding-flag ?ag)
@@ -41,7 +41,7 @@
     (:action capture-win
         :derive-condition   (at $agent$ ?l)
         :parameters         (?ag - agent ?l - loc)
-        :precondition       (and (capturer ?ag) (holding-flag ?ag) (at ?ag ?l) (!caught ?ag) (home-base ?l))
+        :precondition       (and (capturer ?ag) (holding-flag ?ag) (at ?ag ?l) (not (caught ?ag)) (home-base ?l))
         :effect             (and 
                                 (capture-win)
         )
@@ -50,7 +50,7 @@
     (:action find-hiding-spot
         :derive-condition never
         :parameters         (?a - agent ?l - loc)
-        :precondition       (and (scout ?a) (hiding-spot-at ?l) (!caught ?a) (at ?a ?l))
+        :precondition       (and (scout ?a) (hiding-spot-at ?l) (not (caught ?a)) (at ?a ?l))
         :effect (and 
             [b, ?a](hiding-spot-at ?l)
         )
@@ -59,7 +59,7 @@
      (:action find-flag
         :derive-condition never
         :parameters         (?a - agent ?l - loc)
-        :precondition       (and (scout ?a) (flag-at ?l) (!caught ?a) (at ?a ?l))
+        :precondition       (and (scout ?a) (flag-at ?l) (not (caught ?a)) (at ?a ?l))
         :effect (and 
             [b, ?a](flag-at ?l)
         )
@@ -68,7 +68,7 @@
     (:action share-hiding-spot-location
         :derive-condition never
         :parameters         (?a1 ?a2 - agent ?l1 ?l2 - loc)
-        :precondition       (and (scout ?a1) (capturer ?a2) [i, ?a1][b, ?a2](hiding-spot-at ?l1) (!caught ?a1) (!caught ?a2) (at ?a1 ?l2) (at ?a2 ?l2))
+        :precondition       (and (scout ?a1) (capturer ?a2) [i, ?a1][b, ?a2](hiding-spot-at ?l1) (not (caught ?a1)) (not (caught ?a2)) (at ?a1 ?l2) (at ?a2 ?l2))
         :effect (and 
             [b, ?a2](hiding-spot-at ?l1)
         )
@@ -77,7 +77,7 @@
     (:action scout-find-flag
         :derive-condition never
         :parameters         (?ag - agent ?l - loc)
-        :precondition       (and (scout ?ag) (at ?ag ?l) (flag-at ?l) (!caught ?ag))
+        :precondition       (and (scout ?ag) (at ?ag ?l) (flag-at ?l) (not (caught ?ag)))
         :effect (and 
             [b, ?ag](flag-at ?l)
         )
@@ -86,7 +86,7 @@
     (:action share-flag-location
         :derive-condition never
         :parameters         (?a1 ?a2 - agent ?l1 ?l2 - loc)
-        :precondition       (and (scout ?a1) (capturer ?a2) [i, ?a1][b, ?a2](flag-at ?l1) (!caught ?a1) (!caught ?a2) (at ?a1 ?l2) (at ?a2 ?l2))
+        :precondition       (and (scout ?a1) (capturer ?a2) [i, ?a1][b, ?a2](flag-at ?l1) (not (caught ?a1)) (not (caught ?a2)) (at ?a1 ?l2) (at ?a2 ?l2))
         :effect (and 
             [b, ?a2](flag-at ?l1)
         )
@@ -95,7 +95,7 @@
     (:action hide
         :derive-condition never
         :parameters         (?a1 ?a2 - agent ?l1 ?l2 - loc)
-        :precondition       (and (capturer ?a1) (defender ?a2) (!caught ?a1) (at ?a1 ?l1) (at ?a2 ?l2) (connected ?l1 ?l2) [b, ?a1](hiding-spot-at ?l1))
+        :precondition       (and (capturer ?a1) (defender ?a2) (not (caught ?a1)) (at ?a1 ?l1) (at ?a2 ?l2) (connected ?l1 ?l2) [b, ?a1](hiding-spot-at ?l1))
         :effect (and 
             (hiding-at ?a1 ?l1)
         )
