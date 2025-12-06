@@ -874,11 +874,12 @@ def all_rmls(domain, depth):
         for ag in domain._agents:
             agent = Agent(ag, False)
             for rml in curr:
+                rml_d = 0
                 if rml.bdi:
-                    d += 1
+                    rml_d += 1
                     if rml.bdi.nested:
-                        d += len(rml.bdi.nested)
-                if d > depth:
+                        rml_d += len(rml.bdi.nested)
+                if rml_d >= depth:
                     continue
                 # ---- generate BDI variants ----
                 variants = []
@@ -890,7 +891,7 @@ def all_rmls(domain, depth):
                     variants.append(x)
 
                 if not rml.always_known:
-                    for typ in (Belief, Desire, Intention):
+                    for typ in (Belief, Desire):
                         for neg in (False, True):
                             for hard in (True, False):
                                 x = deepcopy(rml)

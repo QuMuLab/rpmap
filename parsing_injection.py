@@ -160,7 +160,12 @@ def create_fluents(domain, problem):
             fluents.add(grounded_p)
     return fluents
 
-def predicates_to_fluents(predicates: list[Predicate], assignment, domain_preds):
+def check_intention_error(f: Predicate, domain):
+    action_names = [a.name for a in domain.actions]
+    if type(f.bdi) is Intention and f.name not in action_names:
+        raise ValueError("Cannot intend a predicate; you can only intend an action.")
+
+def predicates_to_fluents(predicates: list[Predicate], assignment, domain):
     fluents = []
     for p in predicates:
         p = deepcopy(p)
@@ -178,7 +183,7 @@ def predicates_to_fluents(predicates: list[Predicate], assignment, domain_preds)
             f.bdi = p.argument.bdi
             f.negated = (p.argument.negated == True) # become False if it's None
             f.always_known = p.argument.always_known
-            fluents.append(outside_formula_type(f))
+            f = outside_formula_type(f)
         else:
             f = Predicate(p.name, *new_terms)
             if p.bdi:  
@@ -190,7 +195,8 @@ def predicates_to_fluents(predicates: list[Predicate], assignment, domain_preds)
             f.bdi = p.bdi
             f.negated = (p.negated == True) # become False if it's None
             # find the "always known" status by referencing it from the domain predicates
-            for dp in domain_preds:
+            f.always_known = False
+            for dp in domain.predicates:
                 if dp.name == f.name and len(dp.terms) == len(f.terms):
                     f.always_known = dp.always_known
                     break
@@ -203,12 +209,14 @@ def predicates_to_fluents(predicates: list[Predicate], assignment, domain_preds)
                         f.bdi.negate_inner_rml = not f.bdi.negate_inner_rml
                 else:
                     f.bdi = NegateOnly(True)
-            fluents.append(f)
+        if f.bdi:
+            check_intention_error(f, domain)
+        fluents.append(f)
     return fluents
 
 def ground_formula(domain, problem, formula, assignment):
     if type(formula) is Predicate:
-        return predicates_to_fluents([formula], assignment, domain.predicates)[0]
+        return predicates_to_fluents([formula], assignment, domain)[0]
     elif type(formula) is Not:
         p = ground_formula(domain, problem, formula.argument, assignment)
         if type(p) is Predicate:
@@ -239,12 +247,11 @@ def ground_formula(domain, problem, formula, assignment):
         return When(cond, ground_formula(domain, problem, formula.effect, assignment))
 
 
-def create_operators(domain, problem, fluent_dict):
+def create_base_operators(domain, problem, fluent_dict):
     """Create the set of operators by grounding the actions.
     Adapted from the pdkb.pddl.grounder.GroundProblem._create_operators method"""
 
-    operators = set([])
-    action_intention_f = set()
+    operators = set()
 
     for a in domain.actions:
         var_names = [v.name for v in a.parameters]
@@ -257,14 +264,63 @@ def create_operators(domain, problem, fluent_dict):
             else:
                 op_name = a.name
             # TODO: handle other types of formulas?
-            precondition = And(*predicates_to_fluents(a.precondition.operands, assignment, domain.predicates))
+            precondition = And(*predicates_to_fluents(a.precondition.operands, assignment, domain))
             effect = ground_formula(domain, problem, a.effect, assignment) 
-            intend_action_p = Predicate(a.name, *[Constant(assignment[t.name]) for t in a.parameters])
-            intend_action_p.always_known = False
-            intend_action_p.negated = False
+            
+            and_ = And(*[])
+            if type(effect) is And:
+                and_._operands.extend(effect._operands)
+            else:
+                and_._operands.append(effect)
+            effect = and_
+
+            new_a = Action(
+                    op_name,
+                    None,
+                    precondition,
+                    effect
+                )
+            new_a.assignment = assignment
+            if type(a.derive_condition) is list:
+                # have a complex derived condition
+                # need to ensure we handle any variables here
+                dev_cond_copy = deepcopy(a.derive_condition)
+                for i in range(len(dev_cond_copy)):
+                    if type(dev_cond_copy[i]) is list:
+                        if type(dev_cond_copy[i][0]) is list:
+                            if dev_cond_copy[i][0][0].type == "QMRK":
+                                dev_cond_copy[i] = Constant(assignment[dev_cond_copy[i][0][1].value])
+            new_a.derive_condition = dev_cond_copy
+            operators.add(new_a)
+    return operators
+
+def create_intend_action_preds(old_operators, agents, problem):
+    intn_preds = set()
+    # find all intention predicates in the goal or in action preconditions
+    for p in problem.goal:
+        if type(p.bdi) is Intention:
+            ip = deepcopy(p)
+            ip.bdi = None
+            intn_preds.add(ip)
+    for o in old_operators:
+        for p in o.precondition.operands:
+            if type(p.bdi) is Intention:
+                ip = deepcopy(p)
+                ip.bdi = None
+                intn_preds.add(ip)
+
+    operators = set()
+    action_intention_f = set()
+    for o in old_operators:
+        effect = o.effect
+        o_name = o.name.split("_")
+        intend_action_p = Predicate(o_name[0], *[Constant(n) for n in o_name[1:]])
+        intend_action_p.always_known = False
+        intend_action_p.negated = False
+        if intend_action_p in intn_preds:
             all_iaps = []
             action_iaps = []
-            for ag in domain._agents:
+            for ag in agents:
                 iap = deepcopy(intend_action_p)
                 iap.bdi = Intention(True, True, Agent(ag, False))
                 action_iaps.append(iap)
@@ -285,6 +341,7 @@ def create_operators(domain, problem, fluent_dict):
                 iap_c.bdi.negate_inner_rml = False
                 iap_c.bdi.hard_bdi = False
                 all_iaps.append(iap_c)
+    
             and_ = And(*[])
             if type(effect) is And:
                 and_._operands.extend(effect._operands)
@@ -295,40 +352,23 @@ def create_operators(domain, problem, fluent_dict):
 
             action_intention_f.update(all_iaps)
 
-            new_a = Action(
-                    op_name,
-                    None,
-                    precondition,
-                    effect
-                )
-            new_a.assignment = assignment
-            if type(a.derive_condition) is list:
-                # have a complex derived condition
-                # need to ensure we handle any variables here
-                dev_cond_copy = deepcopy(a.derive_condition)
-                for i in range(len(dev_cond_copy)):
-                    if type(dev_cond_copy[i]) is list:
-                        if type(dev_cond_copy[i][0]) is list:
-                            if dev_cond_copy[i][0][0].type == "QMRK":
-                                dev_cond_copy[i] = Constant(assignment[dev_cond_copy[i][0][1].value])
-            new_a.derive_condition = dev_cond_copy
-            operators.add(new_a)
+        new_a = Action(
+            o.name,
+            None,
+            o.precondition,
+            effect
+        )
+        operators.add(new_a)
     return operators, action_intention_f
 
-def ground(domain, problem, path):
-    """Convert this problem into a ground problem."""
 
-    fluents = create_fluents(domain, problem)
-
-    # to avoid creating a bunch new fluent objects, create a dictionary mapping fluent names to their objects
-    # TODO: actually use this dict
-    fluent_dict = {hash(f): f for f in fluents}
-    operators, action_intention_f = create_operators(domain, problem, fluent_dict)
-    fluents.update(action_intention_f)
-
+def ground_init_problem(preds, domain):
     # need to get the always known status for predicates
-    for p in problem.init:
+    for p in preds:
+        if p.bdi:
+            check_intention_error(p, domain)
         for dom_p in domain.predicates:
+            p.always_known = False
             if p.name == dom_p.name:
                 p.always_known = dom_p.always_known
                 break
@@ -341,6 +381,19 @@ def ground(domain, problem, path):
                     p.bdi.negate_inner_rml = not p.bdi.negate_inner_rml
             else:
                 p.bdi = NegateOnly(True)
+
+def ground(domain, problem, path):
+    """Convert this problem into a ground problem."""
+
+    fluents = create_fluents(domain, problem)
+
+    # to avoid creating a bunch new fluent objects, create a dictionary mapping fluent names to their objects
+    # TODO: actually use this dict
+    fluent_dict = {hash(f): f for f in fluents}
+    operators = create_base_operators(domain, problem, fluent_dict)
+
+    # need to get the always known status for predicates
+    ground_init_problem(problem.init, domain)
 
     new_goal = None
     if problem.goal[0] == Token("LPAR", "(") and problem.goal[1] == Token("AND", "and") and \
@@ -352,20 +405,10 @@ def ground(domain, problem, path):
             else:
                 new_goal._operands.append(g)
     goal = new_goal._operands if new_goal else problem.goal
-    for p in goal:
-        for dom_p in domain.predicates:
-            if p.name == dom_p.name:
-                p.always_known = dom_p.always_known
-                break
-        if not p.always_known and p.negated:
-            p.negated = False
-            if p.bdi:
-                if p.bdi.nested:
-                    p.bdi.nested[-1].negate_inner_rml = not p.bdi.nested[-1].negate_inner_rml
-                else:
-                    p.bdi.negate_inner_rml = not p.bdi.negate_inner_rml
-            else:
-                p.bdi = NegateOnly(True)
+    ground_init_problem(goal, domain)
+
+    operators, action_intention_f = create_intend_action_preds(operators, domain._agents, problem)
+    fluents.update(action_intention_f)
     
     grounded_domain = pddl_core.Domain(
         name=domain.name, 
