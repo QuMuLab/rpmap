@@ -1,5 +1,5 @@
 {include:ancillary_effects.pdkbddl}
-{include:ancillary_effects__belief-intention.pdkbddl}
+{include:ancillary_effects__belief-desire-2.pdkbddl}
 {include:domain.pdkbddl}
 
 (define (problem paper2)
@@ -14,25 +14,22 @@
 
     (:init-type complete)
     (:init
+
         (connected l1 l2)
         (connected l2 l1)
         (connected l2 l3)
         (connected l3 l2)
 
-        (at alice l3)
-        (at cindy l1)
-        (at bob l2)
-        (capturer alice)
-        (scout bob)
-        (defender cindy)
+        (at alice l2)
+        (at bob l1)
+        (scout alice)
+        (defender bob)
         (flag-at l3)
-        (home-base l1)
-        (hiding-spot-at l2)
-        [b, bob](hiding-spot-at l2)
     )
 
     (:goal 
-        (capture-win)
+        (caught alice)
+        [b, alice](flag-at l3)
     )
 
     (:plan

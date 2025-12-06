@@ -1,5 +1,5 @@
 {include:ancillary_effects.pdkbddl}
-{include:ancillary_effects__belief-intention.pdkbddl}
+{include:ancillary_effects__belief-desire-2.pdkbddl}
 {include:domain.pdkbddl}
 
 (define (problem paper2)
@@ -32,7 +32,6 @@
     )
 
     (:goal 
-        (caught alice)
         (caught bob)
     )
 

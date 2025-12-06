@@ -869,13 +869,17 @@ def all_rmls(domain, depth):
     curr = [deepcopy(p) for p in domain.predicates]
 
     for d in range(1, depth + 1):
-
         # Generate raw expansions
         raw = []
         for ag in domain._agents:
             agent = Agent(ag, False)
             for rml in curr:
-
+                if rml.bdi:
+                    d += 1
+                    if rml.bdi.nested:
+                        d += len(rml.bdi.nested)
+                if d > depth:
+                    continue
                 # ---- generate BDI variants ----
                 variants = []
 

@@ -1,10 +1,10 @@
 {include:ancillary_effects.pdkbddl}
-{include:ancillary_effects__belief-intention.pdkbddl}
+;{include:ancillary_effects__belief-intention.pdkbddl}
 {include:domain.pdkbddl}
 
 (define (problem paper2)
 
-    (:domain capture_the_flag)
+    (:domain travel)
 
     (:objects l1 l2 l3 - loc)
 
@@ -20,16 +20,13 @@
         (connected l2 l3)
         (connected l3 l2)
 
-        (at alice l2)
-        (at bob l1)
-        (scout alice)
-        (defender bob)
-        (flag-at l3)
+        (at alice l1)
+        [i, alice](move alice l1 l2)
     )
 
     (:goal 
-        (caught alice)
-        [b, alice](flag-at l3)
+        (at alice l2)
+        !<i, alice>(move alice l1 l2)
     )
 
     (:plan

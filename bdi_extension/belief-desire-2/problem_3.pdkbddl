@@ -1,5 +1,5 @@
 {include:ancillary_effects.pdkbddl}
-{include:ancillary_effects__belief-intention.pdkbddl}
+{include:ancillary_effects__belief-desire-2.pdkbddl}
 {include:domain.pdkbddl}
 
 (define (problem paper2)
@@ -28,12 +28,10 @@
         (flag-at l3)
         (home-base l1)
         (hiding-spot-at l2)
-        [b, cindy](hiding-spot-at l2)
     )
 
     (:goal 
         (hiding-at alice l2)
-        (caught alice)
     )
 
     (:plan

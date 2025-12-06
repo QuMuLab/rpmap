@@ -5,7 +5,7 @@ import pddl
 import sys
 import time
 from bdi_extension.domain import construct_domain_grammar
-from bdi_extension.anc_eff import Agent, NegateOnly
+from bdi_extension.anc_eff import Agent, NegateOnly, Intention
 from lark import Lark
 from lark.visitors import Transformer
 from bdi_extension.parsing_utils import *
@@ -244,6 +244,7 @@ def create_operators(domain, problem, fluent_dict):
     Adapted from the pdkb.pddl.grounder.GroundProblem._create_operators method"""
 
     operators = set([])
+    action_intention_f = set()
 
     for a in domain.actions:
         var_names = [v.name for v in a.parameters]
@@ -257,11 +258,43 @@ def create_operators(domain, problem, fluent_dict):
                 op_name = a.name
             # TODO: handle other types of formulas?
             precondition = And(*predicates_to_fluents(a.precondition.operands, assignment, domain.predicates))
-            effect = ground_formula(domain, problem, a.effect, assignment)  
-            if type(effect) is not And:
-                and_ = And(*[])
+            effect = ground_formula(domain, problem, a.effect, assignment) 
+            intend_action_p = Predicate(a.name, *[Constant(assignment[t.name]) for t in a.parameters])
+            intend_action_p.always_known = False
+            intend_action_p.negated = False
+            all_iaps = []
+            action_iaps = []
+            for ag in domain._agents:
+                iap = deepcopy(intend_action_p)
+                iap.bdi = Intention(True, True, Agent(ag, False))
+                action_iaps.append(iap)
+                all_iaps.append(iap)
+                # these are for the predicates to add to the domain.
+                # we're adding them with the intention already nested,
+                # because we don't allow other modalities on them
+                # (although other modalities can be nested on top).
+                # add version with no negation
+                iap_c = deepcopy(iap)
+                iap_c.bdi.negate_inner_rml = False
+                all_iaps.append(iap_c)
+                # add versions with possible intention
+                iap_c = deepcopy(iap)
+                iap_c.bdi.hard_bdi = False
+                all_iaps.append(iap_c)
+                iap_c = deepcopy(iap)
+                iap_c.bdi.negate_inner_rml = False
+                iap_c.bdi.hard_bdi = False
+                all_iaps.append(iap_c)
+            and_ = And(*[])
+            if type(effect) is And:
+                and_._operands.extend(effect._operands)
+            else:
                 and_._operands.append(effect)
-                effect = and_
+            and_._operands.extend(action_iaps)
+            effect = and_
+
+            action_intention_f.update(all_iaps)
+
             new_a = Action(
                     op_name,
                     None,
@@ -280,7 +313,7 @@ def create_operators(domain, problem, fluent_dict):
                                 dev_cond_copy[i] = Constant(assignment[dev_cond_copy[i][0][1].value])
             new_a.derive_condition = dev_cond_copy
             operators.add(new_a)
-    return operators
+    return operators, action_intention_f
 
 def ground(domain, problem, path):
     """Convert this problem into a ground problem."""
@@ -290,7 +323,8 @@ def ground(domain, problem, path):
     # to avoid creating a bunch new fluent objects, create a dictionary mapping fluent names to their objects
     # TODO: actually use this dict
     fluent_dict = {hash(f): f for f in fluents}
-    operators = create_operators(domain, problem, fluent_dict)
+    operators, action_intention_f = create_operators(domain, problem, fluent_dict)
+    fluents.update(action_intention_f)
 
     # need to get the always known status for predicates
     for p in problem.init:
@@ -394,7 +428,7 @@ if __name__ == "__main__":
     construct_domain_grammar()
     construct_problem_grammar()
     # grab the PDDL
-    base_path = "bdi_extension/full-bdi"
+    base_path = "bdi_extension/belief-intention"
     pddl_str = "\n".join(read_pdkbddl_file(f"{base_path}/problem_1.pdkbddl"))
     # read the lark file
     with open(GRAMMAR_FILE, "r") as f:
@@ -407,6 +441,7 @@ if __name__ == "__main__":
     grounded_prob_path = f"{base_path}/pdkb-problem.pddl"
     anc_effs, domain, problem = (result[0].children, *ground(result[1], result[2], grounded_dom_path))
     domain, problem = apply_cond_effs(anc_effs, domain, problem)
+
     pddl.core.Domain.grounded_print = True
     pddl.core.Action.grounded_print = True
     write(grounded_dom_path, str(domain))
