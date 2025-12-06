@@ -742,6 +742,7 @@ def apply_cond_eff(
         "(when (and (not_at_alice_l1) (at_alice_l1) (not_at_bob_l1) (at_bob_l1)) (Bbob_Balice_secret_alice))",
         "(when (and (not_at_alice_l1) (not_at_bob_l1) (at_bob_l1)) (not (PBbob_Balice_not_secret_alice)))",
         "(when (and (at_bob_l1) (not_at_bob_l1)) (PBbob_secret_alice))",
+        "(when (and (at_alice_l2) (not (not_loves_alice_bob)) (not (together_alice_bob)) (not (together_cindy_bob))) (rivals_alice_cindy))"
     ]
 
     o.id = gen_id(o)
