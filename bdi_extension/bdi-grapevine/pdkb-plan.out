@@ -11,7 +11,7 @@ PDDL problem description loaded:
 	Domain: GRAPEVINE
 	Problem: GRAPEVINE
 	#Actions: 12
-	#Fluents: 34
+	#Fluents: 60
 Goals found: 1
 Goals_Edges found: 1
 Starting search with 1-BFWS...
@@ -19,9 +19,9 @@ Starting search with 1-BFWS...
 --[1 / 5]--
 --[0 / 0]--
 --[0 / 5]--
-Total time: 6.10002e-05
-Nodes generated during search: 8
+Total time: 9.89999e-05
+Nodes generated during search: 7
 Nodes expanded during search: 2
 Plan found with cost: 2
-Fast-BFS search completed in 6.10002e-05 secs
+Fast-BFS search completed in 9.89999e-05 secs
 Done!

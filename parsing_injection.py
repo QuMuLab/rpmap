@@ -309,10 +309,10 @@ def create_base_operators(domain, problem, fluent_dict):
             operators.add(new_a)
     return operators
 
-def create_intend_action_preds(old_operators, agents, problem):
+def create_intend_action_preds(old_operators, agents, goal):
     intn_preds = set()
     # find all intention predicates in the goal or in action preconditions
-    for p in problem.goal:
+    for p in goal:
         if type(p.bdi) is Intention:
             ip = deepcopy(p)
             ip.bdi = None
@@ -423,7 +423,7 @@ def ground(domain, problem, path):
     goal = new_goal._operands if new_goal else problem.goal
     ground_init_problem(goal, domain)
 
-    operators, action_intention_f = create_intend_action_preds(operators, domain._agents, problem)
+    operators, action_intention_f = create_intend_action_preds(operators, domain._agents, goal)
     fluents.update(action_intention_f)
     
     grounded_domain = pddl_core.Domain(
@@ -443,8 +443,7 @@ def ground(domain, problem, path):
         domain.requirements,
         problem.objects,
         problem.init,
-        new_goal if new_goal else problem.goal,
-        # problem.goal,
+        goal,
         problem.metric,
         depth=problem.depth,
         task=problem.task,
@@ -487,8 +486,8 @@ if __name__ == "__main__":
     construct_domain_grammar()
     construct_problem_grammar()
     # grab the PDDL
-    base_path = "bdi_extension/full-bdi-1"
-    pddl_str = "\n".join(read_pdkbddl_file(f"{base_path}/problem_7.pdkbddl"))
+    base_path = "bdi_extension/bdi-grapevine"
+    pddl_str = "\n".join(read_pdkbddl_file(f"{base_path}/problem_1.pdkbddl"))
     # read the lark file
     with open(GRAMMAR_FILE, "r") as f:
         grammar = f.read()

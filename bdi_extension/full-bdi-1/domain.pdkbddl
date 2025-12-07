@@ -24,7 +24,7 @@
         :derive-condition   never
         :parameters         (?a - agent ?l1 ?l2 - loc)
         :precondition       (and (at ?a ?l1) (connected ?l1 ?l2) [i, ?a](move ?a ?l1 ?l2) (!defeated ?a))
-        :effect             (and (at ?a ?l2) (not (at ?a ?l1)))
+        :effect             (and (at ?a ?l2) (!at ?a ?l1))
     )
 
     (:action parrot-scout

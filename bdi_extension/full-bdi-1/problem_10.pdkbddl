@@ -9,7 +9,7 @@
     (:objects ship island base - loc jewelry coins - treasure)
 
     (:projection )
-    (:depth 2)
+    (:depth 3)
     (:task valid_generation)
 
     (:init-type complete)
