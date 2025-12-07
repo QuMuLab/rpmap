@@ -1,4 +1,4 @@
-;{include:ancillary_effects.pdkbddl}
+{include:ancillary_effects.pdkbddl}
 {include:ancillary_effects__belief-intention.pdkbddl}
 {include:domain.pdkbddl}
 
@@ -18,11 +18,15 @@
         (connected ship island)
         (at alice ship)
         (at bob island)
-        (explorer alice)
-        (enemies alice bob)
+        (pirate alice)
+        (enemy bob)
         (treasure-at jewelry island)
         (has-parrot alice)
+
         (!got-treasure alice jewelry)
+        (!defeated alice)
+        (!defeated bob)
+
         !<i, alice>(fight alice alice island)
         [d, alice](got-treasure alice jewelry)
         (stronger alice bob)

@@ -38,9 +38,24 @@
             :type add
         )
         :consequent (
-            :poscond ?pos + (at ?a2 ?l) + (enemies ?a1 ?a2)
+            :poscond ?pos + (at ?a2 ?l) + (enemy ?a2)
             :negcond ?neg
             :rml [i, ?a1](fight ?a1 ?a2 ?l)
+            :type add
+        )
+    )
+    (:anceff enemy-flee
+        :parameters (?a1 ?a2 - agent ?l1 ?l2 - loc)
+        :antecedent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml [b, ?a1](defeated ?a2)
+            :type add
+        )
+        :consequent (
+            :poscond ?pos + (enemy ?a1) + (enemy ?a2) + (at ?a1 ?l1) + (connected ?l1 ?l2) + (enemy-base ?l2)
+            :negcond ?neg
+            :rml [i, ?a1](move ?a1 ?l1 ?l2)
             :type add
         )
     )

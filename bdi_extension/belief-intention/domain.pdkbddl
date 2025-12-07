@@ -1,7 +1,7 @@
 
 (define (domain pirates)
 
-	(:agents alice bob)
+	(:agents alice bob cindy)
     (:requirements :typing :universal-preconditions)
     (:types loc agent treasure)
     (:constants )
@@ -11,18 +11,19 @@
         {AK}(connected ?l1 ?l2 - loc)
         {AK}(treasure ?t - treasure)
         {AK}(stronger ?a1 ?a2 - agent)
-        {AK}(enemies ?a1 ?a2 - agent)
-        {AK}(defeated ?a - agent)
+        {AK}(enemy ?a - agent)
+        (defeated ?a - agent)
         {AK}(has-parrot ?a - agent)
-        {AK}(explorer ?a - agent)
+        {AK}(pirate ?a - agent)
         (treasure-at ?t - treasure ?l - loc)
         (got-treasure ?a - agent ?t - treasure)
+        {AK}(enemy-base ?l - loc)
     )
 
     (:action move
         :derive-condition   never
         :parameters         (?a - agent ?l1 ?l2 - loc)
-        :precondition       (and (at ?a ?l1) (connected ?l1 ?l2) [i, ?a](move ?a ?l1 ?l2) (!defeated ?a) (explorer ?a))
+        :precondition       (and (at ?a ?l1) (connected ?l1 ?l2) [i, ?a](move ?a ?l1 ?l2) (!defeated ?a) (pirate ?a))
         :effect             (and (at ?a ?l2) (not (at ?a ?l1)))
     )
 
@@ -36,7 +37,7 @@
     (:action fight
         :derive-condition   (at $agent$ ?l)
         :parameters         (?a1 ?a2 - agent ?l - loc)
-        :precondition       (and (at ?a1 ?l) (at ?a2 ?l) (enemies ?a1 ?a2) [i, ?a1](fight ?a1 ?a2 ?l))
+        :precondition       (and (at ?a1 ?l) (at ?a2 ?l) (pirate ?a1) (enemy ?a2) [i, ?a1](fight ?a1 ?a2 ?l) (!defeated ?a1))
         :effect             (and (when (stronger ?a1 ?a2)(defeated ?a2))
                                  (when (stronger ?a2 ?a1)(defeated ?a1))
                             )
@@ -48,6 +49,7 @@
         :precondition       (and (at ?a ?l) (treasure-at ?t ?l) [i, ?a](search-for-treasure ?a ?t ?l) (!defeated ?a) (forall (?ag - agent) !<i, ?a>(fight ?a ?ag ?l)))
         :effect             (and (got-treasure ?a ?t))
     )
+
 
 
 )

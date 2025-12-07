@@ -1,0 +1,5 @@
+(parrot-scout_alice_jewelry_ship_island )
+(move_alice_ship_island )
+(fight_alice_bob_island )
+(search-for-treasure_alice_jewelry_island )
+; cost = 4 (unit cost)
