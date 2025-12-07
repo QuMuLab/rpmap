@@ -1,0 +1,59 @@
+Solving...
+/home/becca/pdkb-planning/pdkb/planners/bfws --domain bdi_extension/full-bdi/pdkb-domain.pddl  --problem bdi_extension/full-bdi/pdkb-problem.pddl --output bdi_extension/full-bdi/pdkb-plan.txt --1-BFWS 1
+
+
+task contains conditional effects. turning off state domination.
+
+ --- OK.
+ Match tree built with 15 nodes.
+
+PDDL problem description loaded: 
+	Domain: ROMANCE
+	Problem: ROMANCE
+	#Actions: 15
+	#Fluents: 59
+Goals found: 1
+Goals_Edges found: 1
+Starting search with 1-BFWS...
+Total time: 2.29899e-05
+Nodes generated during search: 0
+Nodes expanded during search: 0
+Plan found with cost: NOTFOUND
+Fast-BFS search completed in 2.29899e-05 secs
+/home/becca/pdkb-planning/pdkb/planners/bfws --domain bdi_extension/full-bdi/pdkb-domain.pddl  --problem bdi_extension/full-bdi/pdkb-problem.pddl --output bdi_extension/full-bdi/pdkb-plan.txt --BFWS-f5 1 --max_novelty 1
+
+
+task contains conditional effects. turning off state domination.
+
+ --- OK.
+ Match tree built with 15 nodes.
+
+PDDL problem description loaded: 
+	Domain: ROMANCE
+	Problem: ROMANCE
+	#Actions: 15
+	#Fluents: 59
+Goals found: 1
+Goals_Edges found: 1
+Starting search with BFWS-f5...
+Total time: 2.20072e-05
+Nodes generated during search: 0
+Nodes expanded during search: 0
+Plan found with cost: NOTFOUND
+Fast-BFS search completed in 2.20072e-05 secs
+Starting search with 1-BFWS...
+Total time: 1.89885e-05
+Nodes generated during search: 0
+Nodes expanded during search: 0
+Plan found with cost: NOTFOUND
+Fast-BFS search completed in 1.89885e-05 secs
+Starting search with BFWS(novel,land,h_(add)ff)...
+Landmarks found: 1
+Landmarks_Edges found: 1
+--[1 / 4294967295]--
+Total time: 1.80022e-05
+Nodes generated during search: 1
+Nodes expanded during search: 0
+Plan found with cost: NOTFOUND
+BFS search completed in 1.80022e-05 secs
+Done!

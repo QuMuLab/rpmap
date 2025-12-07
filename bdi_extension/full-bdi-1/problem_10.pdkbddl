@@ -1,0 +1,67 @@
+{include:ancillary_effects.pdkbddl}
+{include:ancillary_effects__full-bdi-1.pdkbddl}
+{include:domain.pdkbddl}
+
+(define (problem paper2)
+
+    (:domain pirates)
+
+    (:objects ship island base - loc jewelry coins - treasure)
+
+    (:projection )
+    (:depth 2)
+    (:task valid_generation)
+
+    (:init-type complete)
+    (:init
+
+        (connected ship island)
+        (connected island base)
+        (enemy-base base)
+        (at alice ship)
+        (at bob ship)
+        (at cindy island)
+        (at derek island)
+        (at evelyn island)
+        (pirate alice)
+        (pirate bob)
+        (enemy cindy)
+        (enemy derek)
+        (enemy evelyn)
+        (treasure-at jewelry island)
+        (has-parrot alice)
+
+        (!got-treasure alice jewelry)
+        (!got-treasure bob jewelry)
+        (!defeated alice)
+        (!defeated bob)
+        (!defeated cindy)
+        (!defeated derek)
+
+        !<i, alice>(fight alice alice island)
+        !<i, alice>(fight alice bob island)
+        !<i, bob>(fight bob bob island)
+        !<i, bob>(fight bob alice island)
+
+        [d, alice](got-treasure alice jewelry)
+        [d, bob](got-treasure bob jewelry)
+        (stronger alice cindy)
+        (stronger alice derek)
+        (stronger alice evelyn)
+        (stronger cindy bob)
+        (stronger derek bob)
+        (stronger evelyn bob)
+    )
+
+    (:goal 
+        (defeated cindy)
+        (defeated derek)
+        (defeated evelyn)
+        (defeated bob)
+        (got-treasure alice jewelry)
+    )
+
+    (:plan
+    
+    )
+)

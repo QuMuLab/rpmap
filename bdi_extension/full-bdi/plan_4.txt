@@ -1,8 +1,0 @@
-(fall-in-love_cindy_bob_l2 )
-(move_bob_l2_l1 )
-(fall-in-love_alice_bob_l1 )
-(intend-get-gift_cindy_bob )
-(move_alice_l1_l2 )
-(intend-get-gift_alice_bob )
-(get-gift_alice_chocolate_l2 )
-; cost = 7 (unit cost)

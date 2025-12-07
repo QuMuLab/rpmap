@@ -1,0 +1,39 @@
+{include:ancillary_effects.pdkbddl}
+{include:ancillary_effects__full-bdi.pdkbddl}
+{include:domain.pdkbddl}
+
+(define (problem paper2)
+
+    (:domain romance)
+
+    (:objects l1 l2 l3 - loc chocolate - gift)
+
+    (:projection )
+    (:depth 2)
+    (:task valid_generation)
+
+    (:init-type complete)
+    (:init
+        (connected l1 l2)
+        (connected l2 l1)
+        (connected l2 l3)
+        (connected l3 l2)
+
+        (at alice l1)
+        (at bob l2)
+        (at cindy l2)
+        (feel-chemistry cindy bob)
+        (feel-chemistry alice bob)
+        (gift-at chocolate l2)
+        [b, alice](likes-gift bob chocolate)
+    )
+
+    (:goal 
+        [i, cindy](get-gift-for bob)
+        (bought-gift alice chocolate)
+    )
+
+    (:plan
+    
+    )
+)

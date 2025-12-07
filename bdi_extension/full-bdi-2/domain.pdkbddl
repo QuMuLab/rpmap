@@ -1,0 +1,86 @@
+
+(define (domain romance)
+
+	(:agents alice bob cindy)
+    (:requirements :typing)
+    (:types loc agent gift)
+    (:constants )
+
+    (:predicates
+        {AK}(connected ?l1 ?l2 - loc)
+        {AK}(at ?ag - agent ?l - loc)
+        {AK}(gift-at ?g - gift ?l - loc)
+        {AK}(together ?a1 ?a2 - agent)
+        {AK}(bought-gift ?ag - agent ?g - gift)
+        {AK}(feel-chemistry ?a1 ?a2 - agent)
+        (rivals ?a1 ?a2 - agent)
+        (get-gift-for ?ag - agent)
+        (retrieve-gift ?g - gift)
+        (likes-gift ?ag - agent ?g - gift)
+        (loves ?a1 ?a2 - agent)
+        (sad ?ag - agent)
+    )
+
+    (:action move
+        :derive-condition   never
+        :parameters         (?a - agent ?l1 ?l2 - loc)
+        :precondition       (and (at ?a ?l1) (connected ?l1 ?l2))
+        :effect             (and (at ?a ?l2) (not (at ?a ?l1)))
+    )
+
+    (:action fall-in-love
+        :derive-condition   never
+        :parameters         (?a1 ?a2 - agent ?l - loc)
+        :precondition       (and (at ?a1 ?l) (at ?a2 ?l) (feel-chemistry ?a1 ?a2))
+        :effect             (and
+                                (loves ?a1 ?a2)
+                                (forall (?ag - agent) (when (at ?ag ?l) [b, ?ag](loves ?a1 ?a2)))
+                            )
+    )
+
+    (:action confess
+        :derive-condition   (at $agent$ ?l)
+        :parameters         (?a1 ?a2 - agent ?l - loc)
+        :precondition       (and (at ?a1 ?l) (at ?a2 ?l) (loves ?a1 ?a2) <b, ?a1>(loves ?a2 ?a1))
+        :effect             (and
+                                (when (loves ?a2 ?a1) (together ?a1 ?a2))
+                                (when (loves ?a2 ?a1) [b, ?a1](loves ?a2 ?a1))
+                                (when (!loves ?a2 ?a1) (sad ?a1))
+                                (when (!loves ?a2 ?a1) [b, ?a1](!loves ?a2 ?a1))
+                            )
+    )
+
+    (:action intend-get-gift
+        :derive-condition   never
+        :parameters         (?a1 ?a2 - agent)
+        :precondition       (and (loves ?a1 ?a2) [d, ?a1](loves ?a2 ?a1))
+        :effect             (and
+                                [i, ?a1](get-gift-for ?a2)
+                            )
+    )
+
+    (:action get-gift
+        :derive-condition   never
+        :parameters         (?ag - agent ?g - gift ?l - loc)
+        :precondition       (and [i, ?ag](retrieve-gift ?g) (at ?ag ?l) (gift-at ?g ?l))
+        :effect             (and
+                                (not (gift-at ?g ?l))
+                                (bought-gift ?ag ?g)
+                                !<i, ?ag>(retrieve-gift ?g)
+                            )
+    )
+
+    (:action gift
+        :derive-condition   never
+        :parameters         (?a1 ?a2 - agent ?g - gift ?l - loc)
+        :precondition       (and [i, ?a1](get-gift-for ?a2) (bought-gift ?a1 ?g) (at ?a1 ?l) (at ?a2 ?l))
+        :effect             (and
+                                (when (likes-gift ?a2 ?g) (loves ?a2 ?a1))
+                                (when (likes-gift ?a2 ?g) [b, ?a2](loves ?a2 ?a1))
+                                (when (!likes-gift ?a2 ?g) (!loves ?a2 ?a1))
+                                (when (!likes-gift ?a2 ?g) [b, ?a2](!loves ?a2 ?a1))
+                            )
+
+    )
+
+)

@@ -1,0 +1,35 @@
+Solving...
+/home/becca/pdkb-planning/pdkb/planners/bfws --domain bdi_extension/full-bdi-1/pdkb-domain.pddl  --problem bdi_extension/full-bdi-1/pdkb-problem.pddl --output bdi_extension/full-bdi-1/pdkb-plan.txt --1-BFWS 1
+
+
+task contains conditional effects. turning off state domination.
+
+ --- OK.
+ Match tree built with 10 nodes.
+
+PDDL problem description loaded: 
+	Domain: PIRATES
+	Problem: PIRATES
+	#Actions: 10
+	#Fluents: 48
+Goals found: 2
+Goals_Edges found: 2
+Starting search with 1-BFWS...
+--[2 / 0]--
+--[2 / 3]--
+--[2 / 6]--
+--[2 / 10]--
+--[2 / 13]--
+--[2 / 15]--
+--[2 / 18]--
+--[2 / 20]--
+--[1 / 0]--
+--[1 / 19]--
+--[0 / 0]--
+--[0 / 14]--
+Total time: 9.8026e-05
+Nodes generated during search: 21
+Nodes expanded during search: 12
+Plan found with cost: 7
+Fast-BFS search completed in 9.8026e-05 secs
+Done!
