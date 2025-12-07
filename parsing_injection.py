@@ -11,7 +11,7 @@ from lark.visitors import Transformer
 from bdi_extension.parsing_utils import *
 from pddl.action import Action
 import pddl.core as pddl_core
-from pddl.logic.base import And, Not
+from pddl.logic.base import And, Not, ForallCondition
 from pddl.logic.effects import Forall, When
 from pddl.logic.terms import Constant
 from pddl.parser import GRAMMAR_FILE
@@ -165,16 +165,31 @@ def check_intention_error(f: Predicate, domain):
     if type(f.bdi) is Intention and f.name not in action_names:
         raise ValueError("Cannot intend a predicate; you can only intend an action.")
 
-def predicates_to_fluents(predicates: list[Predicate], assignment, domain):
+def predicates_to_fluents(predicates: list[Predicate], assignment, domain, problem):
     fluents = []
     for p in predicates:
         p = deepcopy(p)
         new_terms = []
-        if type(p) is not Predicate:
+        if type(p) is ForallCondition:
+            vars = {v for v in p.variables}
+            val_generator = create_valuations(domain._agents, problem.objects, vars)
+            for valuation in val_generator:
+                var_names = [v.name for v in vars]
+                for var_name, val in zip(var_names, valuation):
+                    assignment[var_name] = val
+                fluents.extend(predicates_to_fluents([p.condition], assignment, domain, problem))
+            return fluents
+        elif type(p) is And:
+            for o in p.operands:
+                fluents.extend(predicates_to_fluents([o], assignment, domain, problem) )
+            return fluents
+        elif type(p) is Predicate:
+            terms = p.terms
+        elif hasattr(p, "argument"):
             outside_formula_type = type(p)
             terms = p.argument.terms
         else:
-            terms = p.terms
+            raise ValueError("Unknown predicate type?")
         for t in terms:
             new_terms.append(Constant(assignment[t.name]))
         
@@ -216,7 +231,7 @@ def predicates_to_fluents(predicates: list[Predicate], assignment, domain):
 
 def ground_formula(domain, problem, formula, assignment):
     if type(formula) is Predicate:
-        return predicates_to_fluents([formula], assignment, domain)[0]
+        return predicates_to_fluents([formula], assignment, domain, problem)[0]
     elif type(formula) is Not:
         p = ground_formula(domain, problem, formula.argument, assignment)
         if type(p) is Predicate:
@@ -264,7 +279,7 @@ def create_base_operators(domain, problem, fluent_dict):
             else:
                 op_name = a.name
             # TODO: handle other types of formulas?
-            precondition = And(*predicates_to_fluents(a.precondition.operands, assignment, domain))
+            precondition = And(*predicates_to_fluents(a.precondition.operands, assignment, domain, problem))
             effect = ground_formula(domain, problem, a.effect, assignment) 
             
             and_ = And(*[])
@@ -358,6 +373,7 @@ def create_intend_action_preds(old_operators, agents, problem):
             o.precondition,
             effect
         )
+        new_a.derive_condition = o.derive_condition
         operators.add(new_a)
     return operators, action_intention_f
 

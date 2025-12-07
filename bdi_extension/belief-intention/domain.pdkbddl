@@ -1,21 +1,53 @@
 
-(define (domain travel)
+(define (domain pirates)
 
 	(:agents alice bob)
-    (:requirements :typing)
-    (:types loc agent)
+    (:requirements :typing :universal-preconditions)
+    (:types loc agent treasure)
     (:constants )
 
     (:predicates
         {AK}(at ?agent - agent ?l - loc)
         {AK}(connected ?l1 ?l2 - loc)
+        {AK}(treasure ?t - treasure)
+        {AK}(stronger ?a1 ?a2 - agent)
+        {AK}(enemies ?a1 ?a2 - agent)
+        {AK}(defeated ?a - agent)
+        {AK}(has-parrot ?a - agent)
+        {AK}(explorer ?a - agent)
+        (treasure-at ?t - treasure ?l - loc)
+        (got-treasure ?a - agent ?t - treasure)
     )
 
     (:action move
         :derive-condition   never
         :parameters         (?a - agent ?l1 ?l2 - loc)
-        :precondition       (and (at ?a ?l1) (connected ?l1 ?l2))
+        :precondition       (and (at ?a ?l1) (connected ?l1 ?l2) [i, ?a](move ?a ?l1 ?l2) (!defeated ?a) (explorer ?a))
         :effect             (and (at ?a ?l2) (not (at ?a ?l1)))
     )
+
+    (:action parrot-scout
+        :derive-condition never
+        :parameters       (?a - agent ?t - treasure ?l1 ?l2 - loc)
+        :precondition     (and (!got-treasure ?a ?t) (has-parrot ?a) (at ?a ?l1) (connected ?l1 ?l2) (treasure-at ?t ?l2))
+        :effect           (and [b, ?a](treasure-at ?t ?l2))
+    )
+
+    (:action fight
+        :derive-condition   (at $agent$ ?l)
+        :parameters         (?a1 ?a2 - agent ?l - loc)
+        :precondition       (and (at ?a1 ?l) (at ?a2 ?l) (enemies ?a1 ?a2) [i, ?a1](fight ?a1 ?a2 ?l))
+        :effect             (and (when (stronger ?a1 ?a2)(defeated ?a2))
+                                 (when (stronger ?a2 ?a1)(defeated ?a1))
+                            )
+    )
+
+    (:action search-for-treasure
+        :derive-condition   never
+        :parameters         (?a - agent ?t - treasure ?l  - loc)
+        :precondition       (and (at ?a ?l) (treasure-at ?t ?l) [i, ?a](search-for-treasure ?a ?t ?l) (!defeated ?a))
+        :effect             (and (got-treasure ?a ?t))
+    )
+
 
 )

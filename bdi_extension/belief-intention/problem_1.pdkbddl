@@ -1,12 +1,12 @@
-{include:ancillary_effects.pdkbddl}
-;{include:ancillary_effects__belief-intention.pdkbddl}
+;{include:ancillary_effects.pdkbddl}
+{include:ancillary_effects__belief-intention.pdkbddl}
 {include:domain.pdkbddl}
 
 (define (problem paper2)
 
-    (:domain travel)
+    (:domain pirates)
 
-    (:objects l1 l2 l3 - loc)
+    (:objects ship island - loc jewelry - treasure)
 
     (:projection )
     (:depth 2)
@@ -15,18 +15,23 @@
     (:init-type complete)
     (:init
 
-        (connected l1 l2)
-        (connected l2 l1)
-        (connected l2 l3)
-        (connected l3 l2)
-
-        (at alice l1)
-        [i, alice](move alice l1 l2)
+        (connected ship island)
+        (at alice ship)
+        (at bob island)
+        (explorer alice)
+        (enemies alice bob)
+        (treasure-at jewelry island)
+        (has-parrot alice)
+        (!got-treasure alice jewelry)
+        !<i, alice>(fight alice alice island)
+        [d, alice](got-treasure alice jewelry)
+        (stronger alice bob)
     )
 
     (:goal 
-        (at alice l2)
-        !<i, alice>(move alice l1 l2)
+        !<i, alice>(search-for-treasure alice jewelry island)
+        !<i, alice>(fight alice bob island)
+        (got-treasure alice jewelry)
     )
 
     (:plan

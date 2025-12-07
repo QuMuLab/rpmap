@@ -1,3 +1,48 @@
 (:ancillary_effects
+    (:anceff travel-for-treasure
+        :parameters (?a - agent ?t - treasure ?l1 ?l2 - loc)
+        :antecedent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml [b, ?a](treasure-at ?t ?l2) 
+            :type add
+        )
+        :consequent (
+            :poscond ?pos + [d, ?a](got-treasure ?a ?t) + (at ?a ?l1) + (connected ?l1 ?l2)
+            :negcond ?neg
+            :rml [i, ?a](move ?a ?l1 ?l2)
+            :type add
+        )
+    )
+    (:anceff begin-search
+        :parameters (?a - agent ?t - treasure ?l - loc)
+        :antecedent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml (at ?a ?l)
+            :type add
+        )
+        :consequent (
+            :poscond ?pos + [b, ?a](treasure-at ?t ?l)
+            :negcond ?neg
+            :rml [i, ?a](search-for-treasure ?a ?t ?l)
+            :type add
+        )
+    )
+    (:anceff encounter-enemies
+        :parameters (?a1 ?a2 - agent ?l - loc ?t - treasure)
+        :antecedent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml (at ?a1 ?l)
+            :type add
+        )
+        :consequent (
+            :poscond ?pos + (at ?a2 ?l) + (enemies ?a1 ?a2)
+            :negcond ?neg
+            :rml [i, ?a1](fight ?a1 ?a2 ?l)
+            :type add
+        )
+    )
 )
 
