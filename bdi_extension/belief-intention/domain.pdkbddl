@@ -45,7 +45,7 @@
     (:action search-for-treasure
         :derive-condition   never
         :parameters         (?a - agent ?t - treasure ?l  - loc)
-        :precondition       (and (at ?a ?l) (treasure-at ?t ?l) [i, ?a](search-for-treasure ?a ?t ?l) (!defeated ?a))
+        :precondition       (and (at ?a ?l) (treasure-at ?t ?l) [i, ?a](search-for-treasure ?a ?t ?l) (!defeated ?a) (forall (?ag - agent) !<i, ?a>(fight ?a ?ag ?l)))
         :effect             (and (got-treasure ?a ?t))
     )
 

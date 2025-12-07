@@ -1,0 +1,27 @@
+Solving...
+/home/becca/pdkb-planning/pdkb/planners/bfws --domain pdkb-domain.pddl  --problem pdkb-problem.pddl --output pdkb-plan.txt --1-BFWS 1
+
+
+task contains conditional effects. turning off state domination.
+
+ --- OK.
+ Match tree built with 12 nodes.
+
+PDDL problem description loaded: 
+	Domain: GRAPEVINE
+	Problem: GRAPEVINE-PROB
+	#Actions: 12
+	#Fluents: 8
+Goals found: 1
+Goals_Edges found: 1
+Starting search with 1-BFWS...
+--[1 / 0]--
+--[1 / 1]--
+--[0 / 0]--
+--[0 / 1]--
+Total time: 3.59999e-05
+Nodes generated during search: 7
+Nodes expanded during search: 2
+Plan found with cost: 2
+Fast-BFS search completed in 3.59999e-05 secs
+Done!

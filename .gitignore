@@ -134,12 +134,6 @@ dmypy.json
 
 .problem-cache/
 
-pdkb-domain.pddl
-
-pdkb-plan.out
-
-pdkb-problem.pddl
-
 execution.details
 
 EVAL-OUTPUT
