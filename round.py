@@ -1,6 +1,6 @@
 import csv
 
-filename = "evaluation/full-bdi-1_evaluation.csv"
+filename = "evaluation/original_grapevine_evaluation.csv"
 
 # Step 1: read everything
 rows = []
