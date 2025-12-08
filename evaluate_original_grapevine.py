@@ -18,10 +18,8 @@ def generate_pddl(prob):
             else:
                 f.write(line)
     t0 = time.time()
-    problem = parse_and_preprocess(os.path.join(base_path,f"problem_{prob}.pdkbddl"))
+    problem, num_fluents_before_pre, num_fluents_after_pre = parse_and_preprocess(os.path.join(base_path,f"problem_{prob}.pdkbddl"))
     preprocessing_time = time.time() - t0
-    num_fluents_before_pre = problem.orig_cond_count
-    num_fluents_after_pre = problem.comp_cond_count
     domain_path = os.path.join(base_path, "pdkb-domain.pddl")
     problem_path = os.path.join(base_path, "pdkb-problem.pddl")
     write_file(domain_path, problem.domain.pddl())
@@ -41,7 +39,7 @@ if __name__ == "__main__":
         generate_pddl(args[1])
     elif args[-1] == "write-plan":
         write_plan_output("original_grapevine", args[1])
-        cleanup()
+        # cleanup()
     else:
         raise ValueError("Unexpected arguments.")
     

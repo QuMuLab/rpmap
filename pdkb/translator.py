@@ -33,7 +33,11 @@ def parse_and_preprocess(pdkbddl_file):
             pickle.dump(problem, f, 2)
         print("done!")
 
-    return problem
+    pdkb = PDKB(problem.domain.depth, problem.domain.agents, problem.domain.props)
+    akpdkb = PDKB(0, [], problem.domain.akprops)
+    PROPS = pdkb.all_rmls | akpdkb.all_rmls
+    num_fluents_after_pre = len(PROPS)
+    return problem, len(problem.domain.akprops) + len(problem.domain.props), num_fluents_after_pre
 
 
 def translate(pdkbddl_file, pddl_domain_file, pddl_problem_file):
