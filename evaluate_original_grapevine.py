@@ -33,8 +33,9 @@ def generate_pddl(prob):
 
 
 if __name__ == "__main__":
-    args = sys.argv
-    args[1] = int(args[1]) # problem number (args[0] is the domain name)
+    # args = sys.argv
+    # args[1] = int(args[1]) # problem number (args[0] is the domain name)
+    args = ["original_grapevine", 1, "solve"] # for testing
     if args[-1] == "solve":
         generate_pddl(args[1])
     elif args[-1] == "write-plan":

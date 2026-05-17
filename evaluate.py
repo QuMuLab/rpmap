@@ -117,7 +117,8 @@ def evaluate(domain, prob):
     eval_single(domain, prob, num_agents, parser)
 
 if __name__ == "__main__":
-    args = sys.argv[1:]   # everything after the script name
+    # args = sys.argv[1:]   # everything after the script name
+    args = ["bdi-grapevine", "1", "solve"] # for testing
     args[1] = int(args[1]) # problem number (args[0] is the domain name)
     if args[-1] == "solve":
         evaluate(*args[:-1])

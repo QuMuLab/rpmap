@@ -1,6 +1,7 @@
 from copy import deepcopy
-from .anc_eff import NegateOnly, Agent, ModRML, Belief, Desire, Intention
+from .anc_eff import BDI, NegateOnly, Agent, ModRML, Belief, Desire, Intention
 from .parsing_utils import create_valuations
+from itertools import product
 from lark.lexer import Token
 from lark.tree import Tree
 from pddl.core import Domain, Problem
@@ -10,6 +11,8 @@ from pddl.logic.effects import When
 from pddl.logic.terms import Constant, Variable
 import time
 
+def bool_combinations(n):
+    return list(product([0, 1], repeat=n))
 
 class ApplyCondEff:
     def __init__(self, anc_eff, derive_condition, agents, depth, predicates, objects):
@@ -512,10 +515,28 @@ class ApplyCondEff:
                     return []
             and_cond = And(*[])
             and_cond._operands.extend(sorted(cond))
-            eff = self.modify_predicate_apply_cond_type(
-                deepcopy(next_f.effect), self.current_agent
-            )
-            consequent_preds.append(When(and_cond, And(*eff)))
+            # special way of creating effects
+            if self.ant_cond_type == "wildcard":
+                cons_rml = self.cons_rml[0][0]
+                for combo in bool_combinations(len(next_f.effect.match_idx)):
+                    eff = deepcopy(next_f.effect)
+                    if combo == (0,) * len(next_f.effect.match_idx):
+                        continue
+                    for idx in range(len(combo)):
+                        if idx == 0:
+                            if combo[idx] == 1:
+                                eff.bdi = type(cons_rml.bdi)(cons_rml.bdi.negate_inner_rml, cons_rml.bdi.hard_bdi, next_f.effect.bdi.agent)
+                                eff.bdi.nested = deepcopy(next_f.effect.bdi.nested)
+                        else:
+                            if combo[idx] == 1:
+                                eff.bdi.nested[next_f.effect.match_idx[idx]] = type(cons_rml.bdi)(cons_rml.bdi.negate_inner_rml, cons_rml.bdi.hard_bdi, next_f.effect.bdi.nested[next_f.effect.match_idx[idx]].agent)
+                    consequent_preds.append(When(and_cond, And(eff)))
+                delattr(next_f.effect, "match_idx")
+            else:
+                eff = self.modify_predicate_apply_cond_type(
+                    deepcopy(next_f.effect), self.current_agent
+                )
+                consequent_preds.append(When(and_cond, And(*eff)))
         # PREDICATE CASE
         else:
             # we need to do derived conditions here since that might
@@ -586,6 +607,20 @@ class ApplyCondEff:
             self.current_agent = None
             consequent_preds.extend(self.create_consequent_core(next_f))
         return consequent_preds
+    
+    def check_bdi_wildcard_match(self, next_f_bdi, wildcard: BDI):
+        return type(next_f_bdi) == type(wildcard) and next_f_bdi.negate_inner_rml == wildcard.negate_inner_rml and next_f_bdi.hard_bdi == wildcard.hard_bdi
+
+    def wildcard_match(self, next_f, wildcard: BDI):
+        idx = []
+        if self.check_bdi_wildcard_match(next_f.bdi, wildcard):
+            idx.append(0)
+        if next_f.bdi.nested:
+            for i in range(len(next_f.bdi.nested)):
+                if self.check_bdi_wildcard_match(next_f.bdi.nested[i], wildcard):
+                    idx.append(i)
+        next_f.match_idx = idx
+        return len(idx) > 0
 
     def check_ant_format(self, next_f) -> bool:
         """
@@ -628,6 +663,12 @@ class ApplyCondEff:
         # explained in the docstring
         if self.ant_rml.bdi and not next_f.bdi:
             return False
+        
+        # "wildcard" case means that we need at least one match of the wildcard in the antecedent
+        if self.ant_rml.bdi and self.ant_cond_type == "wildcard":
+            if type(self.ant_rml.bdi) is NegateOnly or type(self.cons_rml[0][0].bdi) is NegateOnly:
+                return ValueError("Not a valid wildcard setting.")
+            return self.wildcard_match(next_f, self.ant_rml.bdi)
 
         # "soft" adds/deletes allow for cases where the antecedent term has no BDI term and the next
         # formula term does, and we allow for that term to "pass through." however, hard add/deletes
@@ -764,7 +805,7 @@ def apply_cond_eff(
                 anc_eff_data = ApplyCondEff(
                     anc_eff, derive_condition, agents, depth, predicates, objects
                 )
-                # if anc_eff_data.name != "follower-adopt-belief":#not in ["negation-removal", "kd45closure__belief", "kd45-un-closure__belief", "uncertain-firing", "mutual-awareness-pos__belief", "mutual-awareness-neg__belief"]:#"negation-removal", "kd45-un-closure", "uncertain-firing",
+                # if anc_eff_data.name not in ["kd45closure__belief", "mutual-awareness-pos__belief", "mutual-awareness-neg__belief"]:#["negation-removal", "kd45closure__belief", "kd45-un-closure__belief", "uncertain-firing", "mutual-awareness-pos__belief", "mutual-awareness-neg__belief"]:#"negation-removal", "kd45-un-closure", "uncertain-firing",
                 #     continue
 
                 # if str(next_f) == "(Dcindy_loves_bob_cindy)":
@@ -777,7 +818,7 @@ def apply_cond_eff(
                     #     if str(next_f) == "(when (and (not (not_at_alice_l1)) (not (Balice_not_loves_bob_alice))) (not (PBalice_not_loves_bob_alice)))":#"(when (and (at_alice_l1) (Balice_not_loves_bob_alice)) (Balice_loves_bob_alice))":
                     #         print()
                     cons = anc_eff_data.create_consequent(deepcopy(next_f))
-                    # cons = list(set(cons))
+                    cons = list(set(cons))
                     # remove extraneous BDI terms)
                     for i in range(len(cons)):
                         if type(cons[i]) is When:
@@ -809,15 +850,21 @@ def apply_cond_eff(
                             anc_eff_data.name
                             + f" id({cons[i].id}) / parent({next_f.id})"
                         )
+                    printed = False
                     for c in cons:
                         if check_nesting(c, depth):
-                            # if c not in processed_conds and c not in condleft:
-                            #     print(c)
-                            c.parent = next_f
-                            condleft.append(c)
+                            if c not in processed_conds and c not in condleft:
+                                if not printed:
+                                    print(anc_eff_data.name)
+                                    print(f"next cond: {next_f}")
+                                    printed = True
+                                print(c)
+                                c.parent = next_f
+                                condleft.append(c)
                     # if anc_eff_data.name == "mutual-awareness-neg__belief":
                     #     print()
-                    # print("----")
+                    
+                    print("----")
 
     for debug_condeff in debug_condeffs:
         if debug_condeff and debug_condeff.strip() in mapping:
@@ -945,7 +992,7 @@ def apply_cond_effs(anc_effs, domain, problem):
         anc_effs = anc_effs._anceffs
     depth = int(problem.depth[2].value)
     for action in domain.actions:
-        # if action.name != "fall-in-love_cindy_bob_l1":
+        # if action.name != "share_alice_bob_l1":
         #     continue
         for o in action.effect.operands:
             new_preds = apply_cond_eff(

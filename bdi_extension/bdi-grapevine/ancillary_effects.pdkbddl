@@ -36,7 +36,7 @@
             :poscond ?pos
             :negcond ?neg
             :rml [b, ?a](rml)
-            :type add
+            :type wildcard
         )
         :consequent 
         (

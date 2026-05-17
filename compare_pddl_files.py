@@ -79,4 +79,4 @@ text = open("bdi_extension/bdi-grapevine/pdkb-domain.pddl", encoding="utf-8").re
 actions = extract_all_action_names_from_text(text)
 # for a in actions:
 #     compare_effects("bdi_extension/bdi_pdkbddl_files/grounded_domain.pdkbddl", "pdkb-domain.pddl", a)
-compare_effects("bdi_extension/bdi-grapevine/pdkb-domain.pddl", "pdkb-domain.pddl", "share_a_b_l1")
+compare_effects("bdi_extension/bdi-grapevine/pdkb-domain.pddl", "pdkb-domain.pddl", "share_alice_bob_l1")
