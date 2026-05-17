@@ -29,13 +29,13 @@ def generate_pddl(prob):
 
     with open(db_path, "a", newline="") as file:
         writer = csv.writer(file)
-        writer.writerows([["original_grapevine", prob, num_agents, depth, num_fluents_before_pre, num_fluents_after_pre, preprocessing_time]])
+        writer.writerows([["original_grapevine", prob, num_agents, depth, num_fluents_before_pre, num_fluents_after_pre, round(preprocessing_time, 2)]])
 
 
 if __name__ == "__main__":
-    # args = sys.argv
-    # args[1] = int(args[1]) # problem number (args[0] is the domain name)
-    args = ["original_grapevine", 1, "solve"] # for testing
+    args = sys.argv
+    args[1] = int(args[1]) # problem number (args[0] is the domain name)
+    # args = ["original_grapevine", 1, "solve"] # for testing
     if args[-1] == "solve":
         generate_pddl(args[1])
     elif args[-1] == "write-plan":

@@ -854,17 +854,17 @@ def apply_cond_eff(
                     for c in cons:
                         if check_nesting(c, depth):
                             if c not in processed_conds and c not in condleft:
-                                if not printed:
-                                    print(anc_eff_data.name)
-                                    print(f"next cond: {next_f}")
-                                    printed = True
-                                print(c)
+                                # if not printed:
+                                #     print(anc_eff_data.name)
+                                #     print(f"next cond: {next_f}")
+                                #     printed = True
+                                # print(c)
                                 c.parent = next_f
                                 condleft.append(c)
                     # if anc_eff_data.name == "mutual-awareness-neg__belief":
                     #     print()
                     
-                    print("----")
+                    # print("----")
 
     for debug_condeff in debug_condeffs:
         if debug_condeff and debug_condeff.strip() in mapping:

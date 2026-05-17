@@ -90,7 +90,7 @@ def eval_single(dom, problem_num, num_agents, parser):
     preprocessing_time = time.time() - t0
     with open(db_path, "a", newline="") as file:
         writer = csv.writer(file)
-        writer.writerows([[dom, problem_num, num_agents, problem.depth, num_fluents_before_pre, num_fluents_after_pre, preprocessing_time]])
+        writer.writerows([[dom, problem_num, num_agents, problem.depth, num_fluents_before_pre, num_fluents_after_pre, round(preprocessing_time, 2)]])
 
 def evaluate(domain, prob):
     # --- GENERAL PARSING SETUP ---
@@ -117,8 +117,8 @@ def evaluate(domain, prob):
     eval_single(domain, prob, num_agents, parser)
 
 if __name__ == "__main__":
-    # args = sys.argv[1:]   # everything after the script name
-    args = ["bdi-grapevine", "1", "solve"] # for testing
+    args = sys.argv[1:]   # everything after the script name
+    # args = ["bdi-grapevine", "1", "solve"] # for testing
     args[1] = int(args[1]) # problem number (args[0] is the domain name)
     if args[-1] == "solve":
         evaluate(*args[:-1])

@@ -1,7 +1,7 @@
 
 (define (domain grapevine)
 
-	(:agents alice bob)
+	(:agents alice bob cindy derek evelyn)
     (:types loc)
     (:constants )
 
