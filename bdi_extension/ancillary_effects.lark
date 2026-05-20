@@ -26,6 +26,7 @@ DEL: "del"
 ADD_SOFT: "add-soft"
 DEL_SOFT: "del-soft"
 WILDCARD: "wildcard"
+DEL_WILDCARD: "del-wildcard"
 TRUE_: "true"
 FALSE_: "false"
 AG: "?ag"
@@ -33,7 +34,7 @@ AGENTS: "agents"
 
 start: all_anceffs [domain] [problem]
 
-cond_types: ADD | DEL | ADD_SOFT | DEL_SOFT | WILDCARD
+cond_types: ADD | DEL | ADD_SOFT | DEL_SOFT | WILDCARD | DEL_WILDCARD
 
 var: QMRK NAME
 

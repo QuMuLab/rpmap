@@ -54,7 +54,7 @@
             :negcond ?neg
             ; agent a desires (rml)
             :rml [d, ?a](rml)
-            :type add
+            :type wildcard
         )
         :consequent 
         (
@@ -73,7 +73,7 @@
             :negcond ?neg
             ; agent a intends (rml)
             :rml [i, ?a](rml)
-            :type add
+            :type wildcard
         )
         :consequent 
         (
@@ -92,7 +92,7 @@
             :poscond ?pos
             :negcond ?neg
             :rml <b, ?a>(rml)
-            :type del
+            :type wildcard
         )
         :consequent (
             :poscond ?pos
@@ -107,7 +107,7 @@
             :poscond ?pos
             :negcond ?neg
             :rml <d, ?a>(rml)
-            :type del
+            :type wildcard
         )
         :consequent (
             :poscond ?pos
@@ -122,7 +122,7 @@
             :poscond ?pos
             :negcond ?neg
             :rml <i, ?a>(rml)
-            :type del
+            :type wildcard
         )
         :consequent (
             :poscond ?pos

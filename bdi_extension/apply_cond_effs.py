@@ -516,7 +516,7 @@ class ApplyCondEff:
             and_cond = And(*[])
             and_cond._operands.extend(sorted(cond))
             # special way of creating effects
-            if self.ant_cond_type == "wildcard":
+            if "wildcard" in self.ant_cond_type:
                 cons_rml = self.cons_rml[0][0]
                 for combo in bool_combinations(len(next_f.effect.match_idx)):
                     eff = deepcopy(next_f.effect)
@@ -531,6 +531,7 @@ class ApplyCondEff:
                             if combo[idx] == 1:
                                 eff.bdi.nested[next_f.effect.match_idx[idx]] = type(cons_rml.bdi)(cons_rml.bdi.negate_inner_rml, cons_rml.bdi.hard_bdi, next_f.effect.bdi.nested[next_f.effect.match_idx[idx]].agent)
                     consequent_preds.append(When(and_cond, And(eff)))
+                print(consequent_preds)
                 delattr(next_f.effect, "match_idx")
             else:
                 eff = self.modify_predicate_apply_cond_type(
@@ -609,9 +610,11 @@ class ApplyCondEff:
         return consequent_preds
     
     def check_bdi_wildcard_match(self, next_f_bdi, wildcard: BDI):
-        return type(next_f_bdi) == type(wildcard) and next_f_bdi.negate_inner_rml == wildcard.negate_inner_rml and next_f_bdi.hard_bdi == wildcard.hard_bdi
+        return type(next_f_bdi) == type(wildcard) and next_f_bdi.hard_bdi == wildcard.hard_bdi
 
-    def wildcard_match(self, next_f, wildcard: BDI):
+    def wildcard_match(self, next_f, wildcard: BDI, deleting=False):
+        if deleting != next_f.negated:
+            return False
         idx = []
         if self.check_bdi_wildcard_match(next_f.bdi, wildcard):
             idx.append(0)
@@ -669,6 +672,10 @@ class ApplyCondEff:
             if type(self.ant_rml.bdi) is NegateOnly or type(self.cons_rml[0][0].bdi) is NegateOnly:
                 return ValueError("Not a valid wildcard setting.")
             return self.wildcard_match(next_f, self.ant_rml.bdi)
+        elif self.ant_rml.bdi and self.ant_cond_type == "del-wildcard":
+            if type(self.ant_rml.bdi) is NegateOnly or type(self.cons_rml[0][0].bdi) is NegateOnly:
+                return ValueError("Not a valid wildcard setting.")
+            return self.wildcard_match(next_f, self.ant_rml.bdi, deleting=True)
 
         # "soft" adds/deletes allow for cases where the antecedent term has no BDI term and the next
         # formula term does, and we allow for that term to "pass through." however, hard add/deletes
@@ -811,8 +818,8 @@ def apply_cond_eff(
                 # if str(next_f) == "(Dcindy_loves_bob_cindy)":
                 #     print()
                 if anc_eff_data.check_ant_format(next_f):
-                    # print(anc_eff_data.name)
-                    # print(f"next cond: {next_f}")
+                    print(anc_eff_data.name)
+                    print(f"next cond: {next_f}")
 
                     # if anc_eff_data.name == "mutual-awareness-neg__belief":
                     #     if str(next_f) == "(when (and (not (not_at_alice_l1)) (not (Balice_not_loves_bob_alice))) (not (PBalice_not_loves_bob_alice)))":#"(when (and (at_alice_l1) (Balice_not_loves_bob_alice)) (Balice_loves_bob_alice))":
@@ -850,7 +857,7 @@ def apply_cond_eff(
                             anc_eff_data.name
                             + f" id({cons[i].id}) / parent({next_f.id})"
                         )
-                    printed = False
+                    # printed = False
                     for c in cons:
                         if check_nesting(c, depth):
                             if c not in processed_conds and c not in condleft:
@@ -858,13 +865,13 @@ def apply_cond_eff(
                                 #     print(anc_eff_data.name)
                                 #     print(f"next cond: {next_f}")
                                 #     printed = True
-                                # print(c)
+                                print(c)
                                 c.parent = next_f
                                 condleft.append(c)
                     # if anc_eff_data.name == "mutual-awareness-neg__belief":
                     #     print()
                     
-                    # print("----")
+                    print("----")
 
     for debug_condeff in debug_condeffs:
         if debug_condeff and debug_condeff.strip() in mapping:
