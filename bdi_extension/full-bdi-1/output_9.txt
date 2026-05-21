@@ -13,4 +13,4 @@ Got: [':agents', 'alice', 'bob', 'cindy', 'derek']
 translate exit code: 31
 
 Driver aborting after translate
-INFO     Planner time: 0.24s
+INFO     Planner time: 0.25s
