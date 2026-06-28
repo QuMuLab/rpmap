@@ -24,12 +24,12 @@ RP-M*P compiles to **classical planning**, so you can use any classical planner 
 
 ## Solving Your Own Domains
 
-Place your domain directory under `bdi_extension`. This directory should include your `domain.pdkbddl`, your numbered `problem_{#}.pdkbddl`s, the base ancillary effect file found in the other directories `ancillary_effects.pdkbddl`, and whichever other ancillary effect files you would like. Run the `evaluate.py`, using your domain name and the problem number as your first two arguments. Finally, use your preferred classical planner to solve.
+Place your domain directory under `bdi_extension`. This directory should include your `domain.pdkbddl`, your numbered `problem_{#}.pdkbddl`s, the base ancillary effect file found in the other directories `ancillary_effects.pdkbddl`, and whichever other ancillary effect files you would like. Modify the `get_num_agents` function in the file to represent how the number of agents is distributed across your problems. Run `evaluate.py`, using your domain name and the problem number as your first two arguments. Finally, use your preferred classical planner to solve.
 
 ## Reproducing Paper Results
 Finally, the `evaluate_domain.sh` script runs all the problem files for the sample domain. You can use these to reproduce the results in the paper. Note that this uses `lama-first` from [planutils](https://github.com/AI-Planning/planutils).
 
-`./evaluate_domain.sh "belief-desire"`
+`./evaluate_domain.sh "belief-desire"` (do for all domains)
 
 ## Contact
 If there are any issues, feel free to contact 18rldv@queensu.ca. :)
