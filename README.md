@@ -3,8 +3,7 @@
 ## Setup
 Create a virtual environment and activate it.
 On Linux (or use the Mac/Windows equivalent):
-`python3 -m venv .venv
-source .venv/bin/activate`
+`python3 -m venv .venv && source .venv/bin/activate`
 
 Then, install the required libraries:
 `pip install lark && pip install git+https://github.com/AI-Planning/pddl.git@2fba52e9a9bd9bf93031828bffcd326452f85d1c`
