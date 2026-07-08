@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 from enum import Enum
 
 
-class BDIType(Enum):
+class ModlType(Enum):
     BELIEF = 1
     DESIRE = 2
     INTENTION = 3
@@ -24,58 +24,58 @@ class Agent:
     def __hash__(self):
         return hash((self.name, self.var))
 
-class BDI(ABC):
-    def __init__(self, negate_inner_rml, hard_bdi, agent):
+class MODL(ABC):
+    def __init__(self, negate_inner_rml, hard_modl, agent):
         self.negate_inner_rml = negate_inner_rml
-        self.hard_bdi = hard_bdi
+        self.hard_modl = hard_modl
         self.agent = agent
         self.nested = []
 
     def __str__(self):
         class_name = self.__class__.__name__
-        bdi_str = "P"  if not self.hard_bdi and class_name != "NegateOnly" else ""
+        modl_str = "P"  if not self.hard_modl and class_name != "NegateOnly" else ""
         
         if class_name != "NegateOnly":
-            bdi_str += f"{self.__class__.__name__[0]}{self.agent.name}"
+            modl_str += f"{self.__class__.__name__[0]}{self.agent.name}"
             for n in self.nested:
-                bdi_str += f"_{str(n)}"
+                modl_str += f"_{str(n)}"
             if self.negate_inner_rml:
-                bdi_str += "_not"
+                modl_str += "_not"
         else:
             if self.negate_inner_rml:
-                bdi_str += "not"        
-        return bdi_str
+                modl_str += "not"        
+        return modl_str
     
     def __eq__(self, other):
         if not isinstance(other, self.__class__):
             return False
         return self.negate_inner_rml == other.negate_inner_rml and \
-               self.hard_bdi == other.hard_bdi and \
+               self.hard_modl == other.hard_modl and \
                self.agent == other.agent and \
                self.nested == other.nested
     
     def __hash__(self):
-        return hash((self.negate_inner_rml, self.hard_bdi, self.agent, tuple(self.nested)))
+        return hash((self.negate_inner_rml, self.hard_modl, self.agent, tuple(self.nested)))
 
     def negate(self, already_negated: bool=False):
-        """Propagate a negation through this BDI term and any nested ones.
-        - Flip ``hard_bdi``/``possible`` status at every level (mirrors how apply_cond_effs
-          treats negations when nesting new BDI wrappers).
+        """Propagate a negation through this MODL term and any nested ones.
+        - Flip ``hard_modl``/``possible`` status at every level (mirrors how apply_cond_effs
+          treats negations when nesting new MODL wrappers).
         - Toggle the inner RML negation unless the caller already handled it
           (``already_negated=True`` is used when the raw predicate was negated upstream).
         - If we have nesting, push the inner-negation marker down to the deepest term so
           only one layer carries it, avoiding duplicate `!` flags after nesting/merging.
         """
         # Will only be None for NegateOnly terms
-        if self.hard_bdi is not None:
-            self.hard_bdi = not self.hard_bdi
+        if self.hard_modl is not None:
+            self.hard_modl = not self.hard_modl
         # Toggle inner RML negation unless already handled
         if not already_negated:
             self.negate_inner_rml = not self.negate_inner_rml
         # Push inner RML negation to deepest nested term
         if self.nested:
             for b in self.nested:
-                b.hard_bdi = not b.hard_bdi
+                b.hard_modl = not b.hard_modl
             if self.negate_inner_rml and self.nested[-1].negate_inner_rml:
                 self.nested[-1].negate_inner_rml = False
                 self.negate_inner_rml = False
@@ -83,97 +83,97 @@ class BDI(ABC):
                 self.nested[-1].negate_inner_rml = True
                 self.negate_inner_rml = False
 
-class NegateOnly(BDI):
+class NegateOnly(MODL):
     def __init__(self, negate_inner_rml):
         super().__init__(negate_inner_rml, None, None)
 
-class Belief(BDI):
-    def __init__(self, negate_inner_rml, hard_bdi, agent):
-        super().__init__(negate_inner_rml, hard_bdi, agent)  
+class Belief(MODL):
+    def __init__(self, negate_inner_rml, hard_modl, agent):
+        super().__init__(negate_inner_rml, hard_modl, agent)  
 
-class Desire(BDI):
-    def __init__(self, negate_inner_rml, hard_bdi, agent):
-        super().__init__(negate_inner_rml, hard_bdi, agent)
+class Desire(MODL):
+    def __init__(self, negate_inner_rml, hard_modl, agent):
+        super().__init__(negate_inner_rml, hard_modl, agent)
 
-class Intention(BDI):
-    def __init__(self, negate_inner_rml, hard_bdi, agent):
-        super().__init__(negate_inner_rml, hard_bdi, agent)
+class Intention(MODL):
+    def __init__(self, negate_inner_rml, hard_modl, agent):
+        super().__init__(negate_inner_rml, hard_modl, agent)
 
-def instantiate_bdi(bdi_args, ground=True):
-    """Instantiate the appropriate BDI class based on the type of BDI term."""
-    if not bdi_args:
+def instantiate_modl(modl_args, ground=True):
+    """Instantiate the appropriate MODL class based on the type of MODL term."""
+    if not modl_args:
         return None
     # get rid of superfluous None values
-    bdi_args = [a for a in bdi_args if a is not None]
-    if not bdi_args:
+    modl_args = [a for a in modl_args if a is not None]
+    if not modl_args:
         return None
     else:
-        if len(bdi_args) == 1:
-            if type(bdi_args[0]) is Token:
-                if bdi_args[0].type == "EXC":
+        if len(modl_args) == 1:
+            if type(modl_args[0]) is Token:
+                if modl_args[0].type == "EXC":
                     return NegateOnly(True)
         negate_inner_rml = False
-        bdi_body = bdi_args
-        if type(bdi_args[0]) is Token:
-            if bdi_args[0].type == "EXC":
+        modl_body = modl_args
+        if type(modl_args[0]) is Token:
+            if modl_args[0].type == "EXC":
                 negate_inner_rml = True
-                bdi_body = bdi_args[1:]
-        all_bdi = []
-        for bdi in bdi_body:
+                modl_body = modl_args[1:]
+        all_modl = []
+        for modl in modl_body:
             # ignore this, this token, if it exists, just indicates nesting
-            if bdi == Token("LSQB", "["):
+            if modl == Token("LSQB", "["):
                 continue
-            bdi_type = bdi[1][0].type
-            if type(bdi[3]) is list:
-                agent = Agent(bdi[3][1].value, True)
-            elif type(bdi[3]) is Token:
-                agent = Agent(bdi[3].value, False)
-            hard_bdi = bdi[0].type == "LSQB"
+            modl_type = modl[1][0].type
+            if type(modl[3]) is list:
+                agent = Agent(modl[3][1].value, True)
+            elif type(modl[3]) is Token:
+                agent = Agent(modl[3].value, False)
+            hard_modl = modl[0].type == "LSQB"
             if ground:
                 if negate_inner_rml:
-                    hard_bdi = not hard_bdi
-            if bdi_type == "BELIEF":
-                all_bdi.append(Belief(negate_inner_rml, hard_bdi, agent))
-            elif bdi_type == "DESIRE":
-                all_bdi.append(Desire(negate_inner_rml, hard_bdi, agent))
-            elif bdi_type == "INTENTION":
-                all_bdi.append(Intention(negate_inner_rml, hard_bdi, agent))
-        main_bdi = all_bdi[0]
-        if len(all_bdi) > 1:
-            main_bdi.nested = all_bdi[1:]
-        return main_bdi
+                    hard_modl = not hard_modl
+            if modl_type == "BELIEF":
+                all_modl.append(Belief(negate_inner_rml, hard_modl, agent))
+            elif modl_type == "DESIRE":
+                all_modl.append(Desire(negate_inner_rml, hard_modl, agent))
+            elif modl_type == "INTENTION":
+                all_modl.append(Intention(negate_inner_rml, hard_modl, agent))
+        main_modl = all_modl[0]
+        if len(all_modl) > 1:
+            main_modl.nested = all_modl[1:]
+        return main_modl
 
 
 class ModRML:
     def __init__(self, args):
         self.name = None
-        # negate the whole thing, whether that's a bdi term or not
-        # ONLY SET IF THERE'S NO BDI TERM OR TERM NEGATION IN THE RML 
+        # negate the whole thing, whether that's a modl term or not
+        # ONLY SET IF THERE'S NO MODL TERM OR TERM NEGATION IN THE RML 
         # (because those have their own negations with distinct meanings,
         # and then we're overloading the '!' operator...)
         self.negate_whole_term = False
-        bdi_needs_negation = False
-        self.bdi = None
+        modl_needs_negation = False
+        self.modl = None
         self.nest = False
         
-        # figure out where the BDI term ends, e.g. (!)[b, ?agent]{index} or (!)<b, ?agent>{index}.
-        # (if there's no BDI term, we just skip over None)
-        after_bdi = None
+        # figure out where the MODL term ends, e.g. (!)[b, ?agent]{index} or (!)<b, ?agent>{index}.
+        # (if there's no MODL term, we just skip over None)
+        after_modl = None
         for i in range(len(args)):
             if type(args[i]) is Token:
                 if "LPAR" in args[i].type: #accounting for import being part of the type name
-                    # reached the end of the BDI terms
-                    after_bdi = i
-                    if type(args[after_bdi - 1]) is Token:
-                        if args[after_bdi - 1].type == "LSQB":
+                    # reached the end of the MODL terms
+                    after_modl = i
+                    if type(args[after_modl - 1]) is Token:
+                        if args[after_modl - 1].type == "LSQB":
                             self.nest = True
                     break
         # check for EXC (negation)
-        if args[after_bdi + 1]:
-            if "EXC" in args[after_bdi + 1].type:
-                bdi_needs_negation = True
+        if args[after_modl + 1]:
+            if "EXC" in args[after_modl + 1].type:
+                modl_needs_negation = True
         # get the name
-        for a in args[after_bdi + 2:-1]:
+        for a in args[after_modl + 2:-1]:
             if a:
                 if type(a) is Token:
                     if a.type in ["RML_NAME", "R"]:
@@ -201,20 +201,20 @@ class ModRML:
         if args[0] == Token("EXC", "!"):
             print()
 
-        self.bdi = instantiate_bdi(args[:after_bdi], ground=False)
-        if bdi_needs_negation:
+        self.modl = instantiate_modl(args[:after_modl], ground=False)
+        if modl_needs_negation:
             print()
-        if self.bdi:
-            if type(self.bdi) != NegateOnly:
-                if bdi_needs_negation:
-                    if self.bdi.nested:
-                        self.bdi.nested[-1].negate_inner_rml = not self.bdi.nested[-1].negate_inner_rml
+        if self.modl:
+            if type(self.modl) != NegateOnly:
+                if modl_needs_negation:
+                    if self.modl.nested:
+                        self.modl.nested[-1].negate_inner_rml = not self.modl.nested[-1].negate_inner_rml
                     else:
-                        self.bdi.negate_inner_rml = not self.bdi.negate_inner_rml
+                        self.modl.negate_inner_rml = not self.modl.negate_inner_rml
         else:
-            if bdi_needs_negation:
+            if modl_needs_negation:
                 self.negate_whole_term = True
-        if type(self.bdi) is NegateOnly: # just have negation
+        if type(self.modl) is NegateOnly: # just have negation
             self.negate_whole_term = True  
 
 def anceff_atomic_formula_term(self, args):
@@ -324,8 +324,8 @@ class AncEffTransformer(Transformer):
             "anceff",
             "start",
             "var",
-            "bdi",
-            "bdi_term",
+            "modl",
+            "modl_term",
             "awareness",
             "nest",
             "rml_options"

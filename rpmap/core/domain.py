@@ -1,7 +1,7 @@
 import pddl.core
 import pddl.logic
 from lark.lexer import Token
-from .anc_eff import instantiate_bdi
+from .anc_eff import instantiate_modl
 from ..parsing_utils import *
 from pddl.action import Action
 from pddl.formatter import (
@@ -63,38 +63,38 @@ def atomic_formula_skeleton(self, args):
 
 def atomic_formula_term(self, args):
     """Adapted from the pddl.parser.domain.DomainTransformer.atomic_formula_term method"""
-    # figure out where the BDI term ends, e.g. (!)[b, ?agent]{index} or (!)<b, ?agent>{index}.
-    # (if there's no BDI term, we just skip over None)
-    after_bdi = None
+    # figure out where the modality term ends, e.g. (!)[b, ?agent]{index} or (!)<b, ?agent>{index}.
+    # (if there's no modality term, we just skip over None)
+    after_modl = None
     for i in range(len(args)):
         if type(args[i]) is Token:
             if "LPAR" in args[i].type: #accounting for import being part of the type name
-                # reached the end of the BDI terms
-                after_bdi = i
+                # reached the end of the modality terms
+                after_modl = i
                 break
     inner_negation = False
-    if args[after_bdi + 1]:
-        if "EXC" in args[after_bdi + 1].type:
+    if args[after_modl + 1]:
+        if "EXC" in args[after_modl + 1].type:
             inner_negation = True
-    name = args[after_bdi + 2] # add 2 to skip the EXC space
+    name = args[after_modl + 2] # add 2 to skip the EXC space
     var_pred = False
     if type(name) is list:
         # indicates that we are dealing with a variable predicate instead of a predicate
         # e.g. (?mu)
         name =  Token("NAME", "".join(p.value for p in name))
         var_pred = True        
-    terms = list(map(self._constant_or_variable, args[after_bdi + 3:-1]))
+    terms = list(map(self._constant_or_variable, args[after_modl + 3:-1]))
     if var_pred:
         p = VariablePredicate(name, *terms)
     else:
         p = Predicate(name, *terms)
-    p.bdi = instantiate_bdi(args[:after_bdi])
-    if p.bdi:
+    p.modl = instantiate_modl(args[:after_modl])
+    if p.modl:
         if inner_negation:
-            if p.bdi.nested:
-                p.bdi.nested[-1].negate_inner_rml = not p.bdi.nested[-1].negate_inner_rml
+            if p.modl.nested:
+                p.modl.nested[-1].negate_inner_rml = not p.modl.nested[-1].negate_inner_rml
             else:
-                p.bdi.negate_inner_rml = not p.bdi.negate_inner_rml
+                p.modl.negate_inner_rml = not p.modl.negate_inner_rml
     else:
         p.negated = inner_negation
     if p.negated is None:
@@ -104,8 +104,8 @@ def atomic_formula_term(self, args):
 
 # ----- STRING AND PRINT FUNCTIONS -----
 
-# def recursive_print_bdi(tree):
-#     """Recursive print for the BDI function."""
+# def recursive_print_modl(tree):
+#     """Recursive print for the modality function."""
 #     tree_str = recursive_print(tree)
 #     # add a space after the comma
 #     return tree_str if "," not in tree_str else f"{', '.join(tree_str.split(','))}"
@@ -131,12 +131,12 @@ def new_action_str(self):
     return operator_str
 
 def get_predicate_prefix(self):
-    """Return the string version of a predicate previx (with AK and BDI terms if necessary)."""
+    """Return the string version of a predicate previx (with AK and modality terms if necessary)."""
     p_str = ""
     if self.always_known:
         p_str += "{AK}"
-    if self.bdi:
-        p_str += str(self.bdi)
+    if self.modl:
+        p_str += str(self.modl)
     return p_str
 
 def new_predicate_str(self):
@@ -154,8 +154,8 @@ def new_predicate_str(self):
 def new_predicate_str_rmls(self):
     """New predicate string adapted from the pddl.logic.Predicate.__str__ method."""
     p_str = "("
-    if self.bdi: 
-        p_str += str(self.bdi)
+    if self.modl: 
+        p_str += str(self.modl)
         p_str += f"_{self.name}"
     else:
         p_str += self.name
@@ -216,7 +216,7 @@ def new_init_domain(self, *args, **kwargs):
     self.orig_init(*args, **kwargs)
 
 def new_predicate_eq(self, other):
-    """New predicate equality check that takes into account the new always_known, bdi, and negated terms."""
+    """New predicate equality check that takes into account the new always_known, modl, and negated terms."""
     # adapted from the PDDL Predicate class __eq__ method
     return (
             isinstance(other, Predicate)
@@ -224,13 +224,13 @@ def new_predicate_eq(self, other):
             and self.name == other.name
             and self.terms == other.terms
             and self.always_known == other.always_known
-            and self.bdi == other.bdi
+            and self.modl == other.modl
             and self.negated == other.negated
         )
 
 def new_predicate_hash(self):
-    """New predicate hash that takes into account the new always_known, bdi, and negated terms."""
-    return hash((self.name, self.arity, self.terms, self.always_known, self.bdi, self.negated))
+    """New predicate hash that takes into account the new always_known, modl, and negated terms."""
+    return hash((self.name, self.arity, self.terms, self.always_known, self.modl, self.negated))
 
 # ----- GRAMMAR CONSTRUCTION -----
 
@@ -253,7 +253,7 @@ def construct_domain_grammar(print_rml_style=True):
     pddl.logic.predicates.Predicate.__hash__ = new_predicate_hash
     pddl.logic.predicates.Predicate.get_predicate_prefix = get_predicate_prefix
     pddl.logic.predicates.Predicate.always_known = None
-    pddl.logic.predicates.Predicate.bdi = None
+    pddl.logic.predicates.Predicate.modl = None
     pddl.logic.predicates.Predicate.negated = None
     pddl.action.Action.__str__ = new_action_str
     pddl.action.Action.derive_condition = None
@@ -286,12 +286,12 @@ def construct_domain_grammar(print_rml_style=True):
         ""
     )
     inject_domain_grammar("action_def", "LPAR ACTION NAME [DERIVE_CONDITION derived_conditions] PARAMETERS action_parameters action_body_def RPAR", action_transformer)
-    # inject the rule for a BDI version of the atomic_formula_term
+    # inject the rule for a modality version of the atomic_formula_term
     replace_in_grammar(
         "atomic_formula_term:   LPAR predicate term* RPAR",
         ""
     )
-    inject_domain_grammar("atomic_formula_term", "[EXC] bdi* LPAR [EXC] predicate term* RPAR", atomic_formula_term)
+    inject_domain_grammar("atomic_formula_term", "[EXC] modl* LPAR [EXC] predicate term* RPAR", atomic_formula_term)
     # replace the init and string functions
     pddl.core.Domain.orig_init = pddl.core.Domain.__init__
     pddl.core.Domain.__init__ = new_init_domain

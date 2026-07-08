@@ -1,5 +1,5 @@
 import pddl.core
-from .anc_eff import instantiate_bdi
+from .anc_eff import instantiate_modl
 from ..parsing_utils import *
 from pddl.formatter import (
     print_constants,
@@ -14,34 +14,34 @@ from textwrap import indent
 # ----- TRANSFORMER FUNCTIONS -----
 def atomic_formula_name(self, args):
     """Adapted from the pddl.parser.problem.ProblemTransformer.atomic_formula_name method."""
-    # figure out where the BDI term ends, e.g. (!)[b, ?agent]{index} or (!)<b, ?agent>{index}.
-    # (if there's no BDI term, we just skip over None)
+    # figure out where the modality term ends, e.g. (!)[b, ?agent]{index} or (!)<b, ?agent>{index}.
+    # (if there's no modality term, we just skip over None)
     for i in range(len(args)):
         if type(args[i]) is Token:
             if "LPAR" in args[i].type:
-                # reached the end of the BDI terms
-                after_bdi = i
+                # reached the end of the modality terms
+                after_modl = i
                 break
     inner_negation = False
-    if args[after_bdi + 1]:
-        if "EXC" in args[after_bdi + 1].type:
+    if args[after_modl + 1]:
+        if "EXC" in args[after_modl + 1].type:
             inner_negation = True
-    predicate_name = args[after_bdi + 2] # add 2 to skip the EXC space
+    predicate_name = args[after_modl + 2] # add 2 to skip the EXC space
     # set up terms
     terms = []
-    for _term_name in args[after_bdi + 3:-1]:
+    for _term_name in args[after_modl + 3:-1]:
         if self._objects_by_name.get(str(_term_name)) is None:
             terms.append(Constant(str(_term_name)))
         else:
             terms.append(self._objects_by_name.get(str(_term_name)))
     p = Predicate(predicate_name, *terms)
-    p.bdi = instantiate_bdi(args[:after_bdi])
-    if p.bdi:
+    p.modl = instantiate_modl(args[:after_modl])
+    if p.modl:
         if inner_negation:
-            if p.bdi.nested:
-                p.bdi.nested[-1].negate_inner_rml = not p.bdi.nested[-1].negate_inner_rml
+            if p.modl.nested:
+                p.modl.nested[-1].negate_inner_rml = not p.modl.nested[-1].negate_inner_rml
             else:
-                p.bdi.negate_inner_rml = not p.bdi.negate_inner_rml
+                p.modl.negate_inner_rml = not p.modl.negate_inner_rml
     else:
         p.negated = inner_negation
     if p.negated is None:
@@ -169,9 +169,9 @@ def construct_problem_grammar():
         "goal:  LPAR GOAL gd RPAR",
         ""
     )
-    # inject BDI capability into the atomic_formula_name transformer
-    inject_problem_grammar("atomic_formula_name", "[EXC] problem_bdi* LPAR [EXC] predicate NAME* RPAR", atomic_formula_name)
-    inject_problem_grammar("problem_bdi", "LSQB bdi_term COMMA NAME RSQB | LESSER_OP bdi_term COMMA NAME GREATER_OP", basic_tokens_transformer)
+    # inject modality capability into the atomic_formula_name transformer
+    inject_problem_grammar("atomic_formula_name", "[EXC] problem_modl* LPAR [EXC] predicate NAME* RPAR", atomic_formula_name)
+    inject_problem_grammar("problem_modl", "LSQB modl_term COMMA NAME RSQB | LESSER_OP modl_term COMMA NAME GREATER_OP", basic_tokens_transformer)
     # transformers for projection, depth, task, init type, and goal
     # TODO: handle projection later
     inject_problem_grammar("projection", "LPAR PROJECTION RPAR", projection_transformer)

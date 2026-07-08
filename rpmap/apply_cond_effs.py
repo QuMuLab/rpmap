@@ -1,5 +1,5 @@
 from copy import deepcopy
-from .core.anc_eff import BDI, NegateOnly, Agent, ModRML, Belief, Desire, Intention
+from .core.anc_eff import MODL, NegateOnly, Agent, ModRML, Belief, Desire, Intention
 from .parsing_utils import create_valuations
 from itertools import product
 from lark.lexer import Token
@@ -45,11 +45,11 @@ class ApplyCondEff:
         self.cons_rml = cons[2][1:]
         self.cons_cond_type = cons[3][1][0].value
 
-    def modify_predicate_apply_cond_type(self, old_p, agent=None):
+    def modify_predicate_apply_cond_type(self, old_rml, agent=None):
         """Apply the consequent's add/del semantics to an existing predicate."""
         all_preds = []
-        for mod in self.cons_rml:
-            next_preds = self.gather_preds(mod, old_p, agent)
+        for modf in self.cons_rml:
+            next_preds = self.gather_preds(modf, old_rml, agent)
             for p in next_preds:
                 if "del" in self.cons_cond_type:
                     p.negated = not p.negated
@@ -57,176 +57,176 @@ class ApplyCondEff:
         return all_preds
 
     @staticmethod
-    def nest_bdi(mod_p, new_pred, old_p, simplify=True):
-        """Nest BDI annotations from ``mod_p`` onto ``new_pred``, simplifying when possible."""
-        if type(new_pred.bdi) is NegateOnly:
+    def nest_modl(modf_rml, new_rml, simplify=True):
+        """Nest modality annotations from ``modf_rml`` onto ``new_rml``, simplifying when possible."""
+        if type(new_rml.modl) is NegateOnly:
             # we are nesting on top of a negate_only!
-            # take the new BDI term and set the negate_inner_rml.
-            # NOTE: we don't negate the whole term because that would be a negation OUTER to the BDI!
+            # take the new modality term and set the negate_inner_rml.
+            # NOTE: we don't negate the whole term because that would be a negation OUTER to the modality!
             # this negation was just already here.
-            if new_pred.bdi.negate_inner_rml:
-                mod_bdi = deepcopy(mod_p.bdi)
-                if mod_bdi.negate_inner_rml:
-                    mod_bdi.negate()
+            if new_rml.modl.negate_inner_rml:
+                modf_mod = deepcopy(modf_rml.modl)
+                if modf_mod.negate_inner_rml:
+                    modf_mod.negate()
                 else:
-                    mod_bdi.negate_inner_rml = True
-                new_pred.bdi = deepcopy(mod_bdi)
-                return new_pred
-        outer_bdi = deepcopy(new_pred.bdi)
-        outer_bdi.nested = []
-        new_nested = [outer_bdi, *deepcopy(new_pred.bdi.nested)]
-        new_pred.bdi = deepcopy(mod_p.bdi)
-        new_pred.bdi.nested = new_nested
+                    modf_mod.negate_inner_rml = True
+                new_rml.modl = deepcopy(modf_mod)
+                return new_rml
+        outer_mod = deepcopy(new_rml.modl)
+        outer_mod.nested = []
+        new_nested = [outer_mod, *deepcopy(new_rml.modl.nested)]
+        new_rml.modl = deepcopy(modf_rml.modl)
+        new_rml.modl.nested = new_nested
         # first, check if we have a new negation added
-        if new_pred.bdi.negate_inner_rml:
+        if new_rml.modl.negate_inner_rml:
             # WOOOOO time to negate by flipping everything
-            new_pred.bdi.negate(True)
+            new_rml.modl.negate(True)
         if simplify:
             # check if they reference the same agents
-            if new_pred.bdi.agent == new_pred.bdi.nested[0].agent and type(
-                new_pred.bdi
-            ) == type(new_pred.bdi.nested[0]):
-                # if we have possible BDI then BDI, return just the BDI
-                if not new_pred.bdi.hard_bdi and new_pred.bdi.nested[0].hard_bdi:
-                    new_bdi = new_pred.bdi.nested[0]
-                    nested = new_pred.bdi.nested[1:]
-                    new_pred.bdi = new_bdi
-                    new_pred.bdi.nested = nested
-                    return new_pred
-                # if we have BDI then possible BDI, return just the possible BDI
-                elif new_pred.bdi.hard_bdi and not new_pred.bdi.nested[0].hard_bdi:
-                    new_bdi = new_pred.bdi.nested[0]
-                    nested = new_pred.bdi.nested[1:]
-                    new_pred.bdi = new_bdi
-                    new_pred.bdi.nested = nested
-                    return new_pred
-                # if after nesting we created a duplicate BDI term, simplify by lobbing off the outer one.
+            if new_rml.modl.agent == new_rml.modl.nested[0].agent and type(
+                new_rml.modl
+            ) == type(new_rml.modl.nested[0]):
+                # if we have possible modality then modality, return just the modality
+                if not new_rml.modl.hard_modl and new_rml.modl.nested[0].hard_modl:
+                    new_modl = new_rml.modl.nested[0]
+                    nested = new_rml.modl.nested[1:]
+                    new_rml.modl = new_modl
+                    new_rml.modl.nested = nested
+                    return new_rml
+                # if we have modality then possible modality, return just the possible modality
+                elif new_rml.modl.hard_modl and not new_rml.modl.nested[0].hard_modl:
+                    new_modl = new_rml.modl.nested[0]
+                    nested = new_rml.modl.nested[1:]
+                    new_rml.modl = new_modl
+                    new_rml.modl.nested = nested
+                    return new_rml
+                # if after nesting we created a duplicate modality term, simplify by lobbing off the outer one.
                 # note that if there is a negation of any kind, that would at this point already be moved all the way in.
                 # so there's no danger in lobbing off the outer one as the negation will stay the same in any case.
-                elif new_pred.bdi.hard_bdi == new_pred.bdi.nested[0].hard_bdi:
-                    new_bdi = new_pred.bdi.nested[0]
-                    nested = new_pred.bdi.nested[1:]
-                    new_pred.bdi = new_bdi
-                    new_pred.bdi.nested = nested
-                    return new_pred
-        return new_pred
+                elif new_rml.modl.hard_modl == new_rml.modl.nested[0].hard_modl:
+                    new_modl = new_rml.modl.nested[0]
+                    nested = new_rml.modl.nested[1:]
+                    new_rml.modl = new_modl
+                    new_rml.modl.nested = nested
+                    return new_rml
+        return new_rml
 
     @staticmethod
-    def merge_bdi(mod_p, new_pred, old_p):
-        """Nest or return the original predicate depending on BDI compatibility."""
-        # we only want to nest by adding a NEGATIVE BDI term IF
-        # the original BDI term is NOT a belief of the corresponding
+    def merge_modl(modf_rml, new_rml, old_rml):
+        """Nest or return the original predicate depending on modality compatibility."""
+        # we only want to nest by adding a NEGATIVE modality term IF
+        # the original modality term is NOT a belief of the corresponding
         # agent (positive or negative)
-        if mod_p.negate_whole_term and mod_p.bdi.agent == new_pred.bdi.agent:
+        if modf_rml.negate_whole_term and modf_rml.modl.agent == new_rml.modl.agent:
             # need this for the original negation status.
             # in the case where we are modifying a raw RML (rml without the negation
             # status) because the antecedent cond type is "del" and we need to
             # return the original formula, we need to restore the negation status.
-            return old_p
+            return old_rml
         else:
-            return ApplyCondEff.nest_bdi(mod_p, new_pred, old_p)
+            return ApplyCondEff.nest_modl(modf_rml, new_rml)
 
-    def modify_predicate(self, old_p, mod_p, agent=None):
+    def modify_predicate(self, old_rml, modf_rml, agent=None):
         """Assuming both predicates have the same "base,"
         modify the old predicate according to the attributes of the new predicate"""
 
-        # print(f"\nModifying predicate {old_p} with {mod_p.bdi} ({mod_p.bdi.__class__.__name__}) for agent {agent}")
+        # print(f"\nModifying predicate {old_rml} with {modf_rml.modl} ({modf_rml.modl.__class__.__name__}) for agent {agent}")
 
-        mod_p = deepcopy(mod_p)
-        new_pred = deepcopy(old_p)
+        modf_rml = deepcopy(modf_rml)
+        new_rml = deepcopy(old_rml)
 
         # Special case for (and (...)) structure
-        if type(new_pred) is And:
-            if len(new_pred._operands) == 1:
-                new_pred = new_pred._operands[0]
+        if type(new_rml) is And:
+            if len(new_rml._operands) == 1:
+                new_rml = new_rml._operands[0]
 
         # Special case if we're negating an AK predicate
-        if new_pred.always_known and mod_p.negate_whole_term:
-            new_pred.negated = not new_pred.negated
-            return new_pred
+        if new_rml.always_known and modf_rml.negate_whole_term:
+            new_rml.negated = not new_rml.negated
+            return new_rml
 
         # if the antecedent has a type "del," then we only want to
         # pass in the "raw" RML, a.k.a. leave the negation at the door.
         if "del" in self.ant_cond_type:
-            new_pred.negated = False
+            new_rml.negated = False
 
         # broadest case: we are just negating the whole thing
-        if mod_p.negate_whole_term:
-            if new_pred.bdi:
-                new_pred.bdi.negate()
+        if modf_rml.negate_whole_term:
+            if new_rml.modl:
+                new_rml.modl.negate()
             else:
-                # if no bdi term, then still remember we are still negating the BDI term,
+                # if no modality term, then still remember we are still negating the modality term,
                 # just according to the root agent. so negate the predicate using the
                 # "inner" negation.
-                new_pred.bdi = NegateOnly(True)
-        elif mod_p.bdi:
-            if new_pred.bdi:
+                new_rml.modl = NegateOnly(True)
+        elif modf_rml.modl:
+            if new_rml.modl:
                 if (
-                    type(new_pred.bdi) is NegateOnly or new_pred.bdi.negate_inner_rml
-                ) and new_pred.always_known:
-                    if type(mod_p.bdi) is NegateOnly and mod_p.bdi.negate_inner_rml:
-                        new_pred.bdi.negate()
-                        return new_pred
-                    return old_p
-                if mod_p.nest:
-                    mod_p.bdi.agent = Agent(agent, False)
-                    new_pred = self.merge_bdi(mod_p, new_pred, old_p)
+                    type(new_rml.modl) is NegateOnly or new_rml.modl.negate_inner_rml
+                ) and new_rml.always_known:
+                    if type(modf_rml.modl) is NegateOnly and modf_rml.modl.negate_inner_rml:
+                        new_rml.modl.negate()
+                        return new_rml
+                    return old_rml
+                if modf_rml.nest:
+                    modf_rml.modl.agent = Agent(agent, False)
+                    new_rml = self.merge_modl(modf_rml, new_rml, old_rml)
                 else:
                     if agent is not None:
-                        mod_p.bdi.agent = Agent(agent, False)
-                    # if new_pred.bdi.negate_inner_rml:
-                    #     # we're adding a BDI term into an "inner negated" term.
+                        modf_rml.modl.agent = Agent(agent, False)
+                    # if new_rml.modl.negate_inner_rml:
+                    #     # we're adding a modality term into an "inner negated" term.
                     #     # we aren't nesting, but we still want to keep that negation.
-                    #     if mod_p.bdi.nested:
-                    #         mod_p.bdi.nested[-1].negate_inner_rml = new_pred.bdi.negate_inner_rml
+                    #     if modf_rml.modl.nested:
+                    #         modf_rml.modl.nested[-1].negate_inner_rml = new_rml.modl.negate_inner_rml
                     #     else:
-                    #         mod_p.bdi.negate_inner_rml = new_pred.bdi.negate_inner_rml
-                    if type(new_pred.bdi) is NegateOnly:
-                        new_pred = self.merge_bdi(mod_p, new_pred, old_p)
+                    #         modf_rml.modl.negate_inner_rml = new_rml.modl.negate_inner_rml
+                    if type(new_rml.modl) is NegateOnly:
+                        new_rml = self.merge_modl(modf_rml, new_rml, old_rml)
                     else:
-                        new_pred.bdi = deepcopy(mod_p.bdi)
-                        new_pred.bdi.nested = deepcopy(mod_p.bdi.nested)
+                        new_rml.modl = deepcopy(modf_rml.modl)
+                        new_rml.modl.nested = deepcopy(modf_rml.modl.nested)
             else:
-                if new_pred.always_known:
+                if new_rml.always_known:
 
                     # Never have this predicate be NegateOnly, since AK's are either true or false.
-                    new_pred.bdi = None
+                    new_rml.modl = None
 
-                    if mod_p.bdi.negate_inner_rml:
-                        new_pred.negated = not new_pred.negated
+                    if modf_rml.modl.negate_inner_rml:
+                        new_rml.negated = not new_rml.negated
 
-                    return new_pred
+                    return new_rml
                 else:
-                    mod_p.bdi.agent = Agent(agent, False)
-                    new_pred.bdi = deepcopy(mod_p.bdi)
-        # print(f"Modified predicate to {new_pred}")
-        return new_pred
+                    modf_rml.modl.agent = Agent(agent, False)
+                    new_rml.modl = deepcopy(modf_rml.modl)
+        # print(f"Modified predicate to {new_rml}")
+        return new_rml
 
     def get_pos_or_neg_cond_term(self, cond, term_type):
         """Extract positive or negative predicates from a condition while normalizing negation."""
         if not cond:
             return []
-        new_preds = []
+        new_rmls = []
         if term_type == "pos":
             # note: since we have a condition, we assume we're working with a When
             # we need to grab all predicates that are not negated
             if type(cond) is And:
-                new_preds = [p for p in cond.operands if p.negated == False]
+                new_rmls = [p for p in cond.operands if p.negated == False]
             else:
                 if cond.negated == False:
-                    new_preds = [cond]
+                    new_rmls = [cond]
         else:
             if type(cond) is And:
-                new_preds = [p for p in cond.operands if p.negated == True]
+                new_rmls = [p for p in cond.operands if p.negated == True]
             else:
                 if cond.negated == True:
-                    new_preds = [cond]
-            new_preds = deepcopy(new_preds)
+                    new_rmls = [cond]
+            new_rmls = deepcopy(new_rmls)
             # note that we want to ignore the negations here and just get the raw RMLs,
             # because they will be re-applied by the :negcond in the consequent if necessary later.
-            for i in range(len(new_preds)):
-                new_preds[i].negated = False
-        return new_preds
+            for i in range(len(new_rmls)):
+                new_rmls[i].negated = False
+        return new_rmls
 
     def handle_list_comp(self, list_comp_terms, next_cond_or_eff, agent=None):
         """Resolve list comprehensions."""
@@ -254,42 +254,42 @@ class ApplyCondEff:
                     if list_comp_terms[var_i] == first_cond_term[0]:
                         matching_lc = "neg"
         if matching_lc:
-            new_preds = []
+            new_rmls = []
             # if we do have a matching term, we need to construct the new list of predicates
-            new_preds.extend(
+            new_rmls.extend(
                 self.get_pos_or_neg_cond_term(next_cond_or_eff, matching_lc)
             )
             # finally we need to see if any modifications were made to the predicates by looking
             # at the first term of the list comprehension
-            for i in range(len(new_preds)):
-                new_preds[i] = self.modify_predicate(
-                    deepcopy(new_preds[i]), list_comp_terms[0], agent
+            for i in range(len(new_rmls)):
+                new_rmls[i] = self.modify_predicate(
+                    deepcopy(new_rmls[i]), list_comp_terms[0], agent
                 )
-            return new_preds
+            return new_rmls
         else:
             if list_comp_terms[var_i].value == "agents":
-                new_preds = []
+                new_rmls = []
                 for a in self.agents:
                     rml = deepcopy(list_comp_terms[0])
-                    if rml.bdi.agent.var:
-                        if rml.bdi.agent.name == "ag":
-                            rml.bdi.agent = Agent(a, False)
+                    if rml.modl.agent.var:
+                        if rml.modl.agent.name == "ag":
+                            rml.modl.agent = Agent(a, False)
                         else:
-                            rml.bdi.agent = Agent(
-                                self.assignment[rml.bdi.agent.name], False
+                            rml.modl.agent = Agent(
+                                self.assignment[rml.modl.agent.name], False
                             )
-                    for i in range(len(rml.bdi.nested)):
-                        if rml.bdi.nested[i].agent.name == "ag":
-                            rml.bdi.nested[i].agent = Agent(a, False)
+                    for i in range(len(rml.modl.nested)):
+                        if rml.modl.nested[i].agent.name == "ag":
+                            rml.modl.nested[i].agent = Agent(a, False)
                         else:
-                            rml.bdi.nested[i].agent = Agent(
-                                self.assignment[rml.bdi.nested[i].agent.name], False
+                            rml.modl.nested[i].agent = Agent(
+                                self.assignment[rml.modl.nested[i].agent.name], False
                             )
 
-                    new_preds.append(
+                    new_rmls.append(
                         self.modify_predicate(deepcopy(next_cond_or_eff), rml, agent)
                     )
-                return new_preds
+                return new_rmls
             else:
                 # if no matches, then we don't know what the list comprehension is referring to
                 raise ValueError(
@@ -311,38 +311,38 @@ class ApplyCondEff:
                 if p.name == dp.name and len(p.terms) == len(dp.terms):
                     p.always_known = dp.always_known
                     break
-            p.bdi = deepcopy(cons_cond_or_rml.bdi)
-            if p.bdi:
-                if p.bdi.agent:
-                    if p.bdi.agent.var:
-                        if p.bdi.agent.name in self.assignment:
-                            p.bdi.agent = Agent(
-                                self.assignment[p.bdi.agent.name], False
+            p.modl = deepcopy(cons_cond_or_rml.modl)
+            if p.modl:
+                if p.modl.agent:
+                    if p.modl.agent.var:
+                        if p.modl.agent.name in self.assignment:
+                            p.modl.agent = Agent(
+                                self.assignment[p.modl.agent.name], False
                             )
-                for i in range(len(p.bdi.nested)):
-                    if p.bdi.nested[i].agent:
-                        if p.bdi.nested[i].agent.var:
-                            if p.bdi.nested[i].agent.name in self.assignment:
-                                p.bdi.nested[i].agent = Agent(
-                                    self.assignment[p.bdi.nested[i].agent.name], False
+                for i in range(len(p.modl.nested)):
+                    if p.modl.nested[i].agent:
+                        if p.modl.nested[i].agent.var:
+                            if p.modl.nested[i].agent.name in self.assignment:
+                                p.modl.nested[i].agent = Agent(
+                                    self.assignment[p.modl.nested[i].agent.name], False
                                 )
             p.negated = cons_cond_or_rml.negated
             return [p]
         elif type(cons_cond_or_rml) is ModRML:
             rml = deepcopy(cons_cond_or_rml)
-            if rml.bdi:
-                if rml.bdi.agent:
-                    if rml.bdi.agent.var:
-                        if rml.bdi.agent.name in self.assignment:
-                            rml.bdi.agent = Agent(
-                                self.assignment[rml.bdi.agent.name], False
+            if rml.modl:
+                if rml.modl.agent:
+                    if rml.modl.agent.var:
+                        if rml.modl.agent.name in self.assignment:
+                            rml.modl.agent = Agent(
+                                self.assignment[rml.modl.agent.name], False
                             )
-            for i in range(len(rml.bdi.nested)):
-                if rml.bdi.nested[i].agent:
-                    if rml.bdi.nested[i].agent.var:
-                        if rml.bdi.nested[i].agent.name in self.assignment:
-                            rml.bdi.nested[i].agent = Agent(
-                                self.assignment[rml.bdi.nested[i].agent.name], False
+            for i in range(len(rml.modl.nested)):
+                if rml.modl.nested[i].agent:
+                    if rml.modl.nested[i].agent.var:
+                        if rml.modl.nested[i].agent.name in self.assignment:
+                            rml.modl.nested[i].agent = Agent(
+                                self.assignment[rml.modl.nested[i].agent.name], False
                             )
             return [self.modify_predicate(next_cond_or_eff, rml, agent)]
         elif type(cons_cond_or_rml) is Token:
@@ -428,27 +428,12 @@ class ApplyCondEff:
                         # want for all agents (generic)
                         # need to ground this
                         # TODO: assuming only agents for now
-                        # TODO: assuming no bdi terms for now
+                        # TODO: assuming no modality terms for now
                         # replace the ith term with the grounded variable
                         for a in self.agents:
                             p = self.create_dcond_pred(i, a)
                             grounded_dconds.append((p, a))
                         return grounded_dconds
-
-    @staticmethod
-    def bdi_in_cond(cond):
-        """Check whether a condition contains any non-negation BDI term."""
-        if not cond:
-            return False
-        elif type(cond) is ModRML:
-            if cond.bdi and type(cond.bdi) is not NegateOnly:
-                return True
-        elif type(cond) is list:
-            for t in cond:
-                check = ApplyCondEff.bdi_in_cond(t)
-                if check:
-                    return True
-            return False
 
     def vars_to_iterate(self, formula):
         """Collect non-agent variables that should be grounded during expansion."""
@@ -467,23 +452,23 @@ class ApplyCondEff:
         return vars
 
     def agents_to_iterate(self, formula):
-        """Collect agent variables (including nested BDI agents) that require grounding."""
+        """Collect agent variables (including nested modality agents) that require grounding."""
         vars = set()
         if type(formula) is Predicate:
-            if formula.bdi:
-                if formula.bdi.agent:
-                    vars.add(formula.bdi.agent)
-                    for b in formula.bdi.nested:
+            if formula.modl:
+                if formula.modl.agent:
+                    vars.add(formula.modl.agent)
+                    for b in formula.modl.nested:
                         if b.agent:
                             vars.add(b.agent)
             for t in formula.terms:
                 if "agent" in t.type_tags:
                     vars.add(t)
         if type(formula) is ModRML:
-            if formula.bdi:
-                if formula.bdi.agent:
-                    vars.add(formula.bdi.agent)
-                    for b in formula.bdi.nested:
+            if formula.modl:
+                if formula.modl.agent:
+                    vars.add(formula.modl.agent)
+                    for b in formula.modl.nested:
                         if b.agent:
                             vars.add(b.agent)
         elif type(formula) is list:
@@ -500,23 +485,23 @@ class ApplyCondEff:
 
     def handle_wildcard_case(self, next_f, consequent_preds, cond=None):
         cons_rml = self.cons_rml[0][0]
-        num_bdi = 1
-        if next_f.bdi:
-            num_bdi += len(next_f.bdi.nested)
-        for combo in bool_combinations(num_bdi):
+        num_modl = 1
+        if next_f.modl:
+            num_modl += len(next_f.modl.nested)
+        for combo in bool_combinations(num_modl):
             eff = deepcopy(next_f)
-            if combo == (0,) * num_bdi:
+            if combo == (0,) * num_modl:
                 continue
-            for idx in range(num_bdi):
+            for idx in range(num_modl):
                 if idx in next_f.match_idx:
                     if idx == 0:
                         if combo[idx] == 1:
-                            eff.bdi = type(cons_rml.bdi)(next_f.bdi.negate_inner_rml, cons_rml.bdi.hard_bdi, next_f.bdi.agent)
-                            eff.bdi.nested = deepcopy(next_f.bdi.nested)
+                            eff.modl = type(cons_rml.modl)(next_f.modl.negate_inner_rml, cons_rml.modl.hard_modl, next_f.modl.agent)
+                            eff.modl.nested = deepcopy(next_f.modl.nested)
                     else:
                         if combo[idx] == 1:
                             idx -= 1
-                            eff.bdi.nested[idx] = type(cons_rml.bdi)(next_f.bdi.nested[idx].negate_inner_rml, cons_rml.bdi.hard_bdi, next_f.bdi.nested[idx].agent)
+                            eff.modl.nested[idx] = type(cons_rml.modl)(next_f.modl.nested[idx].negate_inner_rml, cons_rml.modl.hard_modl, next_f.modl.nested[idx].agent)
             if cond:
                 consequent_preds.append(When(cond, And(eff)))
             else:
@@ -630,18 +615,18 @@ class ApplyCondEff:
             consequent_preds.extend(self.create_consequent_core(next_f))
         return consequent_preds
     
-    def check_bdi_wildcard_match(self, next_f_bdi, wildcard: BDI):
-        return type(next_f_bdi) == type(wildcard) and next_f_bdi.hard_bdi == wildcard.hard_bdi
+    def check_modl_wildcard_match(self, next_modl, wildcard: MODL):
+        return type(next_modl) == type(wildcard) and next_modl.hard_modl == wildcard.hard_modl
 
-    def wildcard_match(self, next_f, wildcard: BDI, deleting=False):
+    def wildcard_match(self, next_f, wildcard: MODL, deleting=False):
         if deleting != next_f.negated:
             return False
         idx = []
-        if self.check_bdi_wildcard_match(next_f.bdi, wildcard):
+        if self.check_modl_wildcard_match(next_f.modl, wildcard):
             idx.append(0)
-        if next_f.bdi.nested:
-            for i in range(len(next_f.bdi.nested)):
-                if self.check_bdi_wildcard_match(next_f.bdi.nested[i], wildcard):
+        if next_f.modl.nested:
+            for i in range(len(next_f.modl.nested)):
+                if self.check_modl_wildcard_match(next_f.modl.nested[i], wildcard):
                     idx.append(i + 1)
         next_f.match_idx = idx
         return len(idx) > 0
@@ -653,9 +638,9 @@ class ApplyCondEff:
 
         When we have a "When," we have to check the when effect against the RML format.
 
-        Another note: it's OK if the RML has no BDI term and the predicate does.
+        Another note: it's OK if the RML has no modality term and the predicate does.
         In that case, the RML functions as a general "catch-all."
-        However, if the RML has a BDI term, then the BDI term is of some relevance,
+        However, if the RML has a modality term, then the modality term is of some relevance,
         and the predicate is expected to match it.
         """
         if type(next_f) is And:
@@ -685,27 +670,27 @@ class ApplyCondEff:
             return False
 
         # explained in the docstring
-        if self.ant_rml.bdi and not next_f.bdi:
+        if self.ant_rml.modl and not next_f.modl:
             return False
         
         # "wildcard" case means that we need at least one match of the wildcard in the antecedent
-        if self.ant_rml.bdi and self.ant_cond_type == "wildcard":
-            if type(self.ant_rml.bdi) is NegateOnly or type(self.cons_rml[0][0].bdi) is NegateOnly:
+        if self.ant_rml.modl and self.ant_cond_type == "wildcard":
+            if type(self.ant_rml.modl) is NegateOnly or type(self.cons_rml[0][0].modl) is NegateOnly:
                 return ValueError("Not a valid wildcard setting.")
-            return self.wildcard_match(next_f, self.ant_rml.bdi)
-        elif self.ant_rml.bdi and self.ant_cond_type == "del-wildcard":
-            if type(self.ant_rml.bdi) is NegateOnly or type(self.cons_rml[0][0].bdi) is NegateOnly:
+            return self.wildcard_match(next_f, self.ant_rml.modl)
+        elif self.ant_rml.modl and self.ant_cond_type == "del-wildcard":
+            if type(self.ant_rml.modl) is NegateOnly or type(self.cons_rml[0][0].modl) is NegateOnly:
                 return ValueError("Not a valid wildcard setting.")
-            return self.wildcard_match(next_f, self.ant_rml.bdi, deleting=True)
+            return self.wildcard_match(next_f, self.ant_rml.modl, deleting=True)
 
-        # "soft" adds/deletes allow for cases where the antecedent term has no BDI term and the next
+        # "soft" adds/deletes allow for cases where the antecedent term has no modality term and the next
         # formula term does, and we allow for that term to "pass through." however, hard add/deletes
         # only return True on a STRICT match.
-        if not self.ant_rml.bdi and next_f.bdi and "soft" not in self.ant_cond_type:
+        if not self.ant_rml.modl and next_f.modl and "soft" not in self.ant_cond_type:
             return False
 
-        if (not self.ant_rml.bdi and next_f.bdi) or (
-            not self.ant_rml.bdi and not next_f.bdi
+        if (not self.ant_rml.modl and next_f.modl) or (
+            not self.ant_rml.modl and not next_f.modl
         ):
             # get the variable assignments
             if type(self.ant_rml) is Predicate:
@@ -721,36 +706,36 @@ class ApplyCondEff:
                         ].name
             return True
 
-        # if we've gotten to this point, both have bdi.
+        # if we've gotten to this point, both have modalities.
         # however these could still be different kinds.
-        if type(self.ant_rml.bdi) != type(next_f.bdi):
+        if type(self.ant_rml.modl) != type(next_f.modl):
             return False
 
         # need to check the nested terms as well
-        if len(self.ant_rml.bdi.nested) != len(next_f.bdi.nested):
+        if len(self.ant_rml.modl.nested) != len(next_f.modl.nested):
             return False
 
-        # now we can check the full bdi terms, knowing they're the same type.
+        # now we can check the full modality terms, knowing they're the same type.
         # note: we don't care what the agent is, we're just checking for the overall structure
         if (
-            self.ant_rml.bdi.negate_inner_rml == next_f.bdi.negate_inner_rml
-            and self.ant_rml.bdi.hard_bdi == next_f.bdi.hard_bdi
+            self.ant_rml.modl.negate_inner_rml == next_f.modl.negate_inner_rml
+            and self.ant_rml.modl.hard_modl == next_f.modl.hard_modl
         ):
-            for i in range(len(self.ant_rml.bdi.nested)):
+            for i in range(len(self.ant_rml.modl.nested)):
                 if (
-                    type(self.ant_rml.bdi.nested[i]) != type(next_f.bdi.nested[i])
-                    or self.ant_rml.bdi.nested[i].negate_inner_rml
-                    != next_f.bdi.nested[i].negate_inner_rml
-                    or self.ant_rml.bdi.nested[i].hard_bdi
-                    != next_f.bdi.nested[i].hard_bdi
+                    type(self.ant_rml.modl.nested[i]) != type(next_f.modl.nested[i])
+                    or self.ant_rml.modl.nested[i].negate_inner_rml
+                    != next_f.modl.nested[i].negate_inner_rml
+                    or self.ant_rml.modl.nested[i].hard_modl
+                    != next_f.modl.nested[i].hard_modl
                 ):
                     return False
         else:
             return False
         # gather the assignments
-        self.assignment[self.ant_rml.bdi.agent.name] = next_f.bdi.agent.name
-        for i in range(len(self.ant_rml.bdi.nested)):
-            self.assignment[self.ant_rml.bdi.nested[i].agent.name] = next_f.bdi.nested[
+        self.assignment[self.ant_rml.modl.agent.name] = next_f.modl.agent.name
+        for i in range(len(self.ant_rml.modl.nested)):
+            self.assignment[self.ant_rml.modl.nested[i].agent.name] = next_f.modl.nested[
                 i
             ].agent.name
         # also get the variable assignments
@@ -767,7 +752,7 @@ class ApplyCondEff:
 
 
 def check_nesting(cons, depth):
-    """Ensure nested BDI depth in a consequent does not exceed ``depth``."""
+    """Ensure nested modality depth in a consequent does not exceed ``depth``."""
     if type(cons) is When:
         return check_nesting(cons.condition, depth) and check_nesting(
             cons.effect, depth
@@ -778,10 +763,10 @@ def check_nesting(cons, depth):
                 return False
         return True
     elif type(cons) is Predicate:
-        if not cons.bdi or type(cons.bdi) is NegateOnly:
+        if not cons.modl or type(cons.modl) is NegateOnly:
             return True
         else:
-            return len(cons.bdi.nested) + 1 <= depth
+            return len(cons.modl.nested) + 1 <= depth
 
 
 def gen_id(cond):
@@ -845,12 +830,12 @@ def apply_cond_eff(
 
                     cons = anc_eff_data.create_consequent(deepcopy(next_f))
                     cons = list(set(cons))
-                    # remove extraneous BDI terms)
+                    # remove extraneous modality terms)
                     for i in range(len(cons)):
                         if type(cons[i]) is When:
                             cond = set(
                                 [
-                                    remove_extra_bdi(c)
+                                    remove_extra_modl(c)
                                     for c in cons[i].condition.operands
                                 ]
                             )
@@ -859,18 +844,18 @@ def apply_cond_eff(
                             eff = (
                                 set(
                                     [
-                                        remove_extra_bdi(c)
+                                        remove_extra_modl(c)
                                         for c in cons[i].effect.operands
                                     ]
                                 )
                                 if type(cons[i].effect) is And
-                                else [remove_extra_bdi(cons[i].effect)]
+                                else [remove_extra_modl(cons[i].effect)]
                             )
                             # and_eff = And(*[])
                             # and_eff._operands.extend(sorted(cond))
                             cons[i] = When(and_cond, And(*eff))
                         else:
-                            cons[i] = remove_extra_bdi(cons[i])
+                            cons[i] = remove_extra_modl(cons[i])
                         cons[i].id = gen_id(cons[i])
                         cons[i].comment = (
                             anc_eff_data.name
@@ -907,31 +892,31 @@ def apply_cond_eff(
 
 
 # TODO: clean this up
-def remove_extra_bdi(term):
+def remove_extra_modl(term):
     """Strip redundant NegateOnly nesting introduced during expansion."""
-    if term.bdi:
-        if type(term.bdi) is NegateOnly:
-            if not term.bdi.negate_inner_rml:
-                if not term.bdi.nested:
-                    term.bdi = None
+    if term.modl:
+        if type(term.modl) is NegateOnly:
+            if not term.modl.negate_inner_rml:
+                if not term.modl.nested:
+                    term.modl = None
                 else:
                     new_nested = []
-                    for n in term.bdi.nested:
+                    for n in term.modl.nested:
                         if type(n) is NegateOnly:
                             if not n.negate_inner_rml:
                                 continue
                         new_nested.append(deepcopy(n))
-                    term.bdi.nested = new_nested[1:]
-                    term.bdi = deepcopy(new_nested[0])
+                    term.modl.nested = new_nested[1:]
+                    term.modl = deepcopy(new_nested[0])
         else:
-            if term.bdi.nested:
+            if term.modl.nested:
                 new_nested = []
-                for n in term.bdi.nested:
+                for n in term.modl.nested:
                     if type(n) is NegateOnly:
                         if not n.negate_inner_rml:
                             continue
                     new_nested.append(deepcopy(n))
-                term.bdi.nested = new_nested
+                term.modl.nested = new_nested
     return term
 
 
@@ -948,19 +933,19 @@ def all_rmls(domain, depth):
             agent = Agent(ag, False)
             for rml in curr:
                 rml_d = 0
-                if rml.bdi:
+                if rml.modl:
                     rml_d += 1
-                    if rml.bdi.nested:
-                        rml_d += len(rml.bdi.nested)
+                    if rml.modl.nested:
+                        rml_d += len(rml.modl.nested)
                 if rml_d >= depth:
                     continue
-                # ---- generate BDI variants ----
+                # ---- generate modality variants ----
                 variants = []
 
                 # Only add the negation variation at depth 1 for the non-AK fluents
                 if d == 1 and not rml.always_known:
                     x = deepcopy(rml)
-                    x.bdi = NegateOnly(True)
+                    x.modl = NegateOnly(True)
                     variants.append(x)
 
                 if not rml.always_known:
@@ -968,21 +953,21 @@ def all_rmls(domain, depth):
                         for neg in (False, True):
                             for hard in (True, False):
                                 x = deepcopy(rml)
-                                x.bdi = typ(
-                                    negate_inner_rml=neg, hard_bdi=hard, agent=agent
+                                x.modl = typ(
+                                    negate_inner_rml=neg, hard_modl=hard, agent=agent
                                 )
                                 variants.append(x)
 
                 # ---- nesting rules ----
-                if rml.bdi:
+                if rml.modl:
                     for v in variants:
                         base = deepcopy(rml)
-                        if isinstance(base.bdi, NegateOnly):
-                            if base.bdi.negate_inner_rml:
-                                v.bdi.negate()
+                        if isinstance(base.modl, NegateOnly):
+                            if base.modl.negate_inner_rml:
+                                v.modl.negate()
                             raw.append(v)
                         else:
-                            raw.append(ApplyCondEff.nest_bdi(v, base, base, False))
+                            raw.append(ApplyCondEff.nest_modl(v, base, False))
                 else:
                     raw.extend(variants)
 
@@ -992,7 +977,7 @@ def all_rmls(domain, depth):
 
         for item in raw:
             # canonicalize internal structure but do NOT mutate later
-            cleaned = remove_extra_bdi(item)
+            cleaned = remove_extra_modl(item)
             sig = str(cleaned)
             if sig not in seen:
                 seen.add(sig)
@@ -1008,7 +993,7 @@ def all_rmls(domain, depth):
 def apply_cond_effs(anc_effs, domain, problem):
     """Apply ancillary effects to every action/init/goal and return updated domain/problem."""
     start = time.time()
-    timeout = 30 * 60
+    timeout = 10 * 60
     if type(anc_effs) is list:
         new_anc_effs = []
         for e in anc_effs:
@@ -1021,7 +1006,7 @@ def apply_cond_effs(anc_effs, domain, problem):
         # if action.name != "share_alice_bob_l1":
         #     continue
         for o in action.effect.operands:
-            new_preds = apply_cond_eff(
+            new_rmls = apply_cond_eff(
                 anc_effs,
                 o,
                 action.derive_condition,
@@ -1032,9 +1017,9 @@ def apply_cond_effs(anc_effs, domain, problem):
             )
             if time.time() - start > timeout:
                 raise TimeoutError("Preprocessing exceeded 30-minute time limit.")
-            if new_preds:
+            if new_rmls:
                 # apply the consequent
-                action.effect._operands.extend(new_preds)
+                action.effect._operands.extend(new_rmls)
         # in case of duplicate effects, remove them
         action.effect._operands = set(action.effect._operands)
 
@@ -1044,7 +1029,7 @@ def apply_cond_effs(anc_effs, domain, problem):
     init = set(problem.init)
 
     for p in problem.init:
-        new_preds = apply_cond_eff(
+        new_rmls = apply_cond_eff(
             anc_effs,
             p,
             None,
@@ -1054,20 +1039,20 @@ def apply_cond_effs(anc_effs, domain, problem):
             problem.objects,
             ["kd45closure"],
         )
-        if new_preds:
-            for n in new_preds:
+        if new_rmls:
+            for n in new_rmls:
                 if not n.negated:
                     init.add(n)
     if problem.init_type[2].value == "complete":
         to_add = set()
         # also need to close omniscience of the root agent
         for rml in predicates:
-            if rml.bdi:
+            if rml.modl:
                 if (
-                    rml.bdi.hard_bdi == False
+                    rml.modl.hard_modl == False
                 ):  # need to check False specifically, not None
                     rml_neg = deepcopy(rml)
-                    rml_neg.bdi.negate()
+                    rml_neg.modl.negate()
                     # have to do this instead of using "rml_neg in init" because of a weird
                     # hash bug relating to mutability...
                     # TODO: fix this with a cleaner solution later?

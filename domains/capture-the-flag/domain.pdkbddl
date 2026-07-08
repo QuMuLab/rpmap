@@ -1,7 +1,7 @@
 
 (define (domain capture_the_flag)
 
-	(:agents alice bob cindy)
+	(:agents alice bob cindy derek evelyn)
     (:requirements :typing)
     (:types loc agent)
     (:constants )

@@ -38,13 +38,13 @@ cond_types: ADD | DEL | ADD_SOFT | DEL_SOFT | WILDCARD | DEL_WILDCARD
 
 var: QMRK NAME
 
-bdi_term: BELIEF | DESIRE | INTENTION
+modl_term: BELIEF | DESIRE | INTENTION
 
-bdi: LSQB bdi_term COMMA var RSQB | LESSER_OP bdi_term COMMA var GREATER_OP
+modl: LSQB modl_term COMMA var RSQB | LESSER_OP modl_term COMMA var GREATER_OP
 
 rml_options: var | list_comp_rml | atomic_formula_term_rml | gd
 
-atomic_formula_term_rml: [EXC] bdi* [LSQB] LPAR [EXC] RML_NAME RPAR [RSQB]
+atomic_formula_term_rml: [EXC] modl* [LSQB] LPAR [EXC] RML_NAME RPAR [RSQB]
 
 anceff_params: PARAMETERS action_parameters
 
@@ -52,7 +52,7 @@ poscond: POSCOND pos_or_neg_cond
 
 negcond: NEGCOND pos_or_neg_cond
 
-atomic_formula_term_list_comp_r: [EXC] bdi* [LSQB] LPAR [EXC] R RPAR [RSQB]
+atomic_formula_term_list_comp_r: [EXC] modl* [LSQB] LPAR [EXC] R RPAR [RSQB]
 
 list_comp_var: LCRL atomic_formula_term_list_comp_r FOR R IN var RCRL
 
@@ -70,7 +70,7 @@ ant_def: ANT LPAR [poscond] [negcond] [awareness] rml_def cond_type_def RPAR
 
 cons_def: CONS LPAR [poscond] [negcond] rml_def cond_type_def RPAR
 
-atomic_formula_term_condition: [EXC] bdi* LPAR [EXC] var RPAR
+atomic_formula_term_condition: [EXC] modl* LPAR [EXC] var RPAR
 
 awareness: AWARENESS TRUE_ | AWARENESS FALSE_
 

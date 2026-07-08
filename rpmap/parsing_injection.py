@@ -153,7 +153,7 @@ def create_fluents(domain, problem):
         val_generator = create_valuations(domain._agents, problem.objects, p.terms)
         for valuation in val_generator:
             grounded_p = Predicate(p.name, *(Constant(c) for c in valuation))
-            grounded_p.bdi = p.bdi
+            grounded_p.modl = p.modl
             grounded_p.negated = p.negated
             grounded_p.always_known = p.always_known
             fluents.add(grounded_p)
@@ -161,7 +161,7 @@ def create_fluents(domain, problem):
 
 def check_intention_error(f: Predicate, domain):
     action_names = [a.name for a in domain.actions]
-    if type(f.bdi) is Intention and f.name not in action_names:
+    if type(f.modl) is Intention and f.name not in action_names:
         raise ValueError("Cannot intend a predicate; you can only intend an action.")
 
 def predicates_to_fluents(predicates: list[Predicate], assignment, domain, problem):
@@ -194,19 +194,19 @@ def predicates_to_fluents(predicates: list[Predicate], assignment, domain, probl
         
         if type(p) is not Predicate:
             f = Predicate(p.argument.name, *new_terms)
-            f.bdi = p.argument.bdi
+            f.modl = p.argument.modl
             f.negated = (p.argument.negated == True) # become False if it's None
             f.always_known = p.argument.always_known
             f = outside_formula_type(f)
         else:
             f = Predicate(p.name, *new_terms)
-            if p.bdi:  
-                if p.bdi.agent.var:
-                    p.bdi.agent = Agent(assignment[p.bdi.agent.name], False)   
-                if p.bdi.nested:
-                    for i in range(len(p.bdi.nested)):
-                        p.bdi.nested[i].agent = Agent(assignment[p.bdi.nested[i].agent.name], False)
-            f.bdi = p.bdi
+            if p.modl:  
+                if p.modl.agent.var:
+                    p.modl.agent = Agent(assignment[p.modl.agent.name], False)   
+                if p.modl.nested:
+                    for i in range(len(p.modl.nested)):
+                        p.modl.nested[i].agent = Agent(assignment[p.modl.nested[i].agent.name], False)
+            f.modl = p.modl
             f.negated = (p.negated == True) # become False if it's None
             # find the "always known" status by referencing it from the domain predicates
             f.always_known = False
@@ -216,14 +216,14 @@ def predicates_to_fluents(predicates: list[Predicate], assignment, domain, probl
                     break
             if not f.always_known and f.negated:
                 f.negated = False
-                if f.bdi:
-                    if f.bdi.nested:
-                        f.bdi.nested[-1].negate_inner_rml = not p.bdi.nested[-1].negate_inner_rml
+                if f.modl:
+                    if f.modl.nested:
+                        f.modl.nested[-1].negate_inner_rml = not p.modl.nested[-1].negate_inner_rml
                     else:
-                        f.bdi.negate_inner_rml = not f.bdi.negate_inner_rml
+                        f.modl.negate_inner_rml = not f.modl.negate_inner_rml
                 else:
-                    f.bdi = NegateOnly(True)
-        if f.bdi:
+                    f.modl = NegateOnly(True)
+        if f.modl:
             check_intention_error(f, domain)
         fluents.append(f)
     return fluents
@@ -312,15 +312,15 @@ def create_intend_action_preds(old_operators, agents, goal):
     intn_preds = set()
     # find all intention predicates in the goal or in action preconditions
     for p in goal:
-        if type(p.bdi) is Intention:
+        if type(p.modl) is Intention:
             ip = deepcopy(p)
-            ip.bdi = None
+            ip.modl = None
             intn_preds.add(ip)
     for o in old_operators:
         for p in o.precondition.operands:
-            if type(p.bdi) is Intention:
+            if type(p.modl) is Intention:
                 ip = deepcopy(p)
-                ip.bdi = None
+                ip.modl = None
                 intn_preds.add(ip)
 
     operators = set()
@@ -336,7 +336,7 @@ def create_intend_action_preds(old_operators, agents, goal):
             action_iaps = []
             for ag in agents:
                 iap = deepcopy(intend_action_p)
-                iap.bdi = Intention(True, True, Agent(ag, False))
+                iap.modl = Intention(True, True, Agent(ag, False))
                 action_iaps.append(iap)
                 all_iaps.append(iap)
                 # these are for the predicates to add to the domain.
@@ -345,15 +345,15 @@ def create_intend_action_preds(old_operators, agents, goal):
                 # (although other modalities can be nested on top).
                 # add version with no negation
                 iap_c = deepcopy(iap)
-                iap_c.bdi.negate_inner_rml = False
+                iap_c.modl.negate_inner_rml = False
                 all_iaps.append(iap_c)
                 # add versions with possible intention
                 iap_c = deepcopy(iap)
-                iap_c.bdi.hard_bdi = False
+                iap_c.modl.hard_modl = False
                 all_iaps.append(iap_c)
                 iap_c = deepcopy(iap)
-                iap_c.bdi.negate_inner_rml = False
-                iap_c.bdi.hard_bdi = False
+                iap_c.modl.negate_inner_rml = False
+                iap_c.modl.hard_modl = False
                 all_iaps.append(iap_c)
     
             and_ = And(*[])
@@ -380,7 +380,7 @@ def create_intend_action_preds(old_operators, agents, goal):
 def ground_init_problem(preds, domain):
     # need to get the always known status for predicates
     for p in preds:
-        if p.bdi:
+        if p.modl:
             check_intention_error(p, domain)
         for dom_p in domain.predicates:
             p.always_known = False
@@ -389,13 +389,13 @@ def ground_init_problem(preds, domain):
                 break
         if not p.always_known and p.negated:
             p.negated = False
-            if p.bdi:
-                if p.bdi.nested:
-                    p.bdi.nested[-1].negate_inner_rml = not p.bdi.nested[-1].negate_inner_rml
+            if p.modl:
+                if p.modl.nested:
+                    p.modl.nested[-1].negate_inner_rml = not p.modl.nested[-1].negate_inner_rml
                 else:
-                    p.bdi.negate_inner_rml = not p.bdi.negate_inner_rml
+                    p.modl.negate_inner_rml = not p.modl.negate_inner_rml
             else:
-                p.bdi = NegateOnly(True)
+                p.modl = NegateOnly(True)
 
 def ground(domain, problem, path):
     """Convert this problem into a ground problem."""
@@ -478,14 +478,14 @@ def solve(path=False):
 
 if __name__ == "__main__":
     # read the ancillary effects grammar file and add to the main grammar file
-    with open("bdi_extension/ancillary_effects.lark", "r") as f:
+    with open("rpmap/ancillary_effects.lark", "r") as f:
         anceff_grammar = f.read()
     write_no_duplicate("\n" + anceff_grammar, GRAMMAR_FILE)
     # modify the domain and problem grammar files to add in the new rules
     construct_domain_grammar()
     construct_problem_grammar()
     # grab the PDDL
-    base_path = "bdi_extension/bdi-grapevine"
+    base_path = "domains/bdi-grapevine"
     pddl_str = "\n".join(read_pdkbddl_file(f"{base_path}/problem_1.pdkbddl"))
     # read the lark file
     with open(GRAMMAR_FILE, "r") as f:
