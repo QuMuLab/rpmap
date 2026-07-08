@@ -8,15 +8,15 @@ On Linux (or use the Mac/Windows equivalent):
 Then, install the required libraries:
 `pip install lark && pip install git+https://github.com/AI-Planning/pddl.git@2fba52e9a9bd9bf93031828bffcd326452f85d1c`
 
-Example PDKBDDL domains are located under `bdi_extension.`
+Example PDKBDDL domains are located under `domains.`
 
 ## Running Example Domains in RP-M*P
 
-Use the `evaluate` script to run the ancillary effect algorithm on a sample domain and problem number, e.g.:
+Use the `evaluate.py` script to run the ancillary effect algorithm on a sample domain and problem number, e.g.:
 
-`python3 evaluate.py belief-desire 3 solve`
+`python3 evaluate.py capture-the-flag 3 solve`
 
-You will see that `pdkb-domain.pddl` and `pdkb-problem.pddl` files are generated in `bdi_extension/belief-desire`.
+You will see that `pdkb-domain.pddl` and `pdkb-problem.pddl` files are generated in `domains/capture-the-flag`.
 
 ## Solving Example Generated Domains
 
@@ -24,48 +24,12 @@ RP-M*P compiles to **classical planning**, so you can use any classical planner 
 
 ## Solving Your Own Domains
 
-Place your domain directory under `bdi_extension`. This directory should include your `domain.pdkbddl`, your numbered `problem_{#}.pdkbddl`s, the base ancillary effect file found in the other directories `ancillary_effects.pdkbddl`, and whichever other ancillary effect files you would like. Modify the `get_num_agents` function in the file to represent how the number of agents is distributed across your problems. Run `evaluate.py`, using your domain name and the problem number as your first two arguments. Finally, use your preferred classical planner to solve.
+Place your domain directory under `domains`. This directory should include your `domain.pdkbddl`, your numbered `problem_{#}.pdkbddl`s, the base ancillary effect file found in the other directories `ancillary_effects.pdkbddl`, and whichever other ancillary effect files you would like. Modify the `get_num_agents` function in the `evaluate.py` file to represent how the number of agents is distributed across your problems. Run `evaluate.py`, using your domain name and the problem number as your first two arguments and `solve` as the final argument. Finally, use your preferred classical planner to solve.
 
 ## Reproducing Paper Results
 Finally, the `evaluate_domain.sh` script runs all the problem files for the sample domain. You can use these to reproduce the results in the paper. Note that this uses `lama-first` from [planutils](https://github.com/AI-Planning/planutils).
 
-`./evaluate_domain.sh "belief-desire"` (do for all domains)
+`./evaluate_domain.sh "capture-the-flag"` (do for all domains)
 
 ## Contact
 If there are any issues, feel free to contact 18rldv@queensu.ca. :)
-
-# Running RP-MEP: Multi-agent Epistemic Planning With Proper Doxastic Knowledge Bases #
-
-We recommend using RP-M*P, but if you are curious, this repository also houses the old code for solving Multi-agent Epistemic Planning (MEP) problems using Proper Doxastic Knowledge Bases (PDKB). There are a number of components that may be useful on their own, including [working directing with PDKB's](https://github.com/QuMuLab/PDKB-Planning/blob/master/pdkb/kd45.py?at=default), [augmenting the MEP formalism](https://github.com/QuMuLab/PDKB-Planning/blob/master/pdkb/problems.py?at=default), or even just creating / dealing with [KD45 kripke structures](https://github.com/QuMuLab/PDKB-Planning/blob/master/pdkb/kripke.py?at=default).
-
-Eventually, more documentation will be added to the project, but feel free to [contact me](http://haz.ca/contact.html) if you have any questions. For a demo and more information on the project, [[click here](http://pdkb.haz.ca/)].
-
-## Getting started ##
-
-### Using Docker ###
-
-```sh
-docker build -t pdkbplanning:latest .
-docker run -it pdkbplanning
-```
-
-You end up in a shell running in the Docker container,
-which has all the required tools installed.
-Then you can run the planner on an example PKDBDDL problem:
-
-```sh
-python3 -m pdkb.planner /MEP/pdkb-planning/examples/planning/grapevine/prob-paper1.pdkbddl
-```
-
-## Requirements ##
-* [Graphviz](http://graphviz.org/)
-* [NetworkX](http://networkx.github.io/)
-* [Pygraphviz](http://networkx.lanl.gov/pygraphviz/index.html)
-
-python3 -m pdkb.planner /MEP/pdkb-planning/examples/planning/grapevine/prob-paper1.pdkbddl
-```
-
-## Requirements ##
-* [Graphviz](http://graphviz.org/)
-* [NetworkX](http://networkx.github.io/)
-* [Pygraphviz](http://networkx.lanl.gov/pygraphviz/index.html)

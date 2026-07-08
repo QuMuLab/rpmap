@@ -1,7 +1,7 @@
-from bdi_extension.domain import construct_domain_grammar
-from bdi_extension.problem import construct_problem_grammar
-from parsing_injection import write_no_duplicate, read_pdkbddl_file, AncEffDomProbParser, ground, write, solve
-from bdi_extension.apply_cond_effs import apply_cond_effs
+from rpmap.core.domain import construct_domain_grammar
+from rpmap.core.problem import construct_problem_grammar
+from rpmap.parsing_injection import write_no_duplicate, read_pdkbddl_file, AncEffDomProbParser, ground, write, solve
+from rpmap.apply_cond_effs import apply_cond_effs
 from pddl.parser import GRAMMAR_FILE
 import csv
 import os
@@ -24,8 +24,8 @@ def get_num_agents(prob):
 
 def write_plan_output(dom, prob):
     time_output_path = "time_output.txt"
-    plan_output_path = os.path.join("bdi_extension", dom, f"plan_{prob}.txt")
-    db_path = os.path.join("evaluation", f"{dom}_evaluation.csv")
+    plan_output_path = os.path.join("domains", dom, f"plan_{prob}.txt")
+    db_path = os.path.join("evaluation_data", f"{dom}_evaluation.csv")
 
     with open(time_output_path, "r") as f:
         lines = f.readlines()
@@ -55,9 +55,9 @@ def get_agents_str(num_agents):
     return f"\t(:agents {' '.join(['alice', 'bob', 'cindy', 'derek', 'evelyn'][:num_agents])})"
 
 def eval_single(dom, problem_num, num_agents, parser):
-    base_path = os.path.join("bdi_extension", dom)
+    base_path = os.path.join("domains", dom)
     domain_path = os.path.join(base_path, "domain.pdkbddl")
-    db_path = os.path.join("evaluation", f"{dom}_evaluation.csv")
+    db_path = os.path.join("evaluation_data", f"{dom}_evaluation.csv")
     with open(domain_path, "r") as f:
         lines = f.readlines()
 
@@ -95,7 +95,8 @@ def eval_single(dom, problem_num, num_agents, parser):
 def evaluate(domain, prob):
     # --- GENERAL PARSING SETUP ---
     # read the ancillary effects grammar file and add to the main grammar file
-    with open("bdi_extension/ancillary_effects.lark", "r") as f:
+    lark_path = os.path.join("rpmap", "ancillary_effects.lark")
+    with open(lark_path, "r") as f:
         anceff_grammar = f.read()
     write_no_duplicate("\n" + anceff_grammar, GRAMMAR_FILE)
     # modify the domain and problem grammar files to add in the new rules
