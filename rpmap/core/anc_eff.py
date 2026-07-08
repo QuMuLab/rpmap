@@ -1,15 +1,14 @@
 from ..parsing_utils import *
 from lark.visitors import Transformer
 from pddl.helpers.base import _typed_parameters
-from pddl.logic.terms import Constant
-from abc import ABC, abstractmethod
+from abc import ABC
 from enum import Enum
 
 
-class ModlType(Enum):
+class GenericMODLType(Enum):
     BELIEF = 1
     DESIRE = 2
-    INTENTION = 3
+    DISDAIN = 4
 
 class Agent:
     def __init__(self, agent, var):
@@ -25,7 +24,8 @@ class Agent:
         return hash((self.name, self.var))
 
 class MODL(ABC):
-    def __init__(self, negate_inner_rml, hard_modl, agent):
+    def __init__(self, modl_type, negate_inner_rml, hard_modl, agent):
+        self.modl_type = modl_type
         self.negate_inner_rml = negate_inner_rml
         self.hard_modl = hard_modl
         self.agent = agent
@@ -34,9 +34,8 @@ class MODL(ABC):
     def __str__(self):
         class_name = self.__class__.__name__
         modl_str = "P"  if not self.hard_modl and class_name != "NegateOnly" else ""
-        
         if class_name != "NegateOnly":
-            modl_str += f"{self.__class__.__name__[0]}{self.agent.name}"
+            modl_str += f"{self.modl_type.name[:3]}{self.agent.name}"
             for n in self.nested:
                 modl_str += f"_{str(n)}"
             if self.negate_inner_rml:
@@ -85,19 +84,15 @@ class MODL(ABC):
 
 class NegateOnly(MODL):
     def __init__(self, negate_inner_rml):
-        super().__init__(negate_inner_rml, None, None)
+        super().__init__(None, negate_inner_rml, None, None)
 
-class Belief(MODL):
-    def __init__(self, negate_inner_rml, hard_modl, agent):
-        super().__init__(negate_inner_rml, hard_modl, agent)  
-
-class Desire(MODL):
-    def __init__(self, negate_inner_rml, hard_modl, agent):
-        super().__init__(negate_inner_rml, hard_modl, agent)
+class GenericModality(MODL):
+    def __init__(self, modl_type, negate_inner_rml, hard_modl, agent):
+        super().__init__(modl_type, negate_inner_rml, hard_modl, agent)  
 
 class Intention(MODL):
-    def __init__(self, negate_inner_rml, hard_modl, agent):
-        super().__init__(negate_inner_rml, hard_modl, agent)
+    def __init__(self, modl_type, negate_inner_rml, hard_modl, agent):
+        super().__init__(modl_type, negate_inner_rml, hard_modl, agent)
 
 def instantiate_modl(modl_args, ground=True):
     """Instantiate the appropriate MODL class based on the type of MODL term."""
@@ -123,7 +118,12 @@ def instantiate_modl(modl_args, ground=True):
             # ignore this, this token, if it exists, just indicates nesting
             if modl == Token("LSQB", "["):
                 continue
+            # compare against names only
             modl_type = modl[1][0].type
+            if modl_type in [e.name for e in GenericMODLType] + ["INTENTION"]:
+                modl_type = GenericMODLType[modl[1][0].type] if modl[1][0].type != "INTENTION" else "INTENTION"
+            else:
+                raise ValueError(f"Dealing with an unknown MODL type {modl[1][0].type}.")
             if type(modl[3]) is list:
                 agent = Agent(modl[3][1].value, True)
             elif type(modl[3]) is Token:
@@ -132,12 +132,10 @@ def instantiate_modl(modl_args, ground=True):
             if ground:
                 if negate_inner_rml:
                     hard_modl = not hard_modl
-            if modl_type == "BELIEF":
-                all_modl.append(Belief(negate_inner_rml, hard_modl, agent))
-            elif modl_type == "DESIRE":
-                all_modl.append(Desire(negate_inner_rml, hard_modl, agent))
-            elif modl_type == "INTENTION":
-                all_modl.append(Intention(negate_inner_rml, hard_modl, agent))
+            if modl_type == "INTENTION":
+                all_modl.append(Intention(modl_type, negate_inner_rml, hard_modl, agent))
+            else:
+                all_modl.append(GenericModality(modl_type, negate_inner_rml, hard_modl, agent))
         main_modl = all_modl[0]
         if len(all_modl) > 1:
             main_modl.nested = all_modl[1:]

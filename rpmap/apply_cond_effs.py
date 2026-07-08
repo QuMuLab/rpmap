@@ -1,5 +1,5 @@
 from copy import deepcopy
-from .core.anc_eff import MODL, NegateOnly, Agent, ModRML, Belief, Desire, Intention
+from .core.anc_eff import MODL, NegateOnly, Agent, ModRML, GenericModality, GenericMODLType
 from .parsing_utils import create_valuations
 from itertools import product
 from lark.lexer import Token
@@ -59,7 +59,7 @@ class ApplyCondEff:
     @staticmethod
     def nest_modl(modf_rml, new_rml, simplify=True):
         """Nest modality annotations from ``modf_rml`` onto ``new_rml``, simplifying when possible."""
-        if type(new_rml.modl) is NegateOnly:
+        if new_rml.modl.modl_type is NegateOnly:
             # we are nesting on top of a negate_only!
             # take the new modality term and set the negate_inner_rml.
             # NOTE: we don't negate the whole term because that would be a negation OUTER to the modality!
@@ -83,9 +83,7 @@ class ApplyCondEff:
             new_rml.modl.negate(True)
         if simplify:
             # check if they reference the same agents
-            if new_rml.modl.agent == new_rml.modl.nested[0].agent and type(
-                new_rml.modl
-            ) == type(new_rml.modl.nested[0]):
+            if new_rml.modl.agent == new_rml.modl.nested[0].agent and new_rml.modl.modl_type == new_rml.modl.nested[0].modl_type:
                 # if we have possible modality then modality, return just the modality
                 if not new_rml.modl.hard_modl and new_rml.modl.nested[0].hard_modl:
                     new_modl = new_rml.modl.nested[0]
@@ -496,12 +494,12 @@ class ApplyCondEff:
                 if idx in next_f.match_idx:
                     if idx == 0:
                         if combo[idx] == 1:
-                            eff.modl = type(cons_rml.modl)(next_f.modl.negate_inner_rml, cons_rml.modl.hard_modl, next_f.modl.agent)
+                            eff.modl = type(cons_rml.modl)(cons_rml.modl.modl_type, next_f.modl.negate_inner_rml, cons_rml.modl.hard_modl, next_f.modl.agent)
                             eff.modl.nested = deepcopy(next_f.modl.nested)
                     else:
                         if combo[idx] == 1:
                             idx -= 1
-                            eff.modl.nested[idx] = type(cons_rml.modl)(next_f.modl.nested[idx].negate_inner_rml, cons_rml.modl.hard_modl, next_f.modl.nested[idx].agent)
+                            eff.modl.nested[idx] = type(cons_rml.modl)(cons_rml.modl.modl_type, next_f.modl.nested[idx].negate_inner_rml, cons_rml.modl.hard_modl, next_f.modl.nested[idx].agent)
             if cond:
                 consequent_preds.append(When(cond, And(eff)))
             else:
@@ -616,7 +614,7 @@ class ApplyCondEff:
         return consequent_preds
     
     def check_modl_wildcard_match(self, next_modl, wildcard: MODL):
-        return type(next_modl) == type(wildcard) and next_modl.hard_modl == wildcard.hard_modl
+        return next_modl.modl_type == wildcard.modl_type and next_modl.hard_modl == wildcard.hard_modl
 
     def wildcard_match(self, next_f, wildcard: MODL, deleting=False):
         if deleting != next_f.negated:
@@ -708,7 +706,7 @@ class ApplyCondEff:
 
         # if we've gotten to this point, both have modalities.
         # however these could still be different kinds.
-        if type(self.ant_rml.modl) != type(next_f.modl):
+        if self.ant_rml.modl.modl_type != next_f.modl.modl_type:
             return False
 
         # need to check the nested terms as well
@@ -723,7 +721,7 @@ class ApplyCondEff:
         ):
             for i in range(len(self.ant_rml.modl.nested)):
                 if (
-                    type(self.ant_rml.modl.nested[i]) != type(next_f.modl.nested[i])
+                    self.ant_rml.modl.nested[i].modl_type != next_f.modl.nested[i].modl_type
                     or self.ant_rml.modl.nested[i].negate_inner_rml
                     != next_f.modl.nested[i].negate_inner_rml
                     or self.ant_rml.modl.nested[i].hard_modl
@@ -818,7 +816,8 @@ def apply_cond_eff(
                 anc_eff_data = ApplyCondEff(
                     anc_eff, derive_condition, agents, depth, predicates, objects
                 )
-
+                # if anc_eff_data.name == "kd45closure__belief":
+                #     print()
                 # if anc_eff_data.name not in ["kd45closure__belief", "mutual-awareness-pos__belief", "mutual-awareness-neg__belief"]:#["negation-removal", "kd45closure__belief", "kd45-un-closure__belief", "uncertain-firing", "mutual-awareness-pos__belief", "mutual-awareness-neg__belief"]:#"negation-removal", "kd45-un-closure", "uncertain-firing",
                 #     continue
 
@@ -861,15 +860,15 @@ def apply_cond_eff(
                             anc_eff_data.name
                             + f" id({cons[i].id}) / parent({next_f.id})"
                         )
-                    # printed = False
+                    printed = False
                     for c in cons:
                         if check_nesting(c, depth):
                             if c not in processed_conds and c not in condleft:
-                                # if not printed:
-                                #     print(anc_eff_data.name)
-                                #     print(f"next cond: {next_f}")
-                                #     printed = True
-                                # print(c)
+                                if not printed:
+                                    print(anc_eff_data.name)
+                                    print(f"next cond: {next_f}")
+                                    printed = True
+                                print(c)
                                 c.parent = next_f
                                 condleft.append(c)
                     # if anc_eff_data.name == "mutual-awareness-neg__belief":
@@ -949,12 +948,12 @@ def all_rmls(domain, depth):
                     variants.append(x)
 
                 if not rml.always_known:
-                    for typ in (Belief, Desire):
+                    for typ in GenericMODLType:
                         for neg in (False, True):
                             for hard in (True, False):
                                 x = deepcopy(rml)
-                                x.modl = typ(
-                                    negate_inner_rml=neg, hard_modl=hard, agent=agent
+                                x.modl = GenericModality(
+                                    modl_type=typ, negate_inner_rml=neg, hard_modl=hard, agent=agent
                                 )
                                 variants.append(x)
 
