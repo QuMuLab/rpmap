@@ -816,7 +816,7 @@ def apply_cond_eff(
                 anc_eff_data = ApplyCondEff(
                     anc_eff, derive_condition, agents, depth, predicates, objects
                 )
-                # if anc_eff_data.name == "kd45closure__belief":
+                # if anc_eff_data.name == "disdain-desire":
                 #     print()
                 # if anc_eff_data.name not in ["kd45closure__belief", "mutual-awareness-pos__belief", "mutual-awareness-neg__belief"]:#["negation-removal", "kd45closure__belief", "kd45-un-closure__belief", "uncertain-firing", "mutual-awareness-pos__belief", "mutual-awareness-neg__belief"]:#"negation-removal", "kd45-un-closure", "uncertain-firing",
                 #     continue
@@ -824,6 +824,8 @@ def apply_cond_eff(
                 # if anc_eff_data.name == "kd45-un-closure__belief" and str(next_f) == "(when (and (at_bob_l1)) (not (PBbob_PBalice_not_book-teachings)))":
                 #     print()
                 if anc_eff_data.check_ant_format(next_f):
+                    if anc_eff_data.name == "disdain-desire":
+                        print()
                     # print(anc_eff_data.name)
                     # print(f"next cond: {next_f}")
 
@@ -860,15 +862,15 @@ def apply_cond_eff(
                             anc_eff_data.name
                             + f" id({cons[i].id}) / parent({next_f.id})"
                         )
-                    printed = False
+                    # printed = False
                     for c in cons:
                         if check_nesting(c, depth):
                             if c not in processed_conds and c not in condleft:
-                                if not printed:
-                                    print(anc_eff_data.name)
-                                    print(f"next cond: {next_f}")
-                                    printed = True
-                                print(c)
+                                # if not printed:
+                                #     print(anc_eff_data.name)
+                                #     print(f"next cond: {next_f}")
+                                #     printed = True
+                                # print(c)
                                 c.parent = next_f
                                 condleft.append(c)
                     # if anc_eff_data.name == "mutual-awareness-neg__belief":

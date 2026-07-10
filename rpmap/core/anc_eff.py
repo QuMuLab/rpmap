@@ -54,7 +54,7 @@ class MODL(ABC):
                self.nested == other.nested
     
     def __hash__(self):
-        return hash((self.negate_inner_rml, self.hard_modl, self.agent, tuple(self.nested)))
+        return hash((self.modl_type, self.negate_inner_rml, self.hard_modl, self.agent, tuple(self.nested)))
 
     def negate(self, already_negated: bool=False):
         """Propagate a negation through this MODL term and any nested ones.

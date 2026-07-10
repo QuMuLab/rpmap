@@ -6,6 +6,7 @@
         (secret ?agent - agent)
         {AK}(at ?agent - agent ?l - loc)
         {AK}(connected ?l1 ?l2 - loc)
+        {AK}(disdain ?a1 ?a2 - agent)
     )
 
     (:action move
@@ -18,11 +19,11 @@
     (:action share
         :derive-condition   (at $agent$ ?l)
         :parameters         (?a ?as - agent ?l - loc)
-        :precondition       (and (at ?a ?l) [b, ?a](secret ?as))
+        :precondition       (and (at ?a ?l))
         :effect             (and
                                 (forall (?a2 - agent)
                                     (when (at ?a2 ?l)
-                                        [dsd, ?a2](secret ?as)))
+                                        [d, ?a2](secret ?as)))
                             )
     )
 )

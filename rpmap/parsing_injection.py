@@ -278,7 +278,16 @@ def create_base_operators(domain, problem, fluent_dict):
             else:
                 op_name = a.name
             # TODO: handle other types of formulas?
-            precondition = And(*predicates_to_fluents(a.precondition.operands, assignment, domain, problem))
+            pass_pre = a.precondition.operands if type(a.precondition) is And else [a.precondition]
+            precondition = And(*predicates_to_fluents(pass_pre, assignment, domain, problem))
+
+            and_ = And(*[])
+            if type(precondition) is And:
+                and_._operands.extend(precondition._operands)
+            else:
+                and_._operands.append(precondition)
+            precondition = and_
+
             effect = ground_formula(domain, problem, a.effect, assignment) 
             
             and_ = And(*[])
@@ -317,7 +326,8 @@ def create_intend_action_preds(old_operators, agents, goal):
             ip.modl = None
             intn_preds.add(ip)
     for o in old_operators:
-        for p in o.precondition.operands:
+        pass_pre = o.precondition.operands if type(o.precondition) is And else [o.precondition]
+        for p in pass_pre:
             if type(p.modl) is Intention:
                 ip = deepcopy(p)
                 ip.modl = None
