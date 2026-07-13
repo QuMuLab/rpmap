@@ -8,7 +8,10 @@ from enum import Enum
 class GenericMODLType(Enum):
     BELIEF = 1
     DESIRE = 2
-    DISDAIN = 4
+    DISDAIN = 3
+
+class ActionMODLType(Enum):
+    INTENTION = 1
 
 class Agent:
     def __init__(self, agent, var):
@@ -90,7 +93,7 @@ class GenericModality(MODL):
     def __init__(self, modl_type, negate_inner_rml, hard_modl, agent):
         super().__init__(modl_type, negate_inner_rml, hard_modl, agent)  
 
-class Intention(MODL):
+class GenericActionModality(MODL):
     def __init__(self, modl_type, negate_inner_rml, hard_modl, agent):
         super().__init__(modl_type, negate_inner_rml, hard_modl, agent)
 
@@ -120,8 +123,10 @@ def instantiate_modl(modl_args, ground=True):
                 continue
             # compare against names only
             modl_type = modl[1][0].type
-            if modl_type in [e.name for e in GenericMODLType] + ["INTENTION"]:
-                modl_type = GenericMODLType[modl[1][0].type] if modl[1][0].type != "INTENTION" else "INTENTION"
+            if modl_type in [e.name for e in GenericMODLType]:
+                modl_type = GenericMODLType[modl[1][0].type]
+            elif modl_type in [e.name for e in ActionMODLType]:
+                modl_type = ActionMODLType[modl[1][0].type]
             else:
                 raise ValueError(f"Dealing with an unknown MODL type {modl[1][0].type}.")
             if type(modl[3]) is list:
@@ -132,8 +137,8 @@ def instantiate_modl(modl_args, ground=True):
             if ground:
                 if negate_inner_rml:
                     hard_modl = not hard_modl
-            if modl_type == "INTENTION":
-                all_modl.append(Intention(modl_type, negate_inner_rml, hard_modl, agent))
+            if type(modl_type) is ActionMODLType:
+                all_modl.append(GenericActionModality(modl_type, negate_inner_rml, hard_modl, agent))
             else:
                 all_modl.append(GenericModality(modl_type, negate_inner_rml, hard_modl, agent))
         main_modl = all_modl[0]

@@ -6,7 +6,7 @@ import sys
 import time
 from .apply_cond_effs import apply_cond_effs
 from .core.domain import construct_domain_grammar
-from .core.anc_eff import Agent, NegateOnly, Intention
+from .core.anc_eff import ActionMODLType, Agent, GenericActionModality, NegateOnly
 from .core.problem import construct_problem_grammar
 from .parsing_utils import *
 from .utils import run_command, parse_output_ipc
@@ -161,7 +161,7 @@ def create_fluents(domain, problem):
 
 def check_intention_error(f: Predicate, domain):
     action_names = [a.name for a in domain.actions]
-    if type(f.modl) is Intention and f.name not in action_names:
+    if type(f.modl) is GenericActionModality and f.name not in action_names:
         raise ValueError("Cannot intend a predicate; you can only intend an action.")
 
 def predicates_to_fluents(predicates: list[Predicate], assignment, domain, problem):
@@ -321,17 +321,19 @@ def create_intend_action_preds(old_operators, agents, goal):
     intn_preds = set()
     # find all intention predicates in the goal or in action preconditions
     for p in goal:
-        if type(p.modl) is Intention:
-            ip = deepcopy(p)
-            ip.modl = None
-            intn_preds.add(ip)
-    for o in old_operators:
-        pass_pre = o.precondition.operands if type(o.precondition) is And else [o.precondition]
-        for p in pass_pre:
-            if type(p.modl) is Intention:
+        if p.modl:
+            if p.modl.modl_type is ActionMODLType.INTENTION:
                 ip = deepcopy(p)
                 ip.modl = None
                 intn_preds.add(ip)
+    for o in old_operators:
+        pass_pre = o.precondition.operands if type(o.precondition) is And else [o.precondition]
+        for p in pass_pre:
+            if p.modl:
+                if p.modl.modl_type is ActionMODLType.INTENTION:
+                    ip = deepcopy(p)
+                    ip.modl = None
+                    intn_preds.add(ip)
 
     operators = set()
     action_intention_f = set()
@@ -346,7 +348,7 @@ def create_intend_action_preds(old_operators, agents, goal):
             action_iaps = []
             for ag in agents:
                 iap = deepcopy(intend_action_p)
-                iap.modl = Intention(True, True, Agent(ag, False))
+                iap.modl = GenericActionModality(ActionMODLType.INTENTION, True, True, Agent(ag, False))
                 action_iaps.append(iap)
                 all_iaps.append(iap)
                 # these are for the predicates to add to the domain.
