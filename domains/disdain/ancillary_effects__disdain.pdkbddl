@@ -1,6 +1,54 @@
 (:ancillary_effects
-    (:anceff disdain-desire
-        :parameters (?a1 ?a2 - agent ?l - loc)
+    (:anceff kd45closure__disdain
+        :parameters (?a - agent)
+        :antecedent 
+        (
+            :poscond ?pos
+            :negcond ?neg
+            :rml [dsd, ?a](rml)
+            :type wildcard
+        )
+        :consequent 
+        (
+            :poscond ?pos
+            :negcond ?neg
+            :rml <dsd, ?a>(rml)
+            :type add
+        )
+    )
+    (:anceff kd45-un-closure__disdain
+        :parameters (?a - agent)
+        :antecedent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml <dsd, ?a>(rml)
+            :type wildcard
+        )
+        :consequent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml [dsd, ?a](rml)
+            :type del
+        )
+    )
+
+    (:anceff spread-disdain
+        :parameters (?a1 - agent)
+        :antecedent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml [dsd, ?a1](rml)
+            :type add
+        )
+        :consequent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml {[d, ?a1][dsd, ?ag](rml) for ?ag in agents}
+            :type add
+        )
+    )
+    (:anceff believe-desire-not-disdain
+        :parameters (?a1 ?a2 - agent)
         :antecedent (
             :poscond ?pos
             :negcond ?neg
@@ -8,9 +56,24 @@
             :type add
         )
         :consequent (
-            :poscond ?pos + (disdain ?a1 ?a2)
+            :poscond ?pos
             :negcond ?neg
-            :rml [dsd, ?a1](rml)
+            :rml ![b, ?a1][dsd, ?a2](rml)
+            :type add
+        )
+    )
+    (:anceff disdain-desire
+        :parameters (?a1 ?a2 - agent)
+        :antecedent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml [b, ?a1][d, ?a2](rml)
+            :type add
+        )
+        :consequent (
+            :poscond ?pos + [dsd, ?a1](rml)
+            :negcond ?neg
+            :rml [dsd, ?a1][d, ?a2](rml)
             :type add
         )
     )
