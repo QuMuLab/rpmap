@@ -1,3 +1,2 @@
-(move_bob_l2_l1 )
-(share_alice_bob_l1 )
-; cost = 2 (unit cost)
+(adopt-desire-for-policy_bob_bob_environment )
+; cost = 1 (unit cost)

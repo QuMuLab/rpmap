@@ -1,12 +1,13 @@
 {include:ancillary_effects.pdkbddl}
 {include:ancillary_effects__disdain.pdkbddl}
+{include:ancillary_effects__presidents.pdkbddl}
 {include:domain.pdkbddl}
 
 (define (problem depth_2_agents_2)
 
-    (:domain grapevine)
+    (:domain presidents)
 
-    (:objects l1 l2 - loc)
+    (:objects l1 l2 - loc environment - policy)
 
     (:projection )
 	(:depth 2)
@@ -14,18 +15,21 @@
 
     (:init-type complete)
     (:init
-
         (connected l1 l2)
         (connected l2 l1)
 
         (at alice l1)
+        (candidate bob)
         (at bob l2)
 
-        (disdain alice bob)
+        (political-policy bob environment)
+        (benefit environment bob)
+
+        [d, alice](listen alice bob)        
     )
     (:goal
         (and
-            [dsd, alice](secret bob)
+            [d, alice](political-policy bob environment)
         )  
     )
     (:plan )
