@@ -342,7 +342,7 @@ class ApplyCondEff:
                             rml.modl.nested[i].agent = Agent(
                                 self.assignment[rml.modl.nested[i].agent.name], False
                             )
-            return [self.modify_predicate(next_cond_or_eff, rml, agent)]
+            return [self.modify_predicate(self.grounded_rml, rml, agent)]
         elif type(cons_cond_or_rml) is Token:
             if cons_cond_or_rml.type == "PLUS":
                 return []
@@ -628,6 +628,9 @@ class ApplyCondEff:
                     idx.append(i + 1)
         next_f.match_idx = idx
         return len(idx) > 0
+    
+    def save_rml(self, next_f):
+        self.grounded_rml = deepcopy(next_f)
 
     def check_ant_format(self, next_f) -> bool:
         """
@@ -702,6 +705,7 @@ class ApplyCondEff:
                         self.assignment[self.ant_rml.terms[i].name] = next_f.terms[
                             i
                         ].name
+            self.save_rml(next_f)
             return True
 
         # if we've gotten to this point, both have modalities.
@@ -746,6 +750,7 @@ class ApplyCondEff:
             for i in range(len(self.ant_rml.terms)):
                 if i < len(next_f.terms):
                     self.assignment[self.ant_rml.terms[i].name] = next_f.terms[i].name
+        self.save_rml(next_f)
         return True
 
 
@@ -824,8 +829,6 @@ def apply_cond_eff(
                 # if anc_eff_data.name == "kd45-un-closure__belief" and str(next_f) == "(when (and (at_bob_l1)) (not (PBbob_PBalice_not_book-teachings)))":
                 #     print()
                 if anc_eff_data.check_ant_format(next_f):
-                    if anc_eff_data.name == "disdain-desire":
-                        print()
                     # print(anc_eff_data.name)
                     # print(f"next cond: {next_f}")
 
@@ -994,7 +997,7 @@ def all_rmls(domain, depth):
 def apply_cond_effs(anc_effs, domain, problem):
     """Apply ancillary effects to every action/init/goal and return updated domain/problem."""
     start = time.time()
-    timeout = 10 * 60
+    timeout = 30 * 60
     if type(anc_effs) is list:
         new_anc_effs = []
         for e in anc_effs:
