@@ -1,11 +1,18 @@
-from pdkb.planner import parse_and_preprocess, cleanup
-from pdkb.test.utils import write_file
+# from pdkb.planner import parse_and_preprocess, cleanup
+from rpmap.utils import write_file
 from evaluate import get_num_agents, get_agents_str, write_plan_output
 import csv, sys, time, os
 
+# NOTE: These two functions are taken from the original RP-MEP. 
+# Place this file in that directory and uncomment the import line above.
+def parse_and_preprocess(problem_path):
+    pass
+def cleanup():
+    pass
+
 def generate_pddl(prob):
     print(prob)
-    base_path = os.path.join("bdi_extension", "original_grapevine")
+    base_path = "original_grapevine"
     domain_path = os.path.join(base_path, "domain.pdkbddl")
     db_path = os.path.join("evaluation", "original_grapevine_evaluation.csv")
     with open(domain_path, "r") as f:
