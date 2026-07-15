@@ -59,7 +59,7 @@ list_comp_var: LCRL atomic_formula_term_list_comp_r FOR R IN var RCRL
 
 list_comp_rml: LCRL atomic_formula_term_rml FOR AG IN AGENTS RCRL
 
-pos_or_neg_cond_options: var | list_comp_var | atomic_formula_term_condition | atomic_formula_term_rml | gd
+pos_or_neg_cond_options: var | list_comp_var | atomic_formula_term_rml | gd
 
 pos_or_neg_cond: pos_or_neg_cond_options (PLUS pos_or_neg_cond_options)*
 
@@ -71,7 +71,7 @@ ant_def: ANT LPAR [poscond] [negcond] [awareness] rml_def cond_type_def RPAR
 
 cons_def: CONS LPAR [poscond] [negcond] rml_def cond_type_def RPAR
 
-atomic_formula_term_condition: [EXC] modl* LPAR [EXC] var RPAR
+// atomic_formula_term_condition: [EXC] modl* LPAR [EXC] var RPAR
 
 awareness: AWARENESS TRUE_ | AWARENESS FALSE_
 

@@ -339,7 +339,6 @@ class AncEffTransformer(Transformer):
         for_aft = [
             "atomic_formula_term_rml",
             "atomic_formula_term_list_comp_r",
-            "atomic_formula_term_condition"
         ]
         for f in for_aft:
             setattr(AncEffTransformer, f, anceff_atomic_formula_term)
