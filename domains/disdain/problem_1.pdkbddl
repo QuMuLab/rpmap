@@ -7,7 +7,7 @@
 
     (:domain presidents)
 
-    (:objects l1 l2 - loc environment - policy)
+    (:objects l1 l2 - loc environment education - policy)
 
     (:projection )
 	(:depth 2)
@@ -23,13 +23,20 @@
         (at bob l2)
 
         (political-policy bob environment)
-        (benefit environment bob)
+        (political-policy bob education)
 
-        [d, alice](listen alice bob)        
+        (benefit environment bob)
+        (benefit environment alice)
+        (!benefit education alice)
+
+        (single-issue-voter alice environment)
+
+        (vote bob bob)
+
     )
     (:goal
         (and
-            [d, alice](political-policy bob environment)
+            (president bob)
         )  
     )
     (:plan )
