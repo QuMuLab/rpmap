@@ -1,0 +1,2 @@
+(adopt-desire-for-policy_alice_bob_environment_l1 )
+; cost = 1 (unit cost)

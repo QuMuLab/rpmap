@@ -1,0 +1,4 @@
+(move_cindy_l2_l1 )
+(adopt-disdain-for-policy_alice_bob_education_l1 )
+(speak-against-policy_alice_cindy_bob_education_l1 )
+; cost = 3 (unit cost)

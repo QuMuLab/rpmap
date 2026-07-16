@@ -1,0 +1,8 @@
+(desire-single-issue-vote_alice_bob_environment )
+(vote_alice_bob )
+(adopt-desire-for-policy_cindy_bob_education_l2 )
+(adopt-desire-for-policy_cindy_bob_environment_l2 )
+(desire-vote_cindy_bob )
+(vote_cindy_bob )
+(get-elected_bob )
+; cost = 7 (unit cost)

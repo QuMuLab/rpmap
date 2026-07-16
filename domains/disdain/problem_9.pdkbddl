@@ -3,22 +3,26 @@
 {include:ancillary_effects__presidents.pdkbddl}
 {include:domain.pdkbddl}
 
-(define (problem depth_2_agents_2)
+(define (problem depth_2_agents_3)
 
     (:domain presidents)
 
     (:objects l1 l2 - loc environment education - policy)
 
     (:projection )
-	(:depth 2)
+	(:depth 3)
     (:task valid_generation)
 
     (:init-type complete)
     (:init
         (connected l1 l2)
         (connected l2 l1)
+        (connected l2 l3)
+        (connected l3 l2)
 
         (at alice l1)
+        (at cindy l2)
+        (at derek l3)
         (candidate bob)
         (at bob l2)
 
@@ -26,16 +30,16 @@
         (political-policy bob education)
 
         (benefit environment alice)
-        (!benefit education alice)
-
-        (single-issue-voter alice environment)
+        (benefit education alice)
+        (!benefit environment cindy)
+        (!benefit education cindy)
 
         (vote bob bob)
 
     )
     (:goal
         (and
-            (president bob)
+            [b, derek][dsd, cindy][d, alice](political-policy bob environment)
         )  
     )
     (:plan )

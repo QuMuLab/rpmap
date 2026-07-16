@@ -1,5 +1,5 @@
 (define (domain presidents)
-	(:agents alice bob)
+	(:agents alice bob cindy derek evelyn)
     (:requirements :typing :universal-preconditions :disjunctive-preconditions)
     (:types loc policy)
     (:predicates
@@ -55,12 +55,12 @@
                             )
     )
 
-    (:action become-political-opponent
-        :derive-condition   never
-        :parameters         (?a1 ?a2 ?cd - agent ?p - policy)
-        :precondition       (and (candidate ?cd) [dsd, ?a1][d, ?a2](vote ?a1 ?cd))
-        :effect             (and !<d, ?a1>(listen ?a1 ?a2))
-    )
+    ;; (:action become-political-opponent
+    ;;     :derive-condition   never
+    ;;     :parameters         (?a1 ?a2 ?cd - agent ?p - policy)
+    ;;     :precondition       (and (candidate ?cd) [dsd, ?a1][d, ?a2](vote ?a2 ?cd))
+    ;;     :effect             (and !<d, ?a1>(listen ?a1 ?a2))
+    ;; )
 
     (:action desire-vote
         :derive-condition   never

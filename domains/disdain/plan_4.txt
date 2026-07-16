@@ -1,0 +1,2 @@
+(adopt-disdain-for-policy_alice_bob_education_l1 )
+; cost = 1 (unit cost)

@@ -1,0 +1,6 @@
+(move_cindy_l2_l1 )
+(adopt-desire-for-policy_alice_bob_education_l1 )
+(speak-for-policy_alice_cindy_bob_education_l1 )
+(adopt-desire-for-policy_alice_bob_environment_l1 )
+(speak-for-policy_alice_cindy_bob_environment_l1 )
+; cost = 5 (unit cost)

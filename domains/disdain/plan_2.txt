@@ -1,0 +1,2 @@
+(desire-single-issue-vote_alice_bob_environment )
+; cost = 1 (unit cost)

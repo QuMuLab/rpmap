@@ -1,5 +1,5 @@
 (:ancillary_effects
-    (:anceff kd45closure__disdain
+    (:anceff kd45closure__love
         :parameters (?a - agent)
         :antecedent 
         (
@@ -16,7 +16,7 @@
             :type add
         )
     )
-    (:anceff kd45-un-closure__disdain
+    (:anceff kd45-un-closure__love
         :parameters (?a - agent)
         :antecedent (
             :poscond ?pos
@@ -31,7 +31,6 @@
             :type del
         )
     )
-
     (:anceff spread-love
         :parameters (?a1 - agent)
         :antecedent (
@@ -44,21 +43,6 @@
             :poscond ?pos
             :negcond ?neg
             :rml {[d, ?a1][l, ?ag](rml) for ?ag in agents}
-            :type add
-        )
-    )
-    (:anceff believe-desire-love
-        :parameters (?a1 ?a2 - agent)
-        :antecedent (
-            :poscond ?pos
-            :negcond ?neg
-            :rml [b, ?a1][d, ?a2](rml)
-            :type add
-        )
-        :consequent (
-            :poscond ?pos
-            :negcond ?neg
-            :rml [b, ?a1][l, ?a2](rml)
             :type add
         )
     )
@@ -92,37 +76,22 @@
             :type add
         )
     )
-    (:anceff love-intention
+    (:anceff believe-possible-love
         :parameters (?a1 ?a2 - agent ?l - loc)
         :antecedent (
             :poscond ?pos
             :negcond ?neg
-            :rml [b, ?a1][i, ?a2](rml)
-            :type add
-        )
-        :consequent (
-            :poscond ?pos + [d, ?a1][i, ?a2](rml)
-            :negcond ?neg
-            :rml [l, ?a1][i, ?a2](rml)
-            :type add
-        )
-    )
-    (:anceff believe-possible-desire
-        :parameters (?a1 ?a2 - agent ?l - loc)
-        :antecedent (
-            :poscond ?pos
-            :negcond ?neg
-            :rml [b, ?a1][l, ?a2](rml)
+            :rml [b, ?a1][d, ?a2](rml)
             :type add
         )
         :consequent (
             :poscond ?pos
             :negcond ?neg
-            :rml [b, ?a1]<d, ?a2>(rml)
+            :rml [b, ?a1]<l, ?a2>(rml)
             :type add
         )
     )
-    (:anceff beleive-disdain-not-love
+    (:anceff believe-disdain-not-love
         :parameters (?a1 ?a2 - agent ?l - loc)
         :antecedent (
             :poscond ?pos
@@ -133,7 +102,7 @@
         :consequent (
             :poscond ?pos
             :negcond ?neg
-            :rml ![b, ?a1][l, ?a2](rml)
+            :rml !<b, ?a1>[l, ?a2](rml)
             :type add
         )
     )
