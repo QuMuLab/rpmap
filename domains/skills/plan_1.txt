@@ -1,0 +1,2 @@
+(perform-skill_bob_guitar_l1 )
+; cost = 1 (unit cost)

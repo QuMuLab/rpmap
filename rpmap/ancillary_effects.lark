@@ -5,6 +5,7 @@ BELIEF: "b"
 DESIRE: "d"
 INTENTION: "i"
 DISDAIN: "dsd"
+LOVE: "l"
 COMMA: ","
 EXC: "!"
 ANCEFFS_NAME: ":ancillary_effects"
@@ -39,7 +40,7 @@ cond_types: ADD | DEL | ADD_SOFT | DEL_SOFT | WILDCARD | DEL_WILDCARD
 
 var: QMRK NAME
 
-modl_term: BELIEF | DESIRE | INTENTION | DISDAIN
+modl_term: BELIEF | DESIRE | INTENTION | DISDAIN | LOVE
 
 modl: LSQB modl_term COMMA var RSQB | LESSER_OP modl_term COMMA var GREATER_OP
 

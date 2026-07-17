@@ -1,0 +1,45 @@
+(define (domain skills)
+	(:agents alice bob cindy)
+    (:requirements :typing :universal-preconditions :disjunctive-preconditions)
+    (:types loc skill)
+    (:predicates
+        {AK}(intermediate ?ag - agent ?sk - skill)
+        {AK}(beginner ?ag - agent ?sk - skill)
+        {AK}(expert ?ag - agent ?sk - skill)
+        {AK}(at ?ag - agent ?l - loc)
+        {AK}(connected ?l1 ?l2 - loc)
+        {AK}(interested ?ag - agent ?sk - skill) ; idea: change into "belief that it is interesting" and then we can use love-belief.
+        {AK}(natural ?ag - agent ?sk - skill)
+        (learn-skill ?ag - agent ?sk - skill)
+    )
+
+    (:action move
+        :derive-condition   always
+        :parameters         (?a - agent ?l1 ?l2 - loc)
+        :precondition       (and (at ?a ?l1) (connected ?l1 ?l2))
+        :effect             (and (at ?a ?l2) (!at ?a ?l1))
+    )
+
+    (:action adopt-love-for-skill
+        :derive-condition   never
+        :parameters         (?ag - agent ?sk - skill)
+        :precondition       (and [d, ?ag](learn-skill ?ag ?sk) (beginner ?ag ?sk) (natural ?ag ?sk))
+        :effect             (and [l, ?ag](learn-skill ?ag ?sk) (intermediate ?ag ?sk))
+    )
+
+    (:action become-expert
+        :derive-condition   never
+        :parameters         (?intmd - agent ?sk - skill)
+        :precondition       (and [l, ?intmd](learn-skill ?intmd ?sk) (intermediate ?intmd ?sk))
+        :effect             (and (expert ?intmd ?sk) (forall (?ag - agent) [l, ?intmd](learn-skill ?ag ?sk)))
+    )
+
+    (:action perform-skill
+        :derive-condition   (at $agent$ ?l)
+        :parameters         (?exp - agent ?sk - skill ?l - loc)
+        :precondition       (and (expert ?exp ?sk))
+        :effect             (and (forall (?ag - agent) (when (and (at ?ag ?l) (interested ?ag ?sk)) [d, ?ag](learn-skill ?ag ?sk))))
+    )
+
+    
+)

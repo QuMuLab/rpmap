@@ -1,0 +1,35 @@
+(:ancillary_effects
+    (:anceff kd45closure__love
+        :parameters (?a - agent)
+        :antecedent 
+        (
+            :poscond ?pos
+            :negcond ?neg
+            :rml [l, ?a](rml)
+            :type wildcard
+        )
+        :consequent 
+        (
+            :poscond ?pos
+            :negcond ?neg
+            :rml <l, ?a>(rml)
+            :type add
+        )
+    )
+    (:anceff kd45-un-closure__love
+        :parameters (?a - agent)
+        :antecedent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml <l, ?a>(rml)
+            :type wildcard
+        )
+        :consequent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml [l, ?a](rml)
+            :type del
+        )
+    )
+)
+

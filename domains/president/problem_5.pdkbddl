@@ -1,6 +1,6 @@
 {include:ancillary_effects.pdkbddl}
 {include:ancillary_effects__disdain.pdkbddl}
-{include:ancillary_effects__presidents.pdkbddl}
+{include:ancillary_effects__president.pdkbddl}
 {include:domain.pdkbddl}
 
 (define (problem depth_2_agents_3)
@@ -10,20 +10,16 @@
     (:objects l1 l2 - loc environment education - policy)
 
     (:projection )
-	(:depth 3)
+	(:depth 2)
     (:task valid_generation)
 
     (:init-type complete)
     (:init
         (connected l1 l2)
         (connected l2 l1)
-        (connected l2 l3)
-        (connected l3 l2)
 
         (at alice l1)
         (at cindy l2)
-        (at derek l3)
-        (at evelyn l3)
         (candidate bob)
         (at bob l2)
 
@@ -31,24 +27,18 @@
         (political-policy bob education)
 
         (benefit environment alice)
-        (benefit education alice)
-        (!benefit environment cindy)
+        (benefit environment cindy)
+        (!benefit education alice)
         (benefit education cindy)
-        (benefit environment derek)
-        (!benefit education derek)
-        (benefit environment evelyn)
-        (benefit education evelyn)
 
-        (single-issue-voter cindy education)
-        (single-issue-voter derek environment)
+        !<d, cindy>(listen cindy alice)
 
         (vote bob bob)
 
     )
     (:goal
         (and
-            [b, derek][dsd, derek][d, alice](political-policy bob education)
-            (president bob)
+            [dsd, cindy](!political-policy bob education)
         )  
     )
     (:plan )

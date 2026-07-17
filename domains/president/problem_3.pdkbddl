@@ -1,6 +1,6 @@
 {include:ancillary_effects.pdkbddl}
 {include:ancillary_effects__disdain.pdkbddl}
-{include:ancillary_effects__presidents.pdkbddl}
+{include:ancillary_effects__president.pdkbddl}
 {include:domain.pdkbddl}
 
 (define (problem depth_2_agents_3)
@@ -29,7 +29,7 @@
         (benefit environment alice)
         (benefit environment cindy)
         (!benefit education alice)
-        (!benefit education cindy)
+        (benefit education cindy)
 
         (single-issue-voter alice environment)
 
@@ -38,8 +38,7 @@
     )
     (:goal
         (and
-            [d, alice](vote alice bob)
-            ![d, cindy](vote cindy bob)
+            (president bob)
         )  
     )
     (:plan )

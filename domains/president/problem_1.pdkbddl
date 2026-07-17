@@ -1,9 +1,9 @@
 {include:ancillary_effects.pdkbddl}
 {include:ancillary_effects__disdain.pdkbddl}
-{include:ancillary_effects__presidents.pdkbddl}
+{include:ancillary_effects__president.pdkbddl}
 {include:domain.pdkbddl}
 
-(define (problem depth_2_agents_3)
+(define (problem depth_2_agents_2)
 
     (:domain presidents)
 
@@ -19,7 +19,6 @@
         (connected l2 l1)
 
         (at alice l1)
-        (at cindy l2)
         (candidate bob)
         (at bob l2)
 
@@ -27,16 +26,16 @@
         (political-policy bob education)
 
         (benefit environment alice)
-        (benefit environment cindy)
         (!benefit education alice)
-        (benefit education cindy)
+
+        (single-issue-voter alice environment)
 
         (vote bob bob)
 
     )
     (:goal
         (and
-            [d, alice](political-policy bob environment)
+            (president bob)
         )  
     )
     (:plan )

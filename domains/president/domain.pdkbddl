@@ -1,5 +1,5 @@
 (define (domain presidents)
-	(:agents alice bob cindy derek evelyn)
+	(:agents alice bob)
     (:requirements :typing :universal-preconditions :disjunctive-preconditions)
     (:types loc policy)
     (:predicates
