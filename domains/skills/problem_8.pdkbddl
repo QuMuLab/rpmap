@@ -1,0 +1,39 @@
+{include:ancillary_effects.pdkbddl}
+{include:ancillary_effects__love.pdkbddl}
+{include:ancillary_effects__skills.pdkbddl}
+{include:domain.pdkbddl}
+
+(define (problem depth_2_agents_2)
+
+    (:domain skills)
+
+    (:objects l1 l2 - loc guitar - skill)
+
+    (:projection )
+	(:depth 2)
+    (:task valid_generation)
+
+    (:init-type complete)
+    (:init
+        (connected l1 l2)
+        (connected l2 l1)
+
+        (at alice l1)
+        (at bob l2)
+
+        [d, bob](learn-skill bob guitar)
+        (interested bob guitar)
+        (beginner bob guitar)
+        (natural bob guitar)
+
+        (interested alice guitar)
+        (beginner alice guitar)
+        (natural alice guitar)
+    )
+    (:goal
+        (and
+            [l, bob][b, alice](interesting guitar)
+        )  
+    )
+    (:plan )
+)

@@ -1,0 +1,8 @@
+(adopt-love-for-skill_bob_guitar )
+(become-expert_bob_guitar )
+(perform-skill_bob_guitar_l1 )
+(move_bob_l2_l1 )
+(perform-skill_bob_guitar_l1 )
+(adopt-love-for-skill_alice_guitar )
+(become-expert_alice_guitar )
+; cost = 7 (unit cost)
