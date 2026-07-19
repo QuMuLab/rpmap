@@ -25,16 +25,13 @@
         (at cindy l2)
 
         [d, cindy](learn-skill cindy guitar)
-        (interested cindy guitar)
         (beginner cindy guitar)
         (natural cindy guitar)
 
         [d, bob](learn-skill bob guitar)
-        (interested bob guitar)
         (beginner bob guitar)
         (natural bob guitar)
 
-        (interested alice guitar)
         (beginner alice guitar)
         (natural alice guitar)
     )

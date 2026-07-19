@@ -27,11 +27,9 @@
         (expert bob)
 
         [d, cindy](learn-skill cindy guitar)
-        (interested cindy guitar)
         (beginner cindy guitar)
         (natural cindy guitar)
 
-        (interested alice guitar)
         (beginner alice guitar)
         (natural alice guitar)
     )

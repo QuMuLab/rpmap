@@ -26,7 +26,6 @@
 
         (expert bob guitar)
         (expert cindy guitar)
-        (interested alice guitar)
         (beginner alice guitar)
         (natural alice guitar)
     )

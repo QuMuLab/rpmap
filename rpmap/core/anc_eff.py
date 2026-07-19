@@ -8,7 +8,7 @@ from enum import Enum
 class GenericMODLType(Enum):
     BELIEF = 1
     DESIRE = 2
-    # DISDAIN = 3
+    DISDAIN = 3
     LOVE = 4
 
 class ActionMODLType(Enum):
@@ -138,13 +138,19 @@ def instantiate_modl(modl_args, ground=True):
             if ground:
                 if negate_inner_rml:
                     hard_modl = not hard_modl
+            # negate_inner_rml is False by default.
             if type(modl_type) is ActionMODLType:
-                all_modl.append(GenericActionModality(modl_type, negate_inner_rml, hard_modl, agent))
+                all_modl.append(GenericActionModality(modl_type, False, hard_modl, agent))
             else:
-                all_modl.append(GenericModality(modl_type, negate_inner_rml, hard_modl, agent))
+                all_modl.append(GenericModality(modl_type, False, hard_modl, agent))
         main_modl = all_modl[0]
         if len(all_modl) > 1:
             main_modl.nested = all_modl[1:]
+        # only apply negate_inner_rml to the deepest nested term
+        if main_modl.nested:
+            main_modl.nested[-1].negate_inner_rml = negate_inner_rml
+        else:
+            main_modl.negate_inner_rml = negate_inner_rml
         return main_modl
 
 
@@ -202,8 +208,8 @@ class ModRML:
                 raise ValueError(f"Dealing with an unknown ancillary effect atomic formula term type {t}.")   
         self.name = "".join(str(name)) if len(name) > 1 else name[0]
 
-        if args[0] == Token("EXC", "!"):
-            print()
+        # if args[0] == Token("EXC", "!"):
+        #     print()
 
         self.modl = instantiate_modl(args[:after_modl], ground=False)
         if modl_needs_negation:

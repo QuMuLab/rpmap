@@ -1,12 +1,12 @@
 {include:ancillary_effects.pdkbddl}
-{include:ancillary_effects__full-bdi.pdkbddl}
+{include:ancillary_effects__romance.pdkbddl}
 {include:domain.pdkbddl}
 
 (define (problem paper2)
 
     (:domain romance)
 
-    (:objects l1 l2 l3 - loc chocolate teddy_bear - gift)
+    (:objects l1 l2 l3 - loc chocolate - gift)
 
     (:projection )
     (:depth 2)
@@ -24,18 +24,13 @@
         (at cindy l2)
         (feel-chemistry cindy bob)
         (feel-chemistry alice bob)
-        (gift-at chocolate l2)
-        (gift-at teddy_bear l1)
-        [b, alice](likes-gift bob chocolate)
-        [b, cindy](likes-gift bob teddy_bear)
+        (gift-at chocolate l3)
+        [b, cindy](likes-gift bob chocolate)
         (likes-gift bob chocolate)
-        (likes-gift bob teddy_bear)
     )
 
     (:goal 
-        (bought-gift alice chocolate)
-        (bought-gift cindy teddy_bear)
-        (together bob alice)
+        (loves bob cindy)
     )
 
     (:plan

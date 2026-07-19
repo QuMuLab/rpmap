@@ -1,3 +1,3 @@
-(adopt-love-for-skill_cindy_guitar )
+(adopt-love-for-skill_cindy_guitar_l2 )
 (become-expert_cindy_guitar )
 ; cost = 2 (unit cost)

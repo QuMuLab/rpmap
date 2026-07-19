@@ -31,15 +31,12 @@
         (expert evelyn)
 
         [d, bob](learn-skill bob guitar)
-        (interested bob guitar)
         (beginner bob guitar)
         (natural bob guitar)
 
-        (interested alice guitar)
         (beginner alice guitar)
         (natural alice guitar)
 
-        (interested derek guitar)
         (beginner derek guitar)
         (natural derek guitar)
     )

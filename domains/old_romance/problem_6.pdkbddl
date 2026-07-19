@@ -1,5 +1,5 @@
 {include:ancillary_effects.pdkbddl}
-{include:ancillary_effects__full-bdi.pdkbddl}
+{include:ancillary_effects__romance.pdkbddl}
 {include:domain.pdkbddl}
 
 (define (problem paper2)
@@ -33,10 +33,10 @@
     )
 
     (:goal 
-        !<i, cindy>(retrieve-gift teddy_bear)
         (bought-gift alice chocolate)
         (bought-gift cindy teddy_bear)
-        (together bob cindy)
+        (loves bob cindy)
+        (loves bob alice)
     )
 
     (:plan

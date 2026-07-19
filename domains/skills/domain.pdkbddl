@@ -1,5 +1,5 @@
 (define (domain skills)
-	(:agents alice bob cindy derek)
+	(:agents alice bob)
     (:requirements :typing :universal-preconditions :disjunctive-preconditions)
     (:types loc skill)
     (:predicates
@@ -21,9 +21,9 @@
     )
 
     (:action adopt-love-for-skill
-        :derive-condition   never
-        :parameters         (?ag - agent ?sk - skill)
-        :precondition       (and [d, ?ag](learn-skill ?ag ?sk) (beginner ?ag ?sk) (natural ?ag ?sk))
+        :derive-condition   (at $agent$ ?l)
+        :parameters         (?ag - agent ?sk - skill ?l - loc)
+        :precondition       (and [d, ?ag](learn-skill ?ag ?sk) (beginner ?ag ?sk) (natural ?ag ?sk) (at ?ag ?l))
         :effect             (and [l, ?ag](learn-skill ?ag ?sk) (intermediate ?ag ?sk))
     )
 

@@ -1,5 +1,5 @@
 {include:ancillary_effects.pdkbddl}
-{include:ancillary_effects__full-bdi.pdkbddl}
+{include:ancillary_effects__romance.pdkbddl}
 {include:domain.pdkbddl}
 
 (define (problem paper2)
@@ -23,22 +23,27 @@
         (at bob l2)
         (at cindy l2)
         (at derek l3)
+        (at evelyn l3)
         (feel-chemistry cindy alice)
         (feel-chemistry alice bob)
         (feel-chemistry derek alice)
+        (feel-chemistry evelyn derek)
         (gift-at chocolate l3)
         (gift-at teddy_bear l1)
         [b, cindy](likes-gift alice teddy_bear)
         [b, alice](likes-gift bob chocolate)
+        [b, evelyn](likes-gift derek chocolate)
         (!likes-gift bob chocolate)
         (likes-gift alice teddy_bear)
+        (likes-gift derek chocolate)
     )
 
     (:goal 
         [b, alice](!loves bob alice)
         (loves alice cindy)
         (loves derek alice)
-        (together alice cindy)
+        (loves evelyn derek)
+        (together evelyn derek)
     )
 
     (:plan

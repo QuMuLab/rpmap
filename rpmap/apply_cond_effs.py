@@ -50,6 +50,8 @@ class ApplyCondEff:
         all_preds = []
         for modf in self.cons_rml:
             next_preds = self.gather_preds(modf, old_rml, agent)
+            if None in next_preds:
+                return None
             for p in next_preds:
                 if "del" in self.cons_cond_type:
                     p.negated = not p.negated
@@ -186,21 +188,24 @@ class ApplyCondEff:
                         new_rml.modl.nested = deepcopy(modf_rml.modl.nested)
             else:
                 if new_rml.always_known:
+                    # # Never have this predicate be NegateOnly, since AK's are either true or false.
+                    # new_rml.modl = None
 
-                    # Never have this predicate be NegateOnly, since AK's are either true or false.
-                    new_rml.modl = None
+                    # if modf_rml.modl.negate_inner_rml:
+                    #     new_rml.negated = not new_rml.negated
 
-                    if modf_rml.modl.negate_inner_rml:
-                        new_rml.negated = not new_rml.negated
+                    # return new_rml
 
-                    return new_rml
+                    #---
+                    # we don't want to add a modality to an AK predicate. throw out this case.
+                    return None
                 else:
                     modf_rml.modl.agent = Agent(agent, False)
                     new_rml.modl = deepcopy(modf_rml.modl)
         # print(f"Modified predicate to {new_rml}")
         return new_rml
 
-    def get_pos_or_neg_cond_term(self, cond, term_type):
+    def get_pos_or_neg_cond_term(self, cond, term_type, is_neg_cond):
         """Extract positive or negative predicates from a condition while normalizing negation."""
         if not cond:
             return []
@@ -222,11 +227,12 @@ class ApplyCondEff:
             new_rmls = deepcopy(new_rmls)
             # note that we want to ignore the negations here and just get the raw RMLs,
             # because they will be re-applied by the :negcond in the consequent if necessary later.
-            for i in range(len(new_rmls)):
-                new_rmls[i].negated = False
+            if is_neg_cond:
+                for i in range(len(new_rmls)):
+                    new_rmls[i].negated = False
         return new_rmls
 
-    def handle_list_comp(self, list_comp_terms, next_cond_or_eff, agent=None):
+    def handle_list_comp(self, list_comp_terms, next_cond_or_eff, agent=None, is_neg_cond=False):
         """Resolve list comprehensions."""
         if not self.ant_pos_cond and not self.ant_neg_cond:
             return []
@@ -255,14 +261,16 @@ class ApplyCondEff:
             new_rmls = []
             # if we do have a matching term, we need to construct the new list of predicates
             new_rmls.extend(
-                self.get_pos_or_neg_cond_term(next_cond_or_eff, matching_lc)
+                self.get_pos_or_neg_cond_term(next_cond_or_eff, matching_lc, is_neg_cond)
             )
             # finally we need to see if any modifications were made to the predicates by looking
             # at the first term of the list comprehension
             for i in range(len(new_rmls)):
-                new_rmls[i] = self.modify_predicate(
+                result = self.modify_predicate(
                     deepcopy(new_rmls[i]), list_comp_terms[0], agent
                 )
+                if result is None:
+                    return None
             return new_rmls
         else:
             if list_comp_terms[var_i].value == "agents":
@@ -283,9 +291,11 @@ class ApplyCondEff:
                             rml.modl.nested[i].agent = Agent(
                                 self.assignment[rml.modl.nested[i].agent.name], False
                             )
-
+                    result = self.modify_predicate(deepcopy(next_cond_or_eff), rml, agent)
+                    if result is None:
+                        return None
                     new_rmls.append(
-                        self.modify_predicate(deepcopy(next_cond_or_eff), rml, agent)
+                        result
                     )
                 return new_rmls
             else:
@@ -294,11 +304,11 @@ class ApplyCondEff:
                     "No matching list comprehension term found in antecedent conditions."
                 )
 
-    def gather_preds(self, cons_cond_or_rml, next_cond_or_eff, agent=None):
+    def gather_preds(self, cons_cond_or_rml, next_cond_or_eff, agent=None, is_neg_cond=False):
         """Recursively collect predicates from a consequent condition or RML based on the next condition/effect RML it receives."""
         # recursively iterate through the condition structure
         if type(cons_cond_or_rml) is Tree:
-            return self.gather_preds(cons_cond_or_rml.children, next_cond_or_eff, agent)
+            return self.gather_preds(cons_cond_or_rml.children, next_cond_or_eff, agent, is_neg_cond)
         elif type(cons_cond_or_rml) is Predicate:
             terms = deepcopy(list(cons_cond_or_rml.terms))
             for i in range(len(terms)):
@@ -351,36 +361,45 @@ class ApplyCondEff:
             for term in cons_cond_or_rml:
                 if type(term) is list:
                     if term[0] == "COMPOUND":
-                        # we're dealing with a list comprehension
+                        # we're dealing with a list 
+                        result = self.handle_list_comp(term[2:-1], next_cond_or_eff, agent, is_neg_cond)
+                        if result is None:
+                            return [None]
                         cond_preds.extend(
-                            self.handle_list_comp(term[2:-1], next_cond_or_eff, agent)
+                            result
                         )
                         continue
                     # we're referencing an antecedent condition
                     if term == self.ant_pos_cond[0]:
                         cond_preds.extend(
-                            self.get_pos_or_neg_cond_term(next_cond_or_eff, "pos")
+                            self.get_pos_or_neg_cond_term(next_cond_or_eff, "pos", is_neg_cond)
                         )
                         continue
                     elif term == self.ant_neg_cond[0]:
                         cond_preds.extend(
-                            self.get_pos_or_neg_cond_term(next_cond_or_eff, "neg")
+                            self.get_pos_or_neg_cond_term(next_cond_or_eff, "neg", is_neg_cond)
                         )
                         continue
                 # regular recursion
-                cond_preds.extend(self.gather_preds(term, next_cond_or_eff, agent))
+                result = self.gather_preds(term, next_cond_or_eff, agent, is_neg_cond)
+                if None in result:
+                    return [None]
+                cond_preds.extend(result)
             return cond_preds
 
-    def create_cond(self, cons_cond, next_cond, agent=None):
+    def create_cond(self, cons_cond, next_cond, is_neg_cond, agent=None):
         """Build predicates for a single consequent condition section."""
         if cons_cond:
-            return self.gather_preds(cons_cond, next_cond, agent)
+            return self.gather_preds(cons_cond, next_cond, agent, is_neg_cond)
         return None
 
     def create_conds(self, next_cond, agent=None):
         """Create combined positive/negative consequent conditions with proper negation."""
-        new_pos_cond = self.create_cond(self.cons_pos_cond, next_cond, agent)
-        new_neg_cond = self.create_cond(self.cons_neg_cond, next_cond, agent)
+        new_pos_cond = self.create_cond(self.cons_pos_cond, next_cond, is_neg_cond=False, agent=agent)
+        new_neg_cond = self.create_cond(self.cons_neg_cond, next_cond, is_neg_cond=True, agent=agent)
+
+        if None in [new_pos_cond, new_neg_cond]:
+            return None
 
         new_cond = []
         if new_pos_cond:
@@ -515,6 +534,8 @@ class ApplyCondEff:
             if type(next_f.effect) is not Predicate:
                 raise NotImplementedError("Handle complex when effects later?")
             cond = self.create_conds(next_f.condition, self.current_agent)
+            if cond is None:
+                return None
             # also need to do derived conditions here since that might
             # have a matching agent parameter.
             if self.need_awareness:
@@ -531,12 +552,16 @@ class ApplyCondEff:
                 eff = self.modify_predicate_apply_cond_type(
                     deepcopy(next_f.effect), self.current_agent
                 )
+                if eff is None:
+                    return None
                 consequent_preds.append(When(and_cond, And(*eff)))
         # PREDICATE CASE
         else:
             # we need to do derived conditions here since that might
             # have a matching agent parameter.
             cond = self.create_conds(None)
+            if cond is None:
+                return None  
             if self.derived_cond:
                 if self.need_awareness:
                     if self.derived_cond[0] != Token("NEVER", "never"):
@@ -552,15 +577,20 @@ class ApplyCondEff:
                     eff = self.modify_predicate_apply_cond_type(
                         deepcopy(next_f), self.current_agent
                     )
+                    if eff is None:
+                        return None
                     consequent_preds.append(When(and_cond, And(*eff)))
             else:
                 if "wildcard" in self.ant_cond_type:
                     self.handle_wildcard_case(next_f, consequent_preds)
                 else:
-                    consequent_preds.extend(
-                        self.modify_predicate_apply_cond_type(
+                    next = self.modify_predicate_apply_cond_type(
                             deepcopy(next_f), self.current_agent
                         )
+                    if next is None:
+                        return None
+                    consequent_preds.extend(
+                        next
                     )
         # if "wildcard" in self.ant_cond_type:
         #     for c in consequent_preds:
@@ -607,10 +637,16 @@ class ApplyCondEff:
                     if type(var) is Agent or var.name in cons_agents_d:
                         self.current_agent = val
                     self.assignment[var.name] = val
-                consequent_preds.extend(self.create_consequent_core(next_f))
+                result = self.create_consequent_core(next_f)
+                if result is None:
+                    return None
+                consequent_preds.extend(result)
         else:
             self.current_agent = None
-            consequent_preds.extend(self.create_consequent_core(next_f))
+            result = self.create_consequent_core(next_f)
+            if result is None:
+                return None
+            consequent_preds.extend(result)
         return consequent_preds
     
     def check_modl_wildcard_match(self, next_modl, wildcard: MODL):
@@ -804,6 +840,7 @@ def apply_cond_eff(
 
     o.id = gen_id(o)
     o.parent = None
+    o.comment = f" id({o.id})"
     condleft = [o]
     processed_conds = set()
     anc_effs_to_apply = (
@@ -821,7 +858,7 @@ def apply_cond_eff(
                 anc_eff_data = ApplyCondEff(
                     anc_eff, derive_condition, agents, depth, predicates, objects
                 )
-                # if anc_eff_data.name == "disdain-desire":
+                # if anc_eff_data.name == "believe-disdain-not-love":
                 #     print()
                 # if anc_eff_data.name not in ["kd45closure__belief", "mutual-awareness-pos__belief", "mutual-awareness-neg__belief"]:#["negation-removal", "kd45closure__belief", "kd45-un-closure__belief", "uncertain-firing", "mutual-awareness-pos__belief", "mutual-awareness-neg__belief"]:#"negation-removal", "kd45-un-closure", "uncertain-firing",
                 #     continue
@@ -829,57 +866,60 @@ def apply_cond_eff(
                 # if anc_eff_data.name == "kd45-un-closure__belief" and str(next_f) == "(when (and (at_bob_l1)) (not (PBbob_PBalice_not_book-teachings)))":
                 #     print()
                 if anc_eff_data.check_ant_format(next_f):
+                    if anc_eff_data.name == "mutual-awareness-pos__belief" and str(next_f) == "(when (and (not (chemistry_bob_alice))) (DISalice_date_alice_bob))":
+                        print()
                     # print(anc_eff_data.name)
                     # print(f"next cond: {next_f}")
 
                     cons = anc_eff_data.create_consequent(deepcopy(next_f))
-                    cons = list(set(cons))
-                    # remove extraneous modality terms)
-                    for i in range(len(cons)):
-                        if type(cons[i]) is When:
-                            cond = set(
-                                [
-                                    remove_extra_modl(c)
-                                    for c in cons[i].condition.operands
-                                ]
-                            )
-                            and_cond = And(*[])
-                            and_cond._operands.extend(sorted(cond))
-                            eff = (
-                                set(
+                    if cons:
+                        cons = list(set(cons))
+                        # remove extraneous modality terms)
+                        for i in range(len(cons)):
+                            if type(cons[i]) is When:
+                                cond = set(
                                     [
                                         remove_extra_modl(c)
-                                        for c in cons[i].effect.operands
+                                        for c in cons[i].condition.operands
                                     ]
                                 )
-                                if type(cons[i].effect) is And
-                                else [remove_extra_modl(cons[i].effect)]
+                                and_cond = And(*[])
+                                and_cond._operands.extend(sorted(cond))
+                                eff = (
+                                    set(
+                                        [
+                                            remove_extra_modl(c)
+                                            for c in cons[i].effect.operands
+                                        ]
+                                    )
+                                    if type(cons[i].effect) is And
+                                    else [remove_extra_modl(cons[i].effect)]
+                                )
+                                # and_eff = And(*[])
+                                # and_eff._operands.extend(sorted(cond))
+                                cons[i] = When(and_cond, And(*eff))
+                            else:
+                                cons[i] = remove_extra_modl(cons[i])
+                            cons[i].id = gen_id(cons[i])
+                            cons[i].comment = (
+                                anc_eff_data.name
+                                + f" id({cons[i].id}) / parent({next_f.id})"
                             )
-                            # and_eff = And(*[])
-                            # and_eff._operands.extend(sorted(cond))
-                            cons[i] = When(and_cond, And(*eff))
-                        else:
-                            cons[i] = remove_extra_modl(cons[i])
-                        cons[i].id = gen_id(cons[i])
-                        cons[i].comment = (
-                            anc_eff_data.name
-                            + f" id({cons[i].id}) / parent({next_f.id})"
-                        )
-                    # printed = False
-                    for c in cons:
-                        if check_nesting(c, depth):
-                            if c not in processed_conds and c not in condleft:
-                                # if not printed:
-                                #     print(anc_eff_data.name)
-                                #     print(f"next cond: {next_f}")
-                                #     printed = True
-                                # print(c)
-                                c.parent = next_f
-                                condleft.append(c)
-                    # if anc_eff_data.name == "mutual-awareness-neg__belief":
-                    #     print()
-                    
-                    # print("----")
+                        # printed = False
+                        for c in cons:
+                            if check_nesting(c, depth):
+                                if c not in processed_conds and c not in condleft:
+                                    # if not printed:
+                                    #     print(anc_eff_data.name)
+                                    #     print(f"next cond: {next_f}")
+                                    #     printed = True
+                                    # print(c)
+                                    c.parent = next_f
+                                    condleft.append(c)
+                        # if anc_eff_data.name == "mutual-awareness-neg__belief":
+                        #     print()
+                        
+                        # print("----")
 
     for debug_condeff in debug_condeffs:
         if debug_condeff and debug_condeff.strip() in mapping:

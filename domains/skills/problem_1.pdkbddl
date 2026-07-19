@@ -22,7 +22,6 @@
         (at bob l2)
 
         (expert bob guitar)
-        (interested alice guitar)
         (beginner alice guitar)
         (natural alice guitar)
     )
