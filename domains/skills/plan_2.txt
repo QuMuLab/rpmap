@@ -1,3 +1,4 @@
-(perform-skill_bob_guitar_l1 )
+(move_cindy_l2_l1 )
+(perform-skill_cindy_alice_guitar_l1 )
 (adopt-love-for-skill_alice_guitar )
-; cost = 2 (unit cost)
+; cost = 3 (unit cost)

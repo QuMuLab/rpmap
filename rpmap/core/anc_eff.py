@@ -8,7 +8,7 @@ from enum import Enum
 class GenericMODLType(Enum):
     BELIEF = 1
     DESIRE = 2
-    DISDAIN = 3
+    # DISDAIN = 3
     LOVE = 4
 
 class ActionMODLType(Enum):

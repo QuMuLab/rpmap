@@ -3,11 +3,11 @@
 {include:ancillary_effects__skills.pdkbddl}
 {include:domain.pdkbddl}
 
-(define (problem depth_2_agents_2)
+(define (problem depth_2_agents_3)
 
     (:domain skills)
 
-    (:objects l1 l2 - loc guitar - skill)
+    (:objects l1 l2 l3 - loc guitar - skill)
 
     (:projection )
 	(:depth 2)
@@ -17,22 +17,27 @@
     (:init
         (connected l1 l2)
         (connected l2 l1)
+        (connected l2 l3)
+        (connected l3 l2)
 
         (at alice l1)
-        (at bob l2)
+        (at bob l3)
+        (at cindy l2)
+
+        (expert cindy)
 
         [d, bob](learn-skill bob guitar)
         (interested bob guitar)
         (beginner bob guitar)
         (natural bob guitar)
 
-        (interested alice guitar)
         (beginner alice guitar)
         (natural alice guitar)
     )
     (:goal
         (and
             [b, bob][b, alice](interesting guitar)
+            [b, cindy][b, alice](interesting guitar)
         )  
     )
     (:plan )

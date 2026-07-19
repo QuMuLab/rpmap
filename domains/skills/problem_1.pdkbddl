@@ -7,7 +7,7 @@
 
     (:domain skills)
 
-    (:objects l1 l2 - loc guitar - skill)
+    (:objects l1 l2 l3 - loc guitar - skill)
 
     (:projection )
 	(:depth 2)

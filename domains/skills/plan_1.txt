@@ -1,2 +1,3 @@
-(perform-skill_bob_guitar_l1 )
-; cost = 1 (unit cost)
+(move_bob_l2_l1 )
+(perform-skill_bob_alice_guitar_l1 )
+; cost = 2 (unit cost)
