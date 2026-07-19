@@ -269,8 +269,8 @@ class ApplyCondEff:
                 result = self.modify_predicate(
                     deepcopy(new_rmls[i]), list_comp_terms[0], agent
                 )
-                if result is None:
-                    return None
+                if result:
+                    new_rmls[i] = result
             return new_rmls
         else:
             if list_comp_terms[var_i].value == "agents":
@@ -292,10 +292,8 @@ class ApplyCondEff:
                                 self.assignment[rml.modl.nested[i].agent.name], False
                             )
                     result = self.modify_predicate(deepcopy(next_cond_or_eff), rml, agent)
-                    if result is None:
-                        return None
                     new_rmls.append(
-                        result
+                        result if result else deepcopy(next_cond_or_eff)
                     )
                 return new_rmls
             else:
@@ -362,12 +360,7 @@ class ApplyCondEff:
                 if type(term) is list:
                     if term[0] == "COMPOUND":
                         # we're dealing with a list 
-                        result = self.handle_list_comp(term[2:-1], next_cond_or_eff, agent, is_neg_cond)
-                        if result is None:
-                            return [None]
-                        cond_preds.extend(
-                            result
-                        )
+                        cond_preds.extend(self.handle_list_comp(term[2:-1], next_cond_or_eff, agent, is_neg_cond))
                         continue
                     # we're referencing an antecedent condition
                     if term == self.ant_pos_cond[0]:
@@ -382,9 +375,8 @@ class ApplyCondEff:
                         continue
                 # regular recursion
                 result = self.gather_preds(term, next_cond_or_eff, agent, is_neg_cond)
-                if None in result:
-                    return [None]
-                cond_preds.extend(result)
+                if result:
+                    cond_preds.extend(result)
             return cond_preds
 
     def create_cond(self, cons_cond, next_cond, is_neg_cond, agent=None):
@@ -397,9 +389,6 @@ class ApplyCondEff:
         """Create combined positive/negative consequent conditions with proper negation."""
         new_pos_cond = self.create_cond(self.cons_pos_cond, next_cond, is_neg_cond=False, agent=agent)
         new_neg_cond = self.create_cond(self.cons_neg_cond, next_cond, is_neg_cond=True, agent=agent)
-
-        if None in [new_pos_cond, new_neg_cond]:
-            return None
 
         new_cond = []
         if new_pos_cond:
@@ -534,8 +523,6 @@ class ApplyCondEff:
             if type(next_f.effect) is not Predicate:
                 raise NotImplementedError("Handle complex when effects later?")
             cond = self.create_conds(next_f.condition, self.current_agent)
-            if cond is None:
-                return None
             # also need to do derived conditions here since that might
             # have a matching agent parameter.
             if self.need_awareness:
@@ -560,8 +547,6 @@ class ApplyCondEff:
             # we need to do derived conditions here since that might
             # have a matching agent parameter.
             cond = self.create_conds(None)
-            if cond is None:
-                return None  
             if self.derived_cond:
                 if self.need_awareness:
                     if self.derived_cond[0] != Token("NEVER", "never"):
@@ -638,15 +623,13 @@ class ApplyCondEff:
                         self.current_agent = val
                     self.assignment[var.name] = val
                 result = self.create_consequent_core(next_f)
-                if result is None:
-                    return None
-                consequent_preds.extend(result)
+                if result:
+                    consequent_preds.extend(result)
         else:
             self.current_agent = None
             result = self.create_consequent_core(next_f)
-            if result is None:
-                return None
-            consequent_preds.extend(result)
+            if result:
+                consequent_preds.extend(result)
         return consequent_preds
     
     def check_modl_wildcard_match(self, next_modl, wildcard: MODL):
