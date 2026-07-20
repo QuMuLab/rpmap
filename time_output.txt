@@ -1,1 +1,1 @@
-INFO     Planner time: 11.55s
+INFO     Planner time: 11.46s

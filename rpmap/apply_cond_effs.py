@@ -184,6 +184,9 @@ class ApplyCondEff:
                     if type(new_rml.modl) is NegateOnly:
                         new_rml = self.merge_modl(modf_rml, new_rml, old_rml)
                     else:
+                        need_negate = modf_rml.modl.nested[-1].negate_inner_rml if modf_rml.modl.nested else modf_rml.modl.negate_inner_rml
+                        if need_negate:
+                            modf_rml.modl.negate(already_negated=True)
                         new_rml.modl = deepcopy(modf_rml.modl)
                         new_rml.modl.nested = deepcopy(modf_rml.modl.nested)
             else:
@@ -849,8 +852,8 @@ def apply_cond_eff(
                 # if anc_eff_data.name == "kd45-un-closure__belief" and str(next_f) == "(when (and (at_bob_l1)) (not (PBbob_PBalice_not_book-teachings)))":
                 #     print()
                 if anc_eff_data.check_ant_format(next_f):
-                    if anc_eff_data.name == "mutual-awareness-pos__belief" and str(next_f) == "(when (and (not (chemistry_bob_alice))) (DISalice_date_alice_bob))":
-                        print()
+                    # if anc_eff_data.name == "believe-disdain-not-love":# and str(next_f) == "(when (and (not (chemistry_bob_alice))) (DISalice_date_alice_bob))":
+                    #     print()
                     # print(anc_eff_data.name)
                     # print(f"next cond: {next_f}")
 

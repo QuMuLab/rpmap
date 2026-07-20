@@ -31,21 +31,21 @@
     ;;         :type add
     ;;     )
     ;; )
-    ;; (:anceff believe-disdain-not-love
-    ;;     :parameters (?a1 ?a2 - agent ?l - loc)
-    ;;     :antecedent (
-    ;;         :poscond ?pos
-    ;;         :negcond ?neg
-    ;;         :rml [b, ?a1][dsd, ?a2](rml)
-    ;;         :type add
-    ;;     )
-    ;;     :consequent (
-    ;;         :poscond ?pos
-    ;;         :negcond ?neg
-    ;;         :rml !<b, ?a1>[l, ?a2](rml)
-    ;;         :type add
-    ;;     )
-    ;; )
+    (:anceff believe-disdain-not-love
+        :parameters (?a1 ?a2 - agent ?l - loc)
+        :antecedent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml [b, ?a1][dsd, ?a2](rml)
+            :type add
+        )
+        :consequent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml !<b, ?a1>[l, ?a2](rml)
+            :type add
+        )
+    )
 
 
     ;; (:anceff disdain-love
