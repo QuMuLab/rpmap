@@ -1,0 +1,1 @@
+pddl @ git+https://github.com/AI-Planning/pddl.git@2fba52e9a9bd9bf93031828bffcd326452f85d1c
