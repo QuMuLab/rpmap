@@ -96,7 +96,6 @@ def setup_predicate_class():
     pddl.logic.predicates.Predicate.__str__ = new_predicate_str
 
 if __name__ == "__main__":
-   
     # Example usage
     agent1 = Agent("alice", False)
     agent2 = Agent("bob", False)

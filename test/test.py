@@ -191,3 +191,26 @@ class AncillaryEffectConstructionTesting(unittest.TestCase):
         self.assertEqual(str(PBEL(NOT(DES(PBEL(pred))))), "<PBEL, alice><PDES, bob>[BEL, alice](secret)")
         self.assertEqual(str(NOT(PBEL(DES(PDES(pred))))), "[BEL, alice]<PDES, bob>[DES, bob](secret)")
         self.assertEqual(str(PBEL(NOT(DES(PITN(pred))))), "<PBEL, alice><PDES, bob>[ITN, cindy](secret)")
+
+    def test_double_negation_basic_double_nesting_mixed(self):
+        BEL, DES, ITN, PBEL, PDES, PITN, NOT, pred = self.get_vars()
+        pred.negated = True
+        self.assertEqual(str(NOT(NOT(BEL(PBEL(pred))))), "[BEL, alice]<PBEL, alice>(!secret)")
+        self.assertEqual(str(NOT(BEL(PDES(NOT(pred))))), "<PBEL, alice>[DES, bob](!secret)")
+        self.assertEqual(str(NOT(BEL(NOT(PITN(pred))))), "<PBEL, alice><PITN, cindy>(!secret)")
+
+        pred.negated = False
+        self.assertEqual(str(NOT(NOT(PBEL(BEL(pred))))), "<PBEL, alice>[BEL, alice](secret)")
+        self.assertEqual(str(PBEL(NOT(DES(NOT(pred))))), "<PBEL, alice><PDES, bob>(secret)")
+        self.assertEqual(str(PBEL(NOT(ITN(NOT(pred))))), "<PBEL, alice><PITN, cindy>(secret)")
+    
+    def test_double_negation_basic_triple_nesting_mixed(self):
+        BEL, DES, ITN, PBEL, PDES, PITN, NOT, pred = self.get_vars()
+        self.assertEqual(str(NOT(NOT(BEL(PDES(BEL(pred)))))), "[BEL, alice]<PDES, bob>[BEL, alice](secret)")
+        self.assertEqual(str(BEL(PDES(DES(NOT(NOT(pred)))))), "[BEL, alice]<PDES, bob>[DES, bob](secret)")
+        self.assertEqual(str(NOT(NOT(BEL(PDES(ITN(pred)))))), "[BEL, alice]<PDES, bob>[ITN, cindy](secret)")
+
+        pred.negated = True
+        self.assertEqual(str(PBEL(NOT(DES(PBEL(NOT(pred)))))), "<PBEL, alice><PDES, bob>[BEL, alice](!secret)")
+        self.assertEqual(str(NOT(PBEL(DES(NOT(PDES(pred)))))), "[BEL, alice]<PDES, bob><PDES, bob>(!secret)")
+        self.assertEqual(str(NOT(PBEL(NOT(DES(PITN(pred)))))), "[BEL, alice][DES, bob]<PITN, cindy>(!secret)")
