@@ -38,12 +38,6 @@ class Agent:
     def __repr__(self):
         return f"?{self.name}" if self.var else f"{self.name}"
 
-def find_nested_MODL(modl: NOT_MODL):
-    if modl.child:
-        return True if isinstance(modl.child, MODL) else find_nested_MODL(modl.child)
-    else:
-        return False
-
 class MODL:
     def __init__(self, mod_type: GenericMODLType | PossibleGenericMODLType | ActionMODLType | PossibleActionMODLType, agent: Agent):
         self.mod_type = mod_type
@@ -53,11 +47,7 @@ class MODL:
     def __call__(self, arg):
         if isinstance(arg, MODL) or isinstance(arg, NOT_MODL) or isinstance(arg, Predicate):
             if (self.mod_type in ActionMODLType or self.mod_type in PossibleActionMODLType) and not isinstance(arg, Predicate):
-                if isinstance(arg, NOT_MODL):
-                    if find_nested_MODL(arg):
-                        raise ValueError("Cannot apply an Action MODL to another MODL.")
-                else:
-                    raise ValueError("Cannot apply an Action MODL to another MODL.")
+                raise ValueError("Cannot apply an Action MODL to another MODL.")
             new_base = deepcopy(self)
             new_base.child = deepcopy(arg)
             return new_base
@@ -120,7 +110,7 @@ if __name__ == "__main__":
     NOT = NOT_MODL()
     pred = Predicate("secret")
 
-    rml = (DES(ITN(NOT(BEL(pred)))))
+    rml = (DES(ITN(NOT(NOT(BEL(pred))))))
     print(rml)
 
     # rml = BEL(DES(pred))
