@@ -1,6 +1,8 @@
 from __future__ import annotations
 from enum import Enum
 from pddl.core import Predicate
+from copy import deepcopy
+import pddl
 
 class GenericMODLType(Enum):
     BEL = 1
@@ -35,149 +37,74 @@ class Agent:
     
     def __repr__(self):
         return f"?{self.name}" if self.var else f"{self.name}"
-    
-# ----- PREDICATE CLASS -----
-class RML:
-    def __init__(self, name: str):
-        self.name = name
 
-    def __repr__(self):
-        return str(self.name)
-
-# ----- OVERARCHING MODALITY CLASS -----
-
-class Modality:
+class MODL:
     def __init__(self, mod_type: GenericMODLType | PossibleGenericMODLType, agent: Agent):
         self.mod_type = mod_type
         self.agent = agent
-    
-    def negate(self):
-        return self.__class__(list(PossibleGenericMODLType)[list(GenericMODLType).index(self.mod_type)] if self.mod_type in GenericMODLType else list(GenericMODLType)[list(PossibleGenericMODLType).index(self.mod_type)], self.agent)
+        self.child = None | MODL | NOT_MODL
 
-class NMODL(Modality):
-    def __init__(self, mod_type: GenericMODLType | PossibleGenericMODLType, agent: Agent):
-        super().__init__(mod_type, agent)
-        self.child = None
-
-    def __call__(self, other):
-        if not isinstance(other, Modality):
-            raise TypeError("Can only add a Modality as a child to a NMODL.")
-        self.child = other
-        return self
-    
+    def __call__(self, arg):
+        if isinstance(arg, MODL) or isinstance(arg, NOT_MODL) or isinstance(arg, Predicate):
+            new_base = deepcopy(self)
+            new_base.child = deepcopy(arg)
+            return new_base
+        else:
+            raise TypeError("Expecting another MODL or a Predicate.")
+            
     def __repr__(self):
         return f"[{self.mod_type.name}, {self.agent}]{str(self.child)}" if self.mod_type in GenericMODLType else f"<{self.mod_type.name}, {self.agent}>{str(self.child)}"
     
-    def negate(self):
-        return super().negate()(self.child.negate())
+    def _negate(self):
+        new_base = self.__class__(list(PossibleGenericMODLType)[list(GenericMODLType).index(self.mod_type)] if self.mod_type in GenericMODLType else list(GenericMODLType)[list(PossibleGenericMODLType).index(self.mod_type)], self.agent)
+        if self.child:
+            return new_base(self.child._negate())
+        return new_base
 
-class LMODL(Modality):
-    def __init__(self, mod_type: GenericMODLType | PossibleGenericMODLType, agent: Agent):
-        super().__init__(mod_type, agent)
-        self.predicate = None
-        self.negated = False
+class NOT_MODL:
+    def __init__(self):
+        pass
 
-    def __call__(self, predicate, negated):
-        if not isinstance(predicate, Predicate) or not isinstance(negated, bool):
-            raise TypeError("LMODL must take a Predicate and a bool for its call parameters.")
-        self.predicate = predicate
-        self.negated = negated
-        return self
-    
-    def __repr__(self):
-        terms = " ".join(self.predicate.terms) if self.predicate.terms else ""
-        if self.negated:
-            pred_str = f"({'!' + self.predicate.name + terms})"
-        else:
-            pred_str = str(self.predicate)
-        return f"[{self.mod_type.name}, {self.agent}]{pred_str}" if self.mod_type in GenericMODLType else f"<{self.mod_type.name}, {self.agent}>{pred_str}"
-    
-    def negate(self):
-        return super().negate()(self.predicate, not self.negated)
-    
-# ----- HARD AND SOFT MODALITIES -----
-    
-# class HardModality(Modality):
-#     def __init__(self, mod_type: GenericMODLType, agent: Agent):
-#         super().__init__(mod_type, agent)
+    def __call__(self, arg):
+        return arg._negate()
 
-#     def __repr__(self):
-#         return f"[{self.mod_type.name}, {self.agent}]{str(self.child) if self.child else ''}"
-    
-#     # def negate(self):
-#     #     if self.child:
-#     #         return globals()[f"P{self.__class__.__name__}"](self.agent, self.child.negate())
-#     #     else:
-#     #         return globals()[f"P{self.__class__.__name__}"](self.agent)
-    
-# class SoftModality(Modality):
-#     def __init__(self, mod_type: GenericMODLType, agent: Agent):
-#         super().__init__(mod_type, agent)
+def negate_predicate(self):
+    new_base = deepcopy(self)
+    new_base.negated = not self.negated
+    return new_base
 
-#     def __repr__(self):
-#         return f"<{self.mod_type.name}, {self.agent}>{str(self.child) if self.child else ''}"
-    
-#     # def negate(self):
-#     #     return globals()[f"{self.__class__.__name__[1:]}"](self.agent, self.child.negate())
-
-# ----- GENERIC MODALITIES -----
-
-# class G_MODL(HardModality):
-#     def __init__(self, mod_type: GenericMODLType, agent: Agent):
-#         super().__init__(mod_type, agent)
-
-# class GA_MODL(HardModality):
-#     def __init__(self, mod_type: ActionMODLType, agent: Agent):
-#         super().__init__(mod_type, agent)
-
-# # ----- GENERIC ACTION MODALITIES -----
-
-# class PG_MODL(SoftModality):
-#     def __init__(self, mod_type: GenericMODLType, agent: Agent):
-#         super().__init__(mod_type, agent)
-
-# class PGA_MODL(SoftModality):
-#     def __init__(self, mod_type: ActionMODLType, agent: Agent):
-#         super().__init__(mod_type, agent)
-
-# ----- CUSTOM MODALITIES -----
-
-# class BEL(G_MODL):
-#     def __init__(self, agent: Agent):
-#         super().__init__(GenericMODLType.BEL, agent)
-
-# class PBEL(PG_MODL):
-#     def __init__(self, agent: Agent):
-#         super().__init__(GenericMODLType.BEL, agent)
-
-# class DES(G_MODL):
-#     def __init__(self, agent: Agent):
-#         super().__init__(GenericMODLType.DES, agent)
-
-# class PDES(PG_MODL):
-#     def __init__(self, agent: Agent):
-#         super().__init__(GenericMODLType.DES, agent)
-
-# class ITN(GA_MODL):
-#     def __init__(self, agent: Agent):
-#         super().__init__(ActionMODLType.ITN, agent)
-
-# class PITN(PGA_MODL):
-#     def __init__(self, agent: Agent):
-#         super().__init__(ActionMODLType.ITN, agent)
+def new_predicate_str(self):
+    """New predicate string adapted from the pddl.logic.Predicate.__str__ method."""
+    p_str = f"(!{self.name}" if self.negated else f"({self.name}"
+    if self.arity == 0:
+        return f"{p_str})"
+    else:
+        return f"{p_str} {' '.join(map(str, self.terms))})"   
 
 if __name__ == "__main__":
+    pddl.logic.predicates.Predicate.negated = False
+    pddl.logic.predicates.Predicate._negate = negate_predicate
+    pddl.logic.predicates.Predicate.__str__ = new_predicate_str
     # Example usage
     agent1 = Agent("alice", False)
     agent2 = Agent("bob", False)
     pred = Predicate("secret")
 
-    BEL = NMODL(GenericMODLType.BEL, agent1)
-    DES = LMODL(PossibleGenericMODLType.PDES, agent2)
+    BEL = MODL(GenericMODLType.BEL, agent1)
+    DES = MODL(GenericMODLType.DES, agent2)
+    NOT = NOT_MODL()
 
-    rml = BEL(DES(pred, True))
-    print(rml)
+    rml = BEL(DES(pred))
+    print("BEL(DES(pred)) -> ", rml, "\n")
+    
+    rml = BEL(NOT(DES(pred)))
+    print("BEL(NOT(DES(pred))) -> ", rml, "\n")
 
-    rml_negated = rml.negate()
-    print(rml_negated)
-    print(rml)
+    rml = BEL((DES(NOT(pred))))
+    print("BEL((DES(NOT(pred)))) -> ", rml, "\n")
+
+    rml = BEL((DES(NOT(NOT(pred)))))
+    print("BEL((DES(NOT(NOT(pred))))) -> ", rml, "\n")
+
+    rml = NOT(BEL((DES(NOT(NOT(pred))))))
+    print("NOT(BEL((DES(NOT(NOT(pred)))))) -> ", rml, "\n")
