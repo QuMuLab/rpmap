@@ -88,12 +88,15 @@ def new_predicate_str(self):
     if self.arity == 0:
         return f"{p_str})"
     else:
-        return f"{p_str} {' '.join(map(str, self.terms))})"   
+        return f"{p_str} {' '.join(map(str, self.terms))})"
 
-if __name__ == "__main__":
+def setup_predicate_class():
     pddl.logic.predicates.Predicate.negated = False
     pddl.logic.predicates.Predicate._negate = negate_predicate
     pddl.logic.predicates.Predicate.__str__ = new_predicate_str
+
+if __name__ == "__main__":
+   
     # Example usage
     agent1 = Agent("alice", False)
     agent2 = Agent("bob", False)
