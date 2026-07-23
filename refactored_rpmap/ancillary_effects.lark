@@ -34,7 +34,7 @@ FALSE_: "false"
 AG: "?ag"
 AGENTS: "agents"
 
-start: all_anceffs [domain] [problem]
+start: atomic_formula_term_rml
 
 cond_types: ADD | DEL | ADD_SOFT | DEL_SOFT | WILDCARD | DEL_WILDCARD
 
