@@ -57,7 +57,7 @@ class MODL:
             raise TypeError("Expecting another MODL or a Predicate.")
             
     def __repr__(self):
-        return f"[{self.mod_type.name}, {self.agent}]{str(self.child)}" if self.mod_type in GenericMODLType or self.mod_type in ActionMODLType else f"<{self.mod_type.name}, {self.agent}>{str(self.child)}"
+        return f"[{self.mod_type.name}, {self.agent}]{str(self.child)}" if self.mod_type in GenericMODLType or self.mod_type in ActionMODLType else f"<{self.mod_type.name[1:]}, {self.agent}>{str(self.child)}"
     
     def _negate(self):
         if self.mod_type in GenericMODLType:
