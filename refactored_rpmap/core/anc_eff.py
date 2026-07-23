@@ -87,10 +87,7 @@ def negate_predicate(self):
 def new_predicate_str(self):
     """New predicate string adapted from the pddl.logic.Predicate.__str__ method."""
     p_str = f"(!{self.name}" if self.negated else f"({self.name}"
-    if self.arity == 0:
-        return f"{p_str})"
-    else:
-        return f"{p_str} {' '.join(map(str, self.terms))})"
+    return f"{p_str})" if self.arity == 0 else f"{p_str} {' '.join(map(str, self.terms))})"
 
 class RMLPredicate(Predicate):
     def __init__(self):
@@ -115,7 +112,7 @@ def modl(self, args):
     for modl_type in possible_classes:
         if term_name in [m.name for m in modl_type]:
             return MODL(modl_type[term_name], Agent(args[3].name, True if isinstance(args[3], Variable) else False))
-    raise ValueError(f"MODL Type {args} is not specified in any of the MODLType categories in 'anc_eff.py.'")
+    raise ValueError(f"MODL Type {term_name} is not specified in any of the MODLType categories in 'anc_eff.py.'")
         
 def anceff_atomic_formula_term(self, args):
     negate_modalities = True if args[0] else False

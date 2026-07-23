@@ -1,1 +1,166 @@
-![bel, ?a]<des, ?b>[(!rml)]
+(:ancillary_effects
+    ; NON-BDI ANCILLARY EFFECTS
+    (:anceff negation-removal
+        :antecedent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml (rml)
+            :type add-soft
+        )
+        :consequent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml !(rml)
+            :type del
+        )
+    )
+    (:anceff uncertain-firing
+        :antecedent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml (rml)
+            :type add-soft
+        )
+        :consequent (
+            :negcond {!(r) for r in ?pos} + ?neg
+            :rml !(rml)
+            :type del
+        )
+    )
+
+    ; KD45 CLOSURE
+    (:anceff kd45closure__belief
+        :parameters (?a - agent)
+        :antecedent 
+        (
+            :poscond ?pos
+            :negcond ?neg
+            :rml [bel, ?a](rml)
+            :type wildcard
+        )
+        :consequent 
+        (
+            :poscond ?pos
+            :negcond ?neg
+            :rml <bel, ?a>(rml)
+            :type add
+        )
+    )
+    (:anceff kd45closure__desire
+        :parameters (?a - agent)
+        :antecedent 
+        (
+            :poscond ?pos
+            :negcond ?neg
+            ; agent a desires (rml)
+            :rml [des, ?a](rml)
+            :type wildcard
+        )
+        :consequent 
+        (
+            :poscond ?pos
+            :negcond ?neg
+            ; agent a possibly desires (rml)
+            :rml <des, ?a>(rml)
+            :type add
+        )
+    )
+    (:anceff kd45closure__intention
+        :parameters (?a - agent)
+        :antecedent 
+        (
+            :poscond ?pos
+            :negcond ?neg
+            ; agent a intends (rml)
+            :rml [itn, ?a](rml)
+            :type wildcard
+        )
+        :consequent 
+        (
+            :poscond ?pos
+            :negcond ?neg
+            ; agent a possibly intends (rml)
+            :rml <itn, ?a>(rml)
+            :type add
+        )
+    )
+
+    ; KD45 UNCLOSURE
+    (:anceff kd45-un-closure__belief
+        :parameters (?a - agent)
+        :antecedent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml <bel, ?a>(rml)
+            :type wildcard
+        )
+        :consequent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml [bel, ?a](rml)
+            :type del
+        )
+    )
+    (:anceff kd45-un-closure__desire
+        :parameters (?a - agent)
+        :antecedent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml <des, ?a>(rml)
+            :type wildcard
+        )
+        :consequent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml [des, ?a](rml)
+            :type del
+        )
+    )
+    (:anceff kd45-un-closure__intention
+        :parameters (?a - agent)
+        :antecedent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml <itn, ?a>(rml)
+            :type wildcard
+        )
+        :consequent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml [itn, ?a](rml)
+            :type del
+        )
+    )
+
+    ; MUTUAL AWARENESS (BELIEF ONLY)
+    (:anceff mutual-awareness-pos__belief
+        :parameters (?a - agent)
+        :antecedent (
+            :poscond ?pos
+            :negcond ?neg
+            :need_awareness true
+            :rml (rml)
+            :type add-soft
+        )
+        :consequent (
+            :poscond {[bel, ?a][(r)] for r in ?pos} + {![bel, ?a][(r)] for r in ?neg}
+            :rml [bel, ?a][(rml)]
+            :type add
+        )
+    )
+    (:anceff mutual-awareness-neg__belief
+        :parameters (?a - agent)
+        :antecedent (
+            :poscond ?pos
+            :negcond ?neg
+            :need_awareness true
+            :rml (rml)
+            :type del-soft
+        )
+        :consequent (
+            :poscond {[bel, ?a][(r)] for r in ?pos} + {![bel, ?a][(r)] for r in ?neg}
+            :rml ![bel, ?a][(rml)]
+            :type add
+        )
+    )
+)
