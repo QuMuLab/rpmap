@@ -1,5 +1,6 @@
 from __future__ import annotations
 from enum import Enum
+from lark.visitors import Transformer
 from pddl.core import Predicate
 from copy import deepcopy
 import pddl
@@ -94,6 +95,25 @@ def setup_predicate_class():
     pddl.logic.predicates.Predicate.negated = False
     pddl.logic.predicates.Predicate._negate = negate_predicate
     pddl.logic.predicates.Predicate.__str__ = new_predicate_str
+
+def create_MODL(args):
+    print()
+
+def anceff_atomic_formula_term(self, args):
+    return create_MODL(args)
+
+class AncEffTransformer(Transformer):
+    def __init__(self):
+        """Initialize the AncEffTransformer."""
+        super().__init__()
+        self.set_up_transformers()
+
+    def start(self, children):
+        """Start method for the AncEffTransformer."""
+        return children
+
+    def set_up_transformers(self):
+        setattr(AncEffTransformer, "atomic_formula_term_rml", anceff_atomic_formula_term)
 
 if __name__ == "__main__":
     # Example usage
