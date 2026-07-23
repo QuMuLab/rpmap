@@ -24,9 +24,9 @@ modl_term: BELIEF | DESIRE | INTENTION | DISDAIN | LOVE
 
 modl: LSQB modl_term COMMA var RSQB | LESSER_OP modl_term COMMA var GREATER_OP
 
-terminal_rml:
+terminal_rml: [LSQB] LPAR [EXC] RML_NAME RPAR [RSQB]
 
-atomic_formula_term_rml: [EXC] modl* [LSQB] LPAR [EXC] RML_NAME RPAR [RSQB]
+atomic_formula_term_rml: [EXC] modl* terminal_rml 
 
 
 %ignore /\s+/

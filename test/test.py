@@ -3,7 +3,7 @@ import unittest
 
 class AncillaryEffectConstructionTesting(unittest.TestCase):
     def get_vars(self):
-        setup_predicate_class()
+        setup_predicate_classes()
         agent1 = Agent("alice", False)
         agent2 = Agent("bob", False)
         agent3 = Agent("cindy", False)

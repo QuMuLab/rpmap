@@ -2,6 +2,7 @@ from __future__ import annotations
 from enum import Enum
 from lark.visitors import Transformer
 from pddl.core import Predicate
+from pddl.logic.terms import Variable
 from copy import deepcopy
 import pddl
 
@@ -91,22 +92,65 @@ def new_predicate_str(self):
     else:
         return f"{p_str} {' '.join(map(str, self.terms))})"
 
-def setup_predicate_class():
+class RMLPredicate(Predicate):
+    def __init__(self):
+        super().__init__("rml")
+        self.negated = False
+        self.nest = False
+    
+def var(self, args):
+    return Variable(args[1].value)
+
+def modl(self, args):
+    # hard modality
+    hard_modality = True
+    if args[0].type == "LSQB":
+        possible_classes = [GenericMODLType, ActionMODLType]
+    else:
+        hard_modality = False
+        possible_classes = [PossibleGenericMODLType, PossibleActionMODLType]
+    term_name = args[1].children[0].upper()
+    if not hard_modality:
+        term_name = "P" + term_name
+    for modl_type in possible_classes:
+        if term_name in [m.name for m in modl_type]:
+            return MODL(modl_type[term_name], Agent(args[3].name, True if isinstance(args[3], Variable) else False))
+    raise ValueError(f"MODL Type {args} is not specified in any of the MODLType categories in 'anc_eff.py.'")
+        
+def anceff_atomic_formula_term(self, args):
+    negate_modalities = True if args[0] else False
+    modls_no_neg = args[1:]
+    for i in range(len(modls_no_neg) - 1, - 1, - 1):
+        if isinstance(modls_no_neg[i], RMLPredicate):
+            continue
+        modls_no_neg[i] = modls_no_neg[i](modls_no_neg[i + 1])
+    modl = modls_no_neg[0]
+    return NOT_MODL()(modl) if negate_modalities else modl
+
+def terminal_rml(self, args):
+    pred = RMLPredicate()
+    # nesting is present
+    if args[0]:
+        pred.nest = True
+    # negation is present
+    if args[2]:
+        pred.negated = True
+    return pred
+
+def setup_predicate_classes():
+    RMLPredicate._negate = negate_predicate
+    RMLPredicate.__str__ = new_predicate_str
+
     pddl.logic.predicates.Predicate.negated = False
     pddl.logic.predicates.Predicate._negate = negate_predicate
     pddl.logic.predicates.Predicate.__str__ = new_predicate_str
-
-def create_MODL(args):
-    print()
-
-def anceff_atomic_formula_term(self, args):
-    return create_MODL(args)
 
 class AncEffTransformer(Transformer):
     def __init__(self):
         """Initialize the AncEffTransformer."""
         super().__init__()
         self.set_up_transformers()
+        setup_predicate_classes()
 
     def start(self, children):
         """Start method for the AncEffTransformer."""
@@ -114,6 +158,9 @@ class AncEffTransformer(Transformer):
 
     def set_up_transformers(self):
         setattr(AncEffTransformer, "atomic_formula_term_rml", anceff_atomic_formula_term)
+        setattr(AncEffTransformer, "terminal_rml", terminal_rml)
+        setattr(AncEffTransformer, "modl", modl)
+        setattr(AncEffTransformer, "var", var)
 
 if __name__ == "__main__":
     # Example usage
