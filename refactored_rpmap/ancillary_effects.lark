@@ -276,9 +276,11 @@ modl_term: BELIEF | DESIRE | INTENTION | DISDAIN | LOVE
 
 modl: LSQB modl_term COMMA var RSQB | LESSER_OP modl_term COMMA var GREATER_OP
 
-rml_options: var | list_comp_rml | atomic_formula_term_rml | gd
+rml_options: var | list_comp_r_var | list_comp_r_agents | list_comp_rml_var | list_comp_rml_agents | atomic_formula_term_rml | gd
 
 terminal_rml: [LSQB] LPAR [EXC] RML_NAME RPAR [RSQB]
+
+terminal_r: [LSQB] LPAR [EXC] R RPAR [RSQB]
 
 atomic_formula_term_rml: [EXC] modl* terminal_rml
 
@@ -288,13 +290,17 @@ poscond: POSCOND pos_or_neg_cond
 
 negcond: NEGCOND pos_or_neg_cond
 
-atomic_formula_term_list_comp_r: [EXC] modl* [LSQB] LPAR [EXC] R RPAR [RSQB]
+atomic_formula_term_list_comp_r: [EXC] modl* terminal_r
 
-list_comp_var: LCRL atomic_formula_term_list_comp_r FOR R IN var RCRL
+list_comp_r_var: LCRL atomic_formula_term_list_comp_r FOR R IN var RCRL
 
-list_comp_rml: LCRL atomic_formula_term_rml FOR AG IN AGENTS RCRL
+list_comp_r_agents: LCRL atomic_formula_term_list_comp_r FOR AG IN AGENTS RCRL
 
-pos_or_neg_cond_options: var | list_comp_var | atomic_formula_term_rml | gd
+list_comp_rml_var: LCRL atomic_formula_term_rml FOR R IN var RCRL
+
+list_comp_rml_agents: LCRL atomic_formula_term_rml FOR AG IN AGENTS RCRL
+
+pos_or_neg_cond_options: var | list_comp_r_var | atomic_formula_term_rml | gd
 
 pos_or_neg_cond: pos_or_neg_cond_options (PLUS pos_or_neg_cond_options)*
 

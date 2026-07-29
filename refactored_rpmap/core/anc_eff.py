@@ -90,8 +90,8 @@ def new_predicate_str(self):
     return f"{p_str})" if self.arity == 0 else f"{p_str} {' '.join(map(str, self.terms))})"
 
 class RMLPredicate(Predicate):
-    def __init__(self):
-        super().__init__("rml")
+    def __init__(self, name):
+        super().__init__(name)
         self.negated = False
         self.nest = False
     
@@ -124,8 +124,8 @@ def anceff_atomic_formula_term(self, args):
     modl = modls_no_neg[0]
     return NOT_MODL()(modl) if negate_modalities else modl
 
-def terminal_rml(self, args):
-    pred = RMLPredicate()
+def terminal_helper(args, name):
+    pred = RMLPredicate(name)
     # nesting is present
     if args[0]:
         pred.nest = True
@@ -133,6 +133,27 @@ def terminal_rml(self, args):
     if args[2]:
         pred.negated = True
     return pred
+
+def terminal_rml(self, args):
+    return terminal_helper(args, "rml")
+
+def terminal_r(self, args):
+    return terminal_helper(args, "r")
+
+class ListCompVar:
+    def __init__(self, rml_pred: RMLPredicate, var: Variable):
+        self.rml_pred = RMLPredicate
+        self.var = Variable
+
+class ListCompAgents:
+    def __init__(self, rml_pred: RMLPredicate):
+        self.rml_pred = RMLPredicate
+
+def list_comp_var(self, args):
+    return ListCompVar(args[1], args[5])
+
+def list_comp_agents(self, args):
+    return ListCompAgents(args[1])
 
 def setup_predicate_classes():
     RMLPredicate._negate = negate_predicate
@@ -156,8 +177,14 @@ class AncEffTransformer(Transformer):
     def set_up_transformers(self):
         setattr(AncEffTransformer, "atomic_formula_term_rml", anceff_atomic_formula_term)
         setattr(AncEffTransformer, "terminal_rml", terminal_rml)
+        setattr(AncEffTransformer, "terminal_r", terminal_r)
         setattr(AncEffTransformer, "modl", modl)
         setattr(AncEffTransformer, "var", var)
+        setattr(AncEffTransformer, "atomic_formula_term_list_comp_r", anceff_atomic_formula_term)
+        setattr(AncEffTransformer, "list_comp_r_var", list_comp_var)
+        setattr(AncEffTransformer, "list_comp_rml_var", list_comp_var)
+        setattr(AncEffTransformer, "list_comp_r_agents", list_comp_agents)
+        setattr(AncEffTransformer, "list_comp_rml_agents", list_comp_agents)
 
 if __name__ == "__main__":
     # Example usage
