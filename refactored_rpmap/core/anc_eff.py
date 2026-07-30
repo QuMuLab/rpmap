@@ -1,6 +1,6 @@
 from __future__ import annotations
 from enum import Enum
-from lark.visitors import Transformer
+from lark.visitors import Transformer, Token
 from pddl.core import Predicate
 from pddl.logic.terms import Variable
 from copy import deepcopy
@@ -149,11 +149,62 @@ class ListCompAgents:
     def __init__(self, rml_pred: RMLPredicate):
         self.rml_pred = RMLPredicate
 
+class AncEffPart:
+    def __init__(self, poscond, negcond, rml: list, type: str):
+        self.poscond = poscond
+        self.negcond = negcond
+        self.rml = rml
+        self.type = type
+
+class Consequent(AncEffPart):
+    def __init__(self, poscond, negcond, rml, type):
+        super().__init__(poscond, negcond, rml, type)
+
+class Antecedent(AncEffPart):
+    def __init__(self, awareness, rml, type):
+        super().__init__(Variable("pos"), Variable("neg"), rml, type)
+        self.awareness = awareness
+
+class AncEff:
+    def __init__(self, name, parameters, antecedent, consequent):
+        self.name = name
+        self.parameters = parameters
+        self.antecedent = antecedent
+        self.consequent = consequent
+
+class AncEffs:
+    def __init__(self, anceffs):
+        self.anceffs = anceffs
+
+def return_all(self, args):
+    return args
+
+def anceffs(self, args):
+    return AncEffs(args[2:-1])
+
+def anceff(self, args):
+    return AncEff(args[2].value, args[3], args[4], args[5])
+
+def antecedent(self, args):
+    return Antecedent(args[4], args[5], args[6])
+
+def consequent(self, args):
+    return Consequent(args[2].children[1] if args[2] else None, args[3].children[1] if args[3] else None, args[4], args[5])
+
 def list_comp_var(self, args):
     return ListCompVar(args[1], args[5])
 
 def list_comp_agents(self, args):
     return ListCompAgents(args[1])
+
+def return_option(self, args):
+    return args[0]
+
+def plural(self, args):
+    return [a for a in args[1:] if a != Token("PLUS", "+")]
+
+def cond_type_def(self, args):
+    return args[1].children[0].value
 
 def setup_predicate_classes():
     RMLPredicate._negate = negate_predicate
@@ -185,6 +236,16 @@ class AncEffTransformer(Transformer):
         setattr(AncEffTransformer, "list_comp_rml_var", list_comp_var)
         setattr(AncEffTransformer, "list_comp_r_agents", list_comp_agents)
         setattr(AncEffTransformer, "list_comp_rml_agents", list_comp_agents)
+        setattr(AncEffTransformer, "antecedent", antecedent)
+        setattr(AncEffTransformer, "consequent", consequent)
+        setattr(AncEffTransformer, "rml_options", return_option)
+        setattr(AncEffTransformer, "rml_def", plural)
+        setattr(AncEffTransformer, "cond_type_def", cond_type_def)
+        setattr(AncEffTransformer, "pos_or_neg_cond_options", return_option)
+        setattr(AncEffTransformer, "pos_or_neg_cond", plural)
+        setattr(AncEffTransformer, "anceff", anceff)
+        setattr(AncEffTransformer, "anceffs", anceffs)
+        setattr(AncEffTransformer, "all_anceffs", return_all)
 
 if __name__ == "__main__":
     # Example usage

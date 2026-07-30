@@ -265,6 +265,8 @@ TRUE_: "true"
 FALSE_: "false"
 AG: "?ag"
 AGENTS: "agents"
+POS: "?pos"
+NEG: "?neg"
 
 start: all_anceffs
 
@@ -286,9 +288,13 @@ atomic_formula_term_rml: [EXC] modl* terminal_rml
 
 anceff_params: PARAMETERS action_parameters
 
-poscond: POSCOND pos_or_neg_cond
+ant_poscond: POSCOND POS
 
-negcond: NEGCOND pos_or_neg_cond
+ant_negcond: NEGCOND NEG
+
+cons_poscond: POSCOND pos_or_neg_cond
+
+cons_negcond: NEGCOND pos_or_neg_cond
 
 atomic_formula_term_list_comp_r: [EXC] modl* terminal_r
 
@@ -308,17 +314,18 @@ rml_def: RML_TYPE rml_options (PLUS rml_options)*
 
 cond_type_def: COND_TYPE cond_types
 
-ant_def: ANT LPAR [poscond] [negcond] [awareness] rml_def cond_type_def RPAR
+antecedent: ANT LPAR ant_poscond ant_negcond [awareness] rml_def cond_type_def RPAR
 
-cons_def: CONS LPAR [poscond] [negcond] rml_def cond_type_def RPAR
+consequent: CONS LPAR [cons_poscond] [cons_negcond] rml_def cond_type_def RPAR
 
 awareness: AWARENESS TRUE_ | AWARENESS FALSE_
 
-anceff: LPAR ANCEFF_NAME NAME [anceff_params] ant_def cons_def RPAR
+anceff: LPAR ANCEFF_NAME NAME [anceff_params] antecedent consequent RPAR
 
 anceffs: LPAR ANCEFFS_NAME anceff* RPAR
 
 all_anceffs: anceffs*
+
 agents: LPAR ":agents" agent+ RPAR
 
 agent: /[a-zA-Z_][a-zA-Z0-9_]*/

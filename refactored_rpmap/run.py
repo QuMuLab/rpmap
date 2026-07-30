@@ -10,7 +10,5 @@ def test_parse():
     parser = AncEffParser(grammar)
     result = parser(pddl_str)
 
-    print(result)
-
 if __name__ == "__main__":
     test_parse()
