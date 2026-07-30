@@ -3,6 +3,10 @@ import os
 from lark import Lark
 from lark.visitors import Transformer
 from core.anc_eff import AncEffTransformer
+from pddl.parser.domain import DomainTransformer
+from pddl.parser.problem import ProblemTransformer
+
+GRAMMAR_FILE = "ancillary_effects.lark"
 
 def read_pdkbddl_file(fname):
     """Adapted from the pdkb.problems.read_pdkbddl_file function
@@ -39,6 +43,19 @@ def read_pdkbddl_file(fname):
     lines = [x.split(';')[0] for x in lines]
     return lines
 
+class AncEffDomainProblemTransformer(Transformer):
+    """A transformer for domain + problems
+    Taken from the fond-utils library"""
+    
+    def anceff_start(self, children):
+        return children[0]
+
+    def domain_start(self, children):
+        return children[0]
+
+    def problem_start(self, children):
+        return children[0]
+
 def call_parser(text: str, parser: Lark, transformer: Transformer):
     """
     Parse a text with a Lark parser and transformer.
@@ -62,13 +79,38 @@ def call_parser(text: str, parser: Lark, transformer: Transformer):
             sys.tracebacklimit = old_tracebacklimit
     return result
 
-class AncEffParser:
+def merge_transformers_modified(base_transformer=None, **transformers_to_merge):
+    """Adapted from the LARK merge_transformers function.
+    We don't want to change the function names in this merging as they
+    all use the same LARK file."""
+    if base_transformer is None:
+        base_transformer = Transformer()
+    for _, transformer in transformers_to_merge.items():
+        for method_name in dir(transformer):
+            method = getattr(transformer, method_name)
+            if not callable(method):
+                continue
+            if method_name.startswith("_") or method_name == "transform":
+                continue
+            if hasattr(base_transformer, method_name):
+                raise AttributeError("Cannot merge: method '%s' appears more than once" % method_name)
+
+            setattr(base_transformer, method_name, method)
+
+    return base_transformer
+
+class AncEffDomProbParser:
     """Domain and/or problem PDDL domain parser class.
     Taken from the fond-utils library"""
 
-    def __init__(self, grammar, import_paths="ancillary_effects.lark"):
+    def __init__(self, grammar, import_paths=GRAMMAR_FILE):
         """Initialize."""
-        self._transformer = AncEffTransformer()
+        self._transformer = merge_transformers_modified(
+            AncEffDomainProblemTransformer(),
+            anceff=AncEffTransformer(),
+            domain=DomainTransformer(),
+            problem=ProblemTransformer(),
+        )
         # need to use earley; lalr will not be able to recognise files with just problems (no left)
         self._parser = Lark(
             grammar, parser="earley", import_paths=[import_paths]
