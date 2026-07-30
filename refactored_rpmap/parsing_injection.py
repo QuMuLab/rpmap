@@ -5,8 +5,8 @@ from lark.visitors import Transformer
 from core.anc_eff import AncEffTransformer
 from pddl.parser.domain import DomainTransformer
 from pddl.parser.problem import ProblemTransformer
+from pddl.parser import GRAMMAR_FILE
 
-GRAMMAR_FILE = "ancillary_effects.lark"
 
 def read_pdkbddl_file(fname):
     """Adapted from the pdkb.problems.read_pdkbddl_file function

@@ -1,13 +1,12 @@
 import pddl.core
 import pddl.logic
 from lark.lexer import Token
-from .anc_eff import instantiate_modl
-from ..parsing_utils import *
+# from .anc_eff import instantiate_modl
+from parsing_utils import *
 from pddl.action import Action
 from pddl.formatter import (
     print_constants,
     print_function_skeleton,
-    print_predicates_with_types,
     print_types_or_functions_with_parents,
     remove_empty_lines,
     sort_and_print_collection,
@@ -88,7 +87,7 @@ def atomic_formula_term(self, args):
         p = VariablePredicate(name, *terms)
     else:
         p = Predicate(name, *terms)
-    p.modl = instantiate_modl(args[:after_modl])
+    # p.modl = instantiate_modl(args[:after_modl])
     if p.modl:
         if inner_negation:
             if p.modl.nested:

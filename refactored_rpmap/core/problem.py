@@ -1,6 +1,6 @@
 import pddl.core
-from .anc_eff import instantiate_modl
-from ..parsing_utils import *
+# from .anc_eff import instantiate_modl
+from parsing_utils import *
 from pddl.formatter import (
     print_constants,
     remove_empty_lines,
@@ -35,7 +35,7 @@ def atomic_formula_name(self, args):
         else:
             terms.append(self._objects_by_name.get(str(_term_name)))
     p = Predicate(predicate_name, *terms)
-    p.modl = instantiate_modl(args[:after_modl])
+    # p.modl = instantiate_modl(args[:after_modl])
     if p.modl:
         if inner_negation:
             if p.modl.nested:
