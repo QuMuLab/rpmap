@@ -17,6 +17,7 @@ from pddl.logic.predicates import Predicate
 from pddl.parser import domain, GRAMMAR_FILE
 from pddl._validation import Types
 from textwrap import indent
+from core.anc_eff import RMLPredicate, NOT_MODL
 
 # ----- TRANSFORMER FUNCTIONS -----
 
@@ -60,46 +61,21 @@ def atomic_formula_skeleton(self, args):
     p.negated = False
     return p
 
+def terminal_predicate(self, args):
+    pred = Predicate(args[2].value, *args[3:-1])
+    if args[1]:
+        pred.negated = True
+    return pred
+
 def atomic_formula_term(self, args):
-    """Adapted from the pddl.parser.domain.DomainTransformer.atomic_formula_term method"""
-    # figure out where the modality term ends, e.g. (!)[b, ?agent]{index} or (!)<b, ?agent>{index}.
-    # (if there's no modality term, we just skip over None)
-    after_modl = None
-    for i in range(len(args)):
-        if type(args[i]) is Token:
-            if "LPAR" in args[i].type: #accounting for import being part of the type name
-                # reached the end of the modality terms
-                after_modl = i
-                break
-    inner_negation = False
-    if args[after_modl + 1]:
-        if "EXC" in args[after_modl + 1].type:
-            inner_negation = True
-    name = args[after_modl + 2] # add 2 to skip the EXC space
-    var_pred = False
-    if type(name) is list:
-        # indicates that we are dealing with a variable predicate instead of a predicate
-        # e.g. (?mu)
-        name =  Token("NAME", "".join(p.value for p in name))
-        var_pred = True        
-    terms = list(map(self._constant_or_variable, args[after_modl + 3:-1]))
-    if var_pred:
-        p = VariablePredicate(name, *terms)
-    else:
-        p = Predicate(name, *terms)
-    # p.modl = instantiate_modl(args[:after_modl])
-    if p.modl:
-        if inner_negation:
-            if p.modl.nested:
-                p.modl.nested[-1].negate_inner_rml = not p.modl.nested[-1].negate_inner_rml
-            else:
-                p.modl.negate_inner_rml = not p.modl.negate_inner_rml
-    else:
-        p.negated = inner_negation
-    if p.negated is None:
-        p.negated = False
-    # p.negated = inner_negation
-    return p
+    negate_modalities = True if args[0] else False
+    modls_no_neg = args[1:]
+    for i in range(len(modls_no_neg) - 1, - 1, - 1):
+        if isinstance(modls_no_neg[i], Predicate):
+            continue
+        modls_no_neg[i] = modls_no_neg[i](modls_no_neg[i + 1])
+    modl = modls_no_neg[0]
+    return NOT_MODL()(modl) if negate_modalities else modl
 
 # ----- STRING AND PRINT FUNCTIONS -----
 
@@ -271,6 +247,11 @@ def construct_domain_grammar(print_rml_style=True):
         "atomic_formula_skeleton:   LPAR NAME typed_list_variable RPAR",
         ""
     )
+    # replace the atomic formula term
+    replace_in_grammar(
+        "atomic_formula_term:   [EXC] modl* LPAR [EXC] predicate term* RPAR",
+        ""
+    )
     inject_domain_grammar("atomic_formula_skeleton", "[AK] LPAR NAME typed_list_variable RPAR", atomic_formula_skeleton)
     # inject rules for derived conditions
     inject_domain_grammar("DLR", "\"$\"", basic_token_transformer)
@@ -290,7 +271,22 @@ def construct_domain_grammar(print_rml_style=True):
         "atomic_formula_term:   LPAR predicate term* RPAR",
         ""
     )
-    inject_domain_grammar("atomic_formula_term", "[EXC] modl* LPAR [EXC] predicate term* RPAR", atomic_formula_term)
+    replace_in_grammar(
+        "gd:                atomic_formula_term",
+        "gd:                atomic_formula_term_var | atomic_formula_term_constant"
+    )
+    replace_in_grammar(
+        "p_effect:          LPAR NOT atomic_formula_term RPAR",
+        "p_effect:          LPAR NOT atomic_formula_term_var RPAR | LPAR NOT atomic_formula_term_constant RPAR"
+    )
+    replace_in_grammar(
+        "        |          atomic_formula_term",
+        "        |          atomic_formula_term_var | atomic_formula_term_constant"
+    )
+    inject_domain_grammar("terminal_predicate_var", "LPAR [EXC] predicate var* RPAR", terminal_predicate)
+    inject_domain_grammar("atomic_formula_term_var", "[EXC] modl* terminal_predicate_var", atomic_formula_term)
+    inject_domain_grammar("terminal_predicate_constant", "LPAR [EXC] predicate constant* RPAR", terminal_predicate)
+    inject_domain_grammar("atomic_formula_term_constant", "[EXC] modl* terminal_predicate_constant", atomic_formula_term)
     # replace the init and string functions
     pddl.core.Domain.orig_init = pddl.core.Domain.__init__
     pddl.core.Domain.__init__ = new_init_domain
