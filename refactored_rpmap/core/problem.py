@@ -1,5 +1,7 @@
+import pddl as pddl
 import pddl.core
-# from .anc_eff import instantiate_modl
+from core.domain import atomic_formula_term, terminal_predicate
+from core.anc_eff import modl, MODL
 from parsing_utils import *
 from pddl.formatter import (
     print_constants,
@@ -8,46 +10,11 @@ from pddl.formatter import (
 )
 from pddl.helpers.base import assert_
 from pddl.logic.terms import Constant
+from pddl.logic.base import Formula, Atomic, Not
 from pddl.parser import problem, GRAMMAR_FILE
 from textwrap import indent
 
 # ----- TRANSFORMER FUNCTIONS -----
-def atomic_formula_name(self, args):
-    """Adapted from the pddl.parser.problem.ProblemTransformer.atomic_formula_name method."""
-    # figure out where the modality term ends, e.g. (!)[b, ?agent]{index} or (!)<b, ?agent>{index}.
-    # (if there's no modality term, we just skip over None)
-    for i in range(len(args)):
-        if type(args[i]) is Token:
-            if "LPAR" in args[i].type:
-                # reached the end of the modality terms
-                after_modl = i
-                break
-    inner_negation = False
-    if args[after_modl + 1]:
-        if "EXC" in args[after_modl + 1].type:
-            inner_negation = True
-    predicate_name = args[after_modl + 2] # add 2 to skip the EXC space
-    # set up terms
-    terms = []
-    for _term_name in args[after_modl + 3:-1]:
-        if self._objects_by_name.get(str(_term_name)) is None:
-            terms.append(Constant(str(_term_name)))
-        else:
-            terms.append(self._objects_by_name.get(str(_term_name)))
-    p = Predicate(predicate_name, *terms)
-    # p.modl = instantiate_modl(args[:after_modl])
-    if p.modl:
-        if inner_negation:
-            if p.modl.nested:
-                p.modl.nested[-1].negate_inner_rml = not p.modl.nested[-1].negate_inner_rml
-            else:
-                p.modl.negate_inner_rml = not p.modl.negate_inner_rml
-    else:
-        p.negated = inner_negation
-    if p.negated is None:
-        p.negated = False
-    # p.negated = inner_negation # store the negated term, e.g. (!term ?a ?b)
-    return p
 
 def projection_transformer(self, args):
     """Transformer for the problem depth."""
@@ -61,8 +28,9 @@ def depth_transformer(self, args):
 
 def goal_transformer(self, args):
     """Transformer for the problem goal."""
-    args = self.init(args)
-    return ("goal", args[1])
+    args = self.init(args)[1]
+    args = args[2] if args else args
+    return ("goal", frozenset(args))
 
 def init_type_transformer(self, args):
     """Transformer for the problem init type."""
@@ -71,8 +39,9 @@ def init_type_transformer(self, args):
 
 def plan_transformer(self, args):
     """Transformer for the problem plan."""
-    args = self.init(args)
-    return ("plan", args[1]) 
+    args = self.init(args)[1]
+    args = args[2] if args else args
+    return ("plan", frozenset(args)) 
 
 def task_transformer(self, args):
     """Transformer for the problem task."""
@@ -127,12 +96,29 @@ def problem__constant(self, args):
     NOTE: This is taken (verbatim) from pddl.parser.problem.ProblemTransformer.constant.
     The purpose of this function is to rename that transformer function such that it doesn't
     overlap with the domain "constant" transformer function (since all the transformer
-    functions are being combined under one Transformer). 
-
-    Also note that we can't just import the function because we have to delete it... :P    
+    functions are being combined under one Transformer). Note that the domain constant transformer
+    also ensures that any constant defined is defined under the domain 'constants.'
     """
-    assert_(len(args) == 1, "Unexpected parsing error.")
     return Constant(args[0])
+
+def is_literal_w_modl(formula: Formula) -> bool:
+    """
+    Check whether a formula is a literal.
+
+    That is, whether it is one of the following:
+    - an atomic formula,
+    - a Not formula whose argument is an atomic formula.
+
+    :param formula: the formula.
+    :return: True if the formula is a literal; False otherwise.
+    """
+    return (
+        isinstance(formula, Atomic)
+        or (isinstance(formula, Not)
+            and isinstance(formula.argument, Atomic))
+        or (isinstance(formula, MODL)
+            and isinstance(formula.get_deepest_child(), Atomic)) 
+    )
 
 # ----- GRAMMAR CONSTRUCTION -----
 
@@ -160,7 +146,6 @@ def construct_problem_grammar():
     inject_problem_grammar("PLAN", "\":plan\"", basic_token_transformer)
     inject_problem_grammar("COMPLETE", "\"complete\"", basic_token_transformer)
     inject_problem_grammar("?require_task_key", "VALID | ASSESS", basic_tokens_transformer)
-    # prepare to create new atomic_formula_name and goal rules
     replace_in_grammar(
         "atomic_formula_name:   LPAR predicate NAME* RPAR",
         ""
@@ -170,8 +155,9 @@ def construct_problem_grammar():
         ""
     )
     # inject modality capability into the atomic_formula_name transformer
-    inject_problem_grammar("atomic_formula_name", "[EXC] problem_modl* LPAR [EXC] predicate NAME* RPAR", atomic_formula_name)
-    inject_problem_grammar("problem_modl", "LSQB modl_term COMMA NAME RSQB | LESSER_OP modl_term COMMA NAME GREATER_OP", basic_tokens_transformer)
+    inject_problem_grammar("terminal_predicate_constant_problem", "LPAR [EXC] predicate problem__constant* RPAR", terminal_predicate)
+    inject_problem_grammar("atomic_formula_name", "[EXC] problem_modl* terminal_predicate_constant_problem", atomic_formula_term)
+    inject_problem_grammar("problem_modl", "LSQB modl_term COMMA problem__constant RSQB | LESSER_OP modl_term COMMA problem__constant GREATER_OP", modl)
     # transformers for projection, depth, task, init type, and goal
     # TODO: handle projection later
     inject_problem_grammar("projection", "LPAR PROJECTION RPAR", projection_transformer)
@@ -199,3 +185,6 @@ def construct_problem_grammar():
     delattr(problem.ProblemTransformer, "constant")
     inject_problem_grammar("problem__constant", "NAME", problem__constant)
     delattr(problem.ProblemTransformer, "requirements")
+    delattr(pddl.logic.base, "is_literal")
+    pddl.logic.base.is_literal = is_literal_w_modl
+    pddl.core.is_literal = is_literal_w_modl
