@@ -6,6 +6,8 @@ from pddl.logic.terms import Variable
 from copy import deepcopy
 import pddl
 
+# ----- CLASSES -----
+
 class GenericMODLType(Enum):
     BEL = 1
     DES = 2
@@ -85,22 +87,50 @@ class NOT_MODL:
     def __call__(self, arg):
         return arg._negate()
 
-def negate_predicate(self):
-    new_base = deepcopy(self)
-    new_base.negated = not self.negated
-    return new_base
-
-def new_predicate_str(self):
-    """New predicate string adapted from the pddl.logic.Predicate.__str__ method."""
-    p_str = f"(!{self.name}" if self.negated else f"({self.name}"
-    return f"{p_str})" if self.arity == 0 else f"{p_str} {' '.join(map(str, self.terms))})"
-
 class RMLPredicate(Predicate):
     def __init__(self, name):
         super().__init__(name)
         self.negated = False
         self.nest = False
-    
+
+class ListCompVar:
+    def __init__(self, rml_pred: RMLPredicate, var: Variable):
+        self.rml_pred = RMLPredicate
+        self.var = Variable
+
+class ListCompAgents:
+    def __init__(self, rml_pred: RMLPredicate):
+        self.rml_pred = RMLPredicate
+
+class AncEffPart:
+    def __init__(self, poscond, negcond, rml: list, type: str):
+        self.poscond = poscond
+        self.negcond = negcond
+        self.rml = rml
+        self.type = type
+
+class Consequent(AncEffPart):
+    def __init__(self, poscond, negcond, rml, type):
+        super().__init__(poscond, negcond, rml, type)
+
+class Antecedent(AncEffPart):
+    def __init__(self, awareness, rml, type):
+        super().__init__(Variable("pos"), Variable("neg"), rml, type)
+        self.awareness = awareness
+
+class AncEff:
+    def __init__(self, name, parameters, antecedent, consequent):
+        self.name = name
+        self.parameters = parameters
+        self.antecedent = antecedent
+        self.consequent = consequent
+
+class AncEffs:
+    def __init__(self, anceffs):
+        self.anceffs = anceffs
+
+# ----- TRANSFORMER FUNCTIONS -----
+
 def var(self, args):
     return Variable(args[1].value)
 
@@ -146,42 +176,6 @@ def terminal_rml(self, args):
 def terminal_r(self, args):
     return terminal_helper(args, "r")
 
-class ListCompVar:
-    def __init__(self, rml_pred: RMLPredicate, var: Variable):
-        self.rml_pred = RMLPredicate
-        self.var = Variable
-
-class ListCompAgents:
-    def __init__(self, rml_pred: RMLPredicate):
-        self.rml_pred = RMLPredicate
-
-class AncEffPart:
-    def __init__(self, poscond, negcond, rml: list, type: str):
-        self.poscond = poscond
-        self.negcond = negcond
-        self.rml = rml
-        self.type = type
-
-class Consequent(AncEffPart):
-    def __init__(self, poscond, negcond, rml, type):
-        super().__init__(poscond, negcond, rml, type)
-
-class Antecedent(AncEffPart):
-    def __init__(self, awareness, rml, type):
-        super().__init__(Variable("pos"), Variable("neg"), rml, type)
-        self.awareness = awareness
-
-class AncEff:
-    def __init__(self, name, parameters, antecedent, consequent):
-        self.name = name
-        self.parameters = parameters
-        self.antecedent = antecedent
-        self.consequent = consequent
-
-class AncEffs:
-    def __init__(self, anceffs):
-        self.anceffs = anceffs
-
 def return_all(self, args):
     return args
 
@@ -212,6 +206,18 @@ def plural(self, args):
 def cond_type_def(self, args):
     return args[1].children[0].value
 
+# ----- CORE MODIFICATION FUNCTIONS -----
+
+def negate_predicate(self):
+    new_base = deepcopy(self)
+    new_base.negated = not self.negated
+    return new_base
+
+def new_predicate_str(self):
+    """New predicate string adapted from the pddl.logic.Predicate.__str__ method."""
+    p_str = f"(!{self.name}" if self.negated else f"({self.name}"
+    return f"{p_str})" if self.arity == 0 else f"{p_str} {' '.join(map(str, self.terms))})"
+
 def setup_predicate_classes():
     RMLPredicate._negate = negate_predicate
     RMLPredicate.__str__ = new_predicate_str
@@ -219,6 +225,8 @@ def setup_predicate_classes():
     pddl.logic.predicates.Predicate.negated = False
     pddl.logic.predicates.Predicate._negate = negate_predicate
     pddl.logic.predicates.Predicate.__str__ = new_predicate_str
+
+# ----- ANCILLARY EFFECT TRANSFORMER -----
 
 class AncEffTransformer(Transformer):
     def __init__(self):
@@ -252,38 +260,3 @@ class AncEffTransformer(Transformer):
         setattr(AncEffTransformer, "anceff", anceff)
         setattr(AncEffTransformer, "anceffs", anceffs)
         setattr(AncEffTransformer, "all_anceffs", return_all)
-
-if __name__ == "__main__":
-    # Example usage
-    agent1 = Agent("alice", False)
-    agent2 = Agent("bob", False)
-    agent3 = Agent("cindy", False)
-    agent4 = Agent("derek", False)
-    agent5 = Agent("evelyn", False)
-    agent6 = Agent("frank", False)
-    BEL = MODL(GenericMODLType.BEL, agent1)
-    DES = MODL(GenericMODLType.DES, agent2)
-    ITN = MODL(ActionMODLType.ITN, agent3)
-    PBEL = MODL(PossibleGenericMODLType.PBEL, agent4)
-    PDES = MODL(PossibleGenericMODLType.PDES, agent5)
-    PITN = MODL(PossibleActionMODLType.PITN, agent6)
-    NOT = NOT_MODL()
-    pred = Predicate("secret")
-
-    rml = (DES(ITN(NOT(NOT(BEL(pred))))))
-    print(rml)
-
-    # rml = BEL(DES(pred))
-    # print("BEL(DES(pred)) -> ", rml, "\n")
-    
-    # rml = BEL(NOT(DES(pred)))
-    # print("BEL(NOT(DES(pred))) -> ", rml, "\n")
-
-    # rml = BEL((DES(NOT(pred))))
-    # print("BEL((DES(NOT(pred)))) -> ", rml, "\n")
-
-    # rml = BEL((DES(NOT(NOT(pred)))))
-    # print("BEL((DES(NOT(NOT(pred))))) -> ", rml, "\n")
-
-    # rml = NOT(BEL((DES(NOT(NOT(pred))))))
-    # print("NOT(BEL((DES(NOT(NOT(pred)))))) -> ", rml, "\n")

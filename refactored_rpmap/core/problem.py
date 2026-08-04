@@ -131,7 +131,6 @@ def inject_problem_grammar(label, rule, function, grammar_file=GRAMMAR_FILE):
 
 def construct_problem_grammar():
     """Construct the entire problem grammar."""
-    # replace overall structure
     replace_in_grammar(
         "LPAR DEFINE problem_def problem_domain [requirements] [objects] init goal [metric_spec] RPAR",
         "LPAR DEFINE problem_def problem_domain [objects] projection depth task init_type init goal [metric_spec] [plan] RPAR"
@@ -154,11 +153,9 @@ def construct_problem_grammar():
         "goal:  LPAR GOAL gd RPAR",
         ""
     )
-    # inject modality capability into the atomic_formula_name transformer
     inject_problem_grammar("terminal_predicate_constant_problem", "LPAR [EXC] predicate problem__constant* RPAR", terminal_predicate)
     inject_problem_grammar("atomic_formula_name", "[EXC] problem_modl* terminal_predicate_constant_problem", atomic_formula_term)
     inject_problem_grammar("problem_modl", "LSQB modl_term COMMA problem__constant RSQB | LESSER_OP modl_term COMMA problem__constant GREATER_OP", modl)
-    # transformers for projection, depth, task, init type, and goal
     # TODO: handle projection later
     inject_problem_grammar("projection", "LPAR PROJECTION RPAR", projection_transformer)
     inject_problem_grammar("depth", "LPAR DEPTH NUMBER RPAR", depth_transformer)
@@ -166,9 +163,7 @@ def construct_problem_grammar():
     inject_problem_grammar("init_type", "LPAR INIT_TYPE COMPLETE RPAR", init_type_transformer)
     inject_problem_grammar("plan", "LPAR PLAN gd_name* RPAR", plan_transformer)
     inject_problem_grammar("goal", "LPAR GOAL gd_name* RPAR", goal_transformer)
-    # insert a new problem gd
     inject_problem_grammar("gd_name", "atomic_formula_name | LPAR NOT atomic_formula_name RPAR | LPAR AND gd_name* RPAR | LPAR binary_comp metric_f_exp metric_f_exp RPAR", basic_tokens_transformer)
-    # add a new init function and a new string function
     pddl.core.Problem.orig_init = pddl.core.Problem.__init__
     pddl.core.Problem.__init__ = new_init_problem
     pddl.core.Problem.__str__ = new_problem_str

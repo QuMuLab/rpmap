@@ -110,10 +110,7 @@ def get_predicate_prefix(self):
 def new_predicate_str(self):
     """New predicate string adapted from the pddl.logic.Predicate.__str__ method."""
     p_str = self.get_predicate_prefix()
-    if self.negated:
-        p_str += f"(!{self.name}"
-    else:
-        p_str += f"({self.name}"
+    p_str += f"(!{self.name}" if self.negated else f"({self.name}"
     if self.arity == 0:
         return f"{p_str})"
     else:
@@ -133,7 +130,7 @@ def new_predicate_str_rmls(self):
         terms = f"{'_'.join(map(str, self.terms))})" 
         p_str = f"{p_str}_{terms}"
     if self.negated:
-            p_str = f"(not {p_str})"    
+        p_str = f"(not {p_str})"    
     return p_str   
 
 def new_domain_str(self):
@@ -220,7 +217,6 @@ def inject_domain_grammar(label, rule, function, grammar_file=GRAMMAR_FILE):
 # to build the domain grammar via Python magic
 def construct_domain_grammar(print_rml_style=True):
     """Construct the entire domain grammar."""
-    # reassign these predicate functions
     if print_rml_style:
         pddl.logic.predicates.Predicate.__str__ = new_predicate_str_rmls
     else:
@@ -233,41 +229,33 @@ def construct_domain_grammar(print_rml_style=True):
     pddl.logic.predicates.Predicate.negated = None
     pddl.action.Action.__str__ = new_action_str
     pddl.action.Action.derive_condition = None
-    # inject rules for defining agents
     inject_domain_grammar("agents", "LPAR \":agents\" agent+ RPAR", agents_transformer)
     inject_domain_grammar("agent", "/[a-zA-Z_][a-zA-Z0-9_]*/", agent_transformer)
-    # replace the overall structure
     replace_in_grammar(
         "LPAR DEFINE domain_def [requirements] [types] [constants] [predicates] [functions] structure_def* RPAR",
         "LPAR DEFINE domain_def agents [requirements] [types] [constants] [predicates] [functions] structure_def* RPAR"
     )   
-    # inject rules for always known predicates
     inject_domain_grammar("AK", "\"{AK}\"", basic_token_transformer)
-    # replace the atomic formula skeleton
     replace_in_grammar(
         "atomic_formula_skeleton:   LPAR NAME typed_list_variable RPAR",
         ""
     )
-    # replace the atomic formula term
     replace_in_grammar(
         "atomic_formula_term:   [EXC] modl* LPAR [EXC] predicate term* RPAR",
         ""
     )
     inject_domain_grammar("atomic_formula_skeleton", "[AK] LPAR NAME typed_list_variable RPAR", atomic_formula_skeleton)
-    # inject rules for derived conditions
     inject_domain_grammar("DLR", "\"$\"", basic_token_transformer)
     inject_domain_grammar("derived_term", "var | DLR NAME DLR", basic_tokens_transformer)
     inject_domain_grammar("ALWAYS", "\"always\"", basic_token_transformer)
     inject_domain_grammar("NEVER", "\"never\"", basic_token_transformer)
     inject_domain_grammar("derived_conditions", "ALWAYS | NEVER | LPAR predicate derived_term* RPAR", basic_tokens_transformer)
     inject_domain_grammar("DERIVE_CONDITION", "\":derive-condition\"", basic_tokens_transformer)
-    # replace the action definition
     replace_in_grammar(
         "action_def:        LPAR ACTION NAME PARAMETERS action_parameters action_body_def RPAR",
         ""
     )
     inject_domain_grammar("action_def", "LPAR ACTION NAME [DERIVE_CONDITION derived_conditions] PARAMETERS action_parameters action_body_def RPAR", action_transformer)
-    # inject the rule for a modality version of the atomic_formula_term
     replace_in_grammar(
         "atomic_formula_term:   LPAR predicate term* RPAR",
         ""
@@ -288,7 +276,6 @@ def construct_domain_grammar(print_rml_style=True):
     inject_domain_grammar("atomic_formula_term_var", "[EXC] modl* terminal_predicate_var", atomic_formula_term)
     inject_domain_grammar("terminal_predicate_constant", "LPAR [EXC] predicate constant* RPAR", terminal_predicate)
     inject_domain_grammar("atomic_formula_term_constant", "[EXC] modl* terminal_predicate_constant", atomic_formula_term)
-    # replace the init and string functions
     pddl.core.Domain.orig_init = pddl.core.Domain.__init__
     pddl.core.Domain.__init__ = new_init_domain
     pddl.core.Domain.__str__ = new_domain_str
