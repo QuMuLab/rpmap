@@ -2,7 +2,7 @@ import pddl.core
 import pddl.logic
 from lark.lexer import Token
 # from .anc_eff import instantiate_modl
-from parsing_utils import *
+from ..parsing_utils import *
 from pddl.action import Action
 from pddl.formatter import (
     print_constants,
@@ -17,7 +17,7 @@ from pddl.logic.predicates import Predicate
 from pddl.parser import domain, GRAMMAR_FILE
 from pddl._validation import Types, TypeChecker
 from textwrap import indent
-from core.anc_eff import MODL, NOT_MODL
+from .anc_eff import MODL, NOT_MODL
 
 # ----- TRANSFORMER FUNCTIONS -----
 

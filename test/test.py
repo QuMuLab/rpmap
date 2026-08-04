@@ -1,4 +1,4 @@
-from refactored_rpmap.core.anc_eff import *
+from refactored_rpmap.parsing_and_grounding.core.anc_eff import *
 import unittest
 
 class AncillaryEffectConstructionTesting(unittest.TestCase):

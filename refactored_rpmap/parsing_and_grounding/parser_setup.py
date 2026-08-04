@@ -2,7 +2,7 @@ import sys
 import os
 from lark import Lark
 from lark.visitors import Transformer
-from core.anc_eff import AncEffTransformer
+from .core.anc_eff import AncEffTransformer
 from pddl.parser.domain import DomainTransformer
 from pddl.parser.problem import ProblemTransformer
 from pddl.parser import GRAMMAR_FILE

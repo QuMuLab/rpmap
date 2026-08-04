@@ -1,10 +1,17 @@
+import itertools
 import os
+from pddl.logic.terms import Variable
+from typing import Sequence
 
+def create_valuations(agents, objects, variables: Sequence[Variable]):
+    assignment = {}
+    for var in variables:
+        assignment[var.name] = list(agents) if var.type_tags == frozenset({"agent"}) else [o.name for o in objects if o.type_tags == var.type_tags]
+    return itertools.product(*assignment.values())
 
 def run_command(cmd, output_file, MEMLIMIT, TIMELIMIT):
     os.system("ulimit -m %s; timeout %s %s > %s 2> %s" % \
         (MEMLIMIT, TIMELIMIT, cmd, output_file, output_file))
-
 
 def parse_output_ipc(file_name):
     class Plan():

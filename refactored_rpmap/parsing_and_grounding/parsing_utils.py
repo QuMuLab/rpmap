@@ -30,6 +30,14 @@ def create_valuations(agents, objects, variables: Sequence[Variable]):
 
 # ----- PRINT AND FILE WRITE FUNCTIONS -----
 
+def write_no_duplicate(content, filename):
+    """Write content to a file while ensuring there are no duplicates of that content."""
+    with open(filename, "r") as f:
+        grammar = f.read()
+    if content not in grammar:
+        with open(filename, "a+") as f:
+            f.write(content)
+
 def recursive_print(tree, outer_sep=""):
     """General function for the recursive printing of Tokens and lists of Tokens.
     outer_sep: determines how to separate what is being parsed. 
@@ -60,14 +68,6 @@ def replace_in_grammar(old, new, grammar_file=GRAMMAR_FILE):
         grammar = grammar.replace(old, new)
         with open(grammar_file, "w") as f:
             f.write(grammar)
-
-def write_no_duplicate(content, filename):
-    """Write content to a file while ensuring there are no duplicates of that content."""
-    with open(filename, "r") as f:
-        grammar = f.read()
-    if content not in grammar:
-        with open(filename, "a+") as f:
-            f.write(content)
 
 # ----- GENERAL TRANSFORMERS -----
     
