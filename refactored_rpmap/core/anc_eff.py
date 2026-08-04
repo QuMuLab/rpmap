@@ -72,6 +72,12 @@ class MODL:
             return new_base(self.child._negate())
         return new_base
 
+    def get_deepest_child(self):
+        current = deepcopy(self)
+        while isinstance(current.child, MODL):
+            current = current.child
+        return current.child
+
 class NOT_MODL:
     def __init__(self):
         pass

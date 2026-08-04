@@ -15,9 +15,9 @@ from pddl.helpers.base import _typed_parameters
 from pddl.logic.base import And
 from pddl.logic.predicates import Predicate
 from pddl.parser import domain, GRAMMAR_FILE
-from pddl._validation import Types
+from pddl._validation import Types, TypeChecker
 from textwrap import indent
-from core.anc_eff import RMLPredicate, NOT_MODL
+from core.anc_eff import MODL, NOT_MODL
 
 # ----- TRANSFORMER FUNCTIONS -----
 
@@ -50,10 +50,9 @@ def agents_transformer(self, args):
 def atomic_formula_skeleton(self, args):   
     """Adapted from the pddl.parser.domain.DomainTransformer.atomic_formula_skeleton method."""
     predicate_name = args[2] # get name of the predicate
-    ak = False
     # have an "always known"
     ak = True if args[0] else False
-    # remove "always known" so variable is are in the correct position
+    # remove "always known" so variables are in the correct position
     args = args[1:]
     variables = self._formula_skeleton(args)
     p = Predicate(predicate_name, *variables)
@@ -78,12 +77,6 @@ def atomic_formula_term(self, args):
     return NOT_MODL()(modl) if negate_modalities else modl
 
 # ----- STRING AND PRINT FUNCTIONS -----
-
-# def recursive_print_modl(tree):
-#     """Recursive print for the modality function."""
-#     tree_str = recursive_print(tree)
-#     # add a space after the comma
-#     return tree_str if "," not in tree_str else f"{', '.join(tree_str.split(','))}"
 
 def new_action_str(self):
     """New action string adapted from the pddl.action.Action.__str__ method."""
@@ -182,13 +175,21 @@ def new_domain_str(self):
     return result
 
 # ----- OTHER CLASS MODIFICATIONS -----
-
 def new_init_domain(self, *args, **kwargs):
     """New init function for the pddl.core.Domain that takes into account agents."""
     self._agents = kwargs["agents"]
     kwargs["types"]["agent"] = None
     kwargs.pop("agents")
     self.orig_init(*args, **kwargs)
+
+@TypeChecker.check_type.register
+def _(self, modl: MODL) -> None:
+    """Check types annotations of a MODL."""
+    # find the deepest child of the MODL, which should be a Predicate
+    deepest_child = modl.get_deepest_child()
+    if not isinstance(deepest_child, Predicate):
+        raise TypeError("The deepest child of a MODL must be a Predicate.")
+    self.check_type(deepest_child.terms)
 
 def new_predicate_eq(self, other):
     """New predicate equality check that takes into account the new always_known, modl, and negated terms."""
