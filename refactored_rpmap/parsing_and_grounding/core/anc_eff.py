@@ -77,8 +77,8 @@ class MODL:
     def get_deepest_child(self):
         current = deepcopy(self)
         while isinstance(current.child, MODL):
-            current = current.child
-        return current.child
+            current = deepcopy(current.child)
+        return deepcopy(current.child)
 
 class NOT_MODL:
     def __init__(self):

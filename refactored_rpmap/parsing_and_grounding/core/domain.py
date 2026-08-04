@@ -210,6 +210,7 @@ def modify_predicate_class(print_rml_style=True):
     pddl.logic.predicates.Predicate.always_known = False
     pddl.logic.predicates.Predicate.negated = False
     pddl.logic.predicates.Predicate._negate = negate_predicate
+    pddl.logic.predicates.Predicate.get_deepest_child = lambda self: deepcopy(self)
 
 # to build the domain grammar via Python magic
 def construct_domain_grammar(print_rml_style=True):
