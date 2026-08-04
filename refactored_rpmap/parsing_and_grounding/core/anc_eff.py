@@ -90,7 +90,6 @@ class NOT_MODL:
 class RMLPredicate(Predicate):
     def __init__(self, name):
         super().__init__(name)
-        self.negated = False
         self.nest = False
 
 class ListCompVar:
@@ -206,26 +205,6 @@ def plural(self, args):
 def cond_type_def(self, args):
     return args[1].children[0].value
 
-# ----- CORE MODIFICATION FUNCTIONS -----
-
-def negate_predicate(self):
-    new_base = deepcopy(self)
-    new_base.negated = not self.negated
-    return new_base
-
-def new_predicate_str(self):
-    """New predicate string adapted from the pddl.logic.Predicate.__str__ method."""
-    p_str = f"(!{self.name}" if self.negated else f"({self.name}"
-    return f"{p_str})" if self.arity == 0 else f"{p_str} {' '.join(map(str, self.terms))})"
-
-def setup_predicate_classes():
-    RMLPredicate._negate = negate_predicate
-    RMLPredicate.__str__ = new_predicate_str
-
-    pddl.logic.predicates.Predicate.negated = False
-    pddl.logic.predicates.Predicate._negate = negate_predicate
-    pddl.logic.predicates.Predicate.__str__ = new_predicate_str
-
 # ----- ANCILLARY EFFECT TRANSFORMER -----
 
 class AncEffTransformer(Transformer):
@@ -233,7 +212,6 @@ class AncEffTransformer(Transformer):
         """Initialize the AncEffTransformer."""
         super().__init__()
         self.set_up_transformers()
-        setup_predicate_classes()
 
     def start(self, children):
         """Start method for the AncEffTransformer."""

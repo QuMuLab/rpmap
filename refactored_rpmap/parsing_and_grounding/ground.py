@@ -10,7 +10,6 @@ def create_fluents(domain, problem):
         val_generator = create_valuations(domain._agents, problem.objects, p.terms)
         for valuation in val_generator:
             grounded_p = Predicate(p.name, *(Constant(c) for c in valuation))
-            grounded_p.negated = p.negated
             grounded_p.always_known = p.always_known
             fluents.add(grounded_p)
     return fluents

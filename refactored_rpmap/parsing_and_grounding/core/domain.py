@@ -1,8 +1,7 @@
 import pddl.core
 import pddl.logic
-from lark.lexer import Token
-# from .anc_eff import instantiate_modl
 from ..parsing_utils import *
+from copy import deepcopy
 from pddl.action import Action
 from pddl.formatter import (
     print_constants,
@@ -12,7 +11,6 @@ from pddl.formatter import (
     sort_and_print_collection,
 )
 from pddl.helpers.base import _typed_parameters
-from pddl.logic.base import And
 from pddl.logic.predicates import Predicate
 from pddl.parser import domain, GRAMMAR_FILE
 from pddl._validation import Types, TypeChecker
@@ -100,30 +98,16 @@ def new_action_str(self):
 
 def get_predicate_prefix(self):
     """Return the string version of a predicate previx (with AK and modality terms if necessary)."""
-    p_str = ""
-    if self.always_known:
-        p_str += "{AK}"
-    if self.modl:
-        p_str += str(self.modl)
-    return p_str
+    return "{AK}" if self.always_known else ""
 
 def new_predicate_str(self):
     """New predicate string adapted from the pddl.logic.Predicate.__str__ method."""
-    p_str = self.get_predicate_prefix()
-    p_str += f"(!{self.name}" if self.negated else f"({self.name}"
-    if self.arity == 0:
-        return f"{p_str})"
-    else:
-        return f"{p_str} {' '.join(map(str, self.terms))})"   
-    
+    p_str = f"(!{self.name}" if self.negated else f"({self.name}"
+    return f"{p_str})" if self.arity == 0 else f"{p_str} {' '.join(map(str, self.terms))})"
+
 def new_predicate_str_rmls(self):
     """New predicate string adapted from the pddl.logic.Predicate.__str__ method."""
-    p_str = "("
-    if self.modl: 
-        p_str += str(self.modl)
-        p_str += f"_{self.name}"
-    else:
-        p_str += self.name
+    p_str = f"({self.name}"
     if self.arity == 0:
         p_str += f")"
     else:
@@ -193,17 +177,21 @@ def new_predicate_eq(self, other):
     # adapted from the PDDL Predicate class __eq__ method
     return (
             isinstance(other, Predicate)
-            and self.arity == other.arity
             and self.name == other.name
+            and self.arity == other.arity
             and self.terms == other.terms
             and self.always_known == other.always_known
-            and self.modl == other.modl
             and self.negated == other.negated
         )
 
 def new_predicate_hash(self):
     """New predicate hash that takes into account the new always_known, modl, and negated terms."""
-    return hash((self.name, self.arity, self.terms, self.always_known, self.modl, self.negated))
+    return hash((self.name, self.arity, self.terms, self.always_known, self.negated))
+
+def negate_predicate(self):
+    new_base = deepcopy(self)
+    new_base.negated = not self.negated
+    return new_base
 
 # ----- GRAMMAR CONSTRUCTION -----
 
@@ -214,19 +202,19 @@ def inject_domain_grammar(label, rule, function, grammar_file=GRAMMAR_FILE):
     write_no_duplicate(new_rule, grammar_file)
     setattr(domain.DomainTransformer, label, function)
 
-# to build the domain grammar via Python magic
-def construct_domain_grammar(print_rml_style=True):
-    """Construct the entire domain grammar."""
-    if print_rml_style:
-        pddl.logic.predicates.Predicate.__str__ = new_predicate_str_rmls
-    else:
-        pddl.logic.predicates.Predicate.__str__ = new_predicate_str
+def modify_predicate_class(print_rml_style=True):
+    pddl.logic.predicates.Predicate.__str__ = new_predicate_str_rmls if print_rml_style else new_predicate_str
     pddl.logic.predicates.Predicate.__eq__ = new_predicate_eq
     pddl.logic.predicates.Predicate.__hash__ = new_predicate_hash
     pddl.logic.predicates.Predicate.get_predicate_prefix = get_predicate_prefix
-    pddl.logic.predicates.Predicate.always_known = None
-    pddl.logic.predicates.Predicate.modl = None
-    pddl.logic.predicates.Predicate.negated = None
+    pddl.logic.predicates.Predicate.always_known = False
+    pddl.logic.predicates.Predicate.negated = False
+    pddl.logic.predicates.Predicate._negate = negate_predicate
+
+# to build the domain grammar via Python magic
+def construct_domain_grammar(print_rml_style=True):
+    """Construct the entire domain grammar."""
+    modify_predicate_class(print_rml_style)
     pddl.action.Action.__str__ = new_action_str
     pddl.action.Action.derive_condition = None
     inject_domain_grammar("agents", "LPAR \":agents\" agent+ RPAR", agents_transformer)

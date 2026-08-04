@@ -1,9 +1,10 @@
 from refactored_rpmap.parsing_and_grounding.core.anc_eff import *
+from refactored_rpmap.parsing_and_grounding.core.domain import modify_predicate_class
 import unittest
 
 class AncillaryEffectConstructionTesting(unittest.TestCase):
     def get_vars(self):
-        setup_predicate_classes()
+        modify_predicate_class(print_rml_style=False)
         agent1 = Agent("alice", False)
         agent2 = Agent("bob", False)
         agent3 = Agent("cindy", False)
