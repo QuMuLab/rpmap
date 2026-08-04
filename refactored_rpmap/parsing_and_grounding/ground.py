@@ -41,7 +41,9 @@ def ground_formula(domain, problem, formula, assignment):
         return When(cond, ground_formula(domain, problem, formula.effect, assignment))
 
 def check_intention_error(f: Predicate, domain):
-    # TODO: fix this.
+    # TODO: fix this. instead of getting the deepest child, iterate to see if we find an intention MODL (would only be at the second-last place).
+    # also, we need to update the MODL class so we can work with the assumption that there is always a terminal RML.
+    # technically this should be guaranteed through the grammar, but we want to guarantee this for manual construction of MODLs too.
     action_names = [a.name for a in domain.actions]
     if isinstance(f.get_deepest_child(), ActionMODLType) or isinstance(f.get_deepest_child(), PossibleActionMODLType) and f.get_deepest_child().name not in action_names:
         raise ValueError("Cannot intend a predicate; you can only intend an action.")
