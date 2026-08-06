@@ -74,6 +74,12 @@ def atomic_formula_term(self, args):
     modl = modls_no_neg[0]
     return NOT_MODL()(modl) if negate_modalities else modl
 
+def derived_conditions_transformer(self, args):
+    if len(args) == 1: # result is ALWAYS or NEVER
+        return args[0].value
+    else: # result is a complex derived condition
+        return Predicate(f"derived__{args[2][0][1]}", *[a[0] for a in args[3:-1]])
+
 # ----- STRING AND PRINT FUNCTIONS -----
 
 def new_action_str(self):
@@ -234,11 +240,12 @@ def construct_domain_grammar(print_rml_style=True):
         ""
     )
     inject_domain_grammar("atomic_formula_skeleton", "[AK] LPAR NAME typed_list_variable RPAR", atomic_formula_skeleton)
+    inject_domain_grammar("dollar_term", "DLR NAME DLR", basic_tokens_transformer)
     inject_domain_grammar("DLR", "\"$\"", basic_token_transformer)
-    inject_domain_grammar("derived_term", "var | DLR NAME DLR", basic_tokens_transformer)
+    inject_domain_grammar("derived_term", "var | dollar_term", basic_tokens_transformer)
     inject_domain_grammar("ALWAYS", "\"always\"", basic_token_transformer)
     inject_domain_grammar("NEVER", "\"never\"", basic_token_transformer)
-    inject_domain_grammar("derived_conditions", "ALWAYS | NEVER | LPAR predicate derived_term* RPAR", basic_tokens_transformer)
+    inject_domain_grammar("derived_conditions", "ALWAYS | NEVER | LPAR predicate derived_term* RPAR", derived_conditions_transformer)
     inject_domain_grammar("DERIVE_CONDITION", "\":derive-condition\"", basic_tokens_transformer)
     replace_in_grammar(
         "action_def:        LPAR ACTION NAME PARAMETERS action_parameters action_body_def RPAR",

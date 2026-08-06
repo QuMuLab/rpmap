@@ -18,7 +18,7 @@ def check_intention_error(modl: MODL, domain):
             raise ValueError("Cannot intend a predicate; you can only intend an action.")
 
 def ground_formula(formula, assignment, domain, problem):
-    fluents = []
+    fluents = set()
     for fo in formula:
         fo = deepcopy(fo)
         if isinstance(fo, Predicate):
@@ -30,7 +30,7 @@ def ground_formula(formula, assignment, domain, problem):
                 if dp.name == fl.name and len(dp.terms) == len(fl.terms):
                     fl.always_known = dp.always_known
                     break
-            fluents.append(fl)
+            fluents.add(fl)
         # change to isinstance
         elif isinstance(fo, ForallCondition):
             vars = {v for v in fo.variables}
@@ -39,7 +39,7 @@ def ground_formula(formula, assignment, domain, problem):
                 var_names = [v.name for v in vars]
                 for var_name, val in zip(var_names, valuation):
                     assignment[var_name] = val
-                fluents.extend(ground_formula([fo.condition], assignment, domain, problem))
+                fluents.update(ground_formula([fo.condition], assignment, domain, problem))
         elif isinstance(fo, Forall):
             grounded = []
             var_names = [v.name for v in fo.variables]
@@ -51,13 +51,14 @@ def ground_formula(formula, assignment, domain, problem):
                 grounded.append(ground_formula([fo.effect], assignment, domain, problem))
             return And(*grounded)
         elif isinstance(fo, And):
-            fluents.extend([ground_formula([o], assignment, domain, problem) for o in fo.operands])
+            for o in fo.operands:
+                fluents.update(ground_formula([o], assignment, domain, problem))
         elif isinstance(fo, Not):
             fl = ground_formula([fo.argument], assignment, domain, problem)
             fl.negated = True
-            fluents.append(fl)
+            fluents.add(fl)
         elif hasattr(fo, "argument"):
-            fluents.append(ground_formula([fo.argument], assignment, domain, problem))
+            fluents.add(ground_formula([fo.argument], assignment, domain, problem))
         elif isinstance(fo, MODL):
             # need to set the base predicate of the MODL to the grounded predicate
             # first, convert the MODL to a list of MODLs with no children with the new grounded predicate at the end
@@ -69,14 +70,14 @@ def ground_formula(formula, assignment, domain, problem):
                 current_no_child.agent = Agent(assignment[current_no_child.agent.name], False)
                 modls.append(current_no_child)
                 current = deepcopy(current.child)
-            modls.append(ground_formula([fo.get_deepest_child()], assignment, domain, problem)[0])
+            modls.append(list(ground_formula([fo.get_deepest_child()], assignment, domain, problem))[0])
             for i in range(len(modls) - 1, - 1, - 1):
                 if isinstance(modls[i], Predicate):
                     continue
                 modls[i] = modls[i](modls[i + 1])
             grounded_modl = modls[0]
             check_intention_error(grounded_modl, domain)
-            fluents.append(grounded_modl)
+            fluents.add(grounded_modl)
         elif isinstance(fo, When):
             cond = ground_formula([fo.condition], assignment, domain, problem)
             # for formatting reasons we want to force this into being an "And"
@@ -95,7 +96,6 @@ def ground_formula(formula, assignment, domain, problem):
         
 def create_base_operators(domain, problem):
     operators = set()
-
     for a in domain.actions:
         var_names = [v.name for v in a.parameters]
         val_generator = create_valuations(domain._agents, problem.objects, a.parameters)
@@ -104,18 +104,18 @@ def create_base_operators(domain, problem):
             op_name_suffix = "_".join([assignment[var.name] for var in a.parameters])
             op_name = a.name + "_" + op_name_suffix if op_name_suffix else a.name
             pass_pre = a.precondition.operands if type(a.precondition) is And else [a.precondition]
-            precondition = And(*ground_formula(pass_pre, assignment, domain, problem))
+            precondition = ground_formula(pass_pre, assignment, domain, problem)
 
             if not isinstance(precondition, And):
                 and_ = And(*[])
-                and_._operands.append(precondition)
+                and_._operands.extend(precondition)
                 precondition = and_
 
             effect = ground_formula([a.effect], assignment, domain, problem) 
 
             if not isinstance(effect, And):
                 and_ = And(*[])
-                and_._operands.append(effect)
+                and_._operands.extend(effect)
                 effect = and_
 
             new_a = Action(
@@ -125,20 +125,14 @@ def create_base_operators(domain, problem):
                     effect
                 )
 
-            print()
-    #         new_a.assignment = assignment
-    #         if type(a.derive_condition) is list:
-    #             # have a complex derived condition
-    #             # need to ensure we handle any variables here
-    #             dev_cond_copy = deepcopy(a.derive_condition)
-    #             for i in range(len(dev_cond_copy)):
-    #                 if type(dev_cond_copy[i]) is list:
-    #                     if type(dev_cond_copy[i][0]) is list:
-    #                         if dev_cond_copy[i][0][0].type == "QMRK":
-    #                             dev_cond_copy[i] = Constant(assignment[dev_cond_copy[i][0][1].value])
-    #         new_a.derive_condition = dev_cond_copy
-    #         operators.add(new_a)
-    # return operators
+            new_a.assignment = assignment
+            if a.derive_condition:
+                new_a.derive_condition = a.derive_condition if type(a.derive_condition) is str else list(ground_formula([a.derive_condition], assignment, domain, problem))[0]
+            try:
+                operators.add(new_a)
+            except TypeError:
+                print()
+    return operators
 
 def ground(domain, problem, grounded_dom_path):
     actions = create_base_operators(domain, problem)
