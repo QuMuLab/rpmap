@@ -46,7 +46,7 @@ class MODL:
     def __init__(self, mod_type: GenericMODLType | PossibleGenericMODLType | ActionMODLType | PossibleActionMODLType, agent: Agent):
         self.mod_type = mod_type
         self.agent = agent
-        self.child = None | MODL | NOT_MODL
+        self.child = MODL | NOT_MODL | Predicate
 
     def __call__(self, arg):
         if isinstance(arg, MODL) or isinstance(arg, NOT_MODL) or isinstance(arg, Predicate):
@@ -54,12 +54,6 @@ class MODL:
                 raise ValueError("Cannot apply an Action MODL to another MODL.")
             new_base = deepcopy(self)
             new_base.child = deepcopy(arg)
-            # check that the MODL is "terminal" (ends in a Predicate)
-            # current = deepcopy(new_base)
-            # while isinstance(current.child, MODL):
-            #     current = deepcopy(current.child)
-            # if not isinstance(current.child, Predicate):
-            #     raise ValueError("MODL must end in a Predicate.")
             return new_base
         else:
             raise TypeError("Expecting another MODL or a Predicate.")
@@ -80,11 +74,20 @@ class MODL:
             return new_base(self.child._negate())
         return new_base
 
-    def _get_deepest_child(self):
+    def _get_predicate(self):
+        self._check_terminal()
         current = deepcopy(self)
         while isinstance(current.child, MODL):
             current = deepcopy(current.child)
         return deepcopy(current.child)
+
+    def _check_terminal(self):
+        # check that the MODL is "terminal" (ends in a Predicate)
+        current = deepcopy(self)
+        while isinstance(current.child, MODL):
+            current = deepcopy(current.child)
+        if not isinstance(current.child, Predicate):
+            raise ValueError("MODL does not terminate with a Predicate.")
 
 class NOT_MODL:
     def __init__(self):

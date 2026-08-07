@@ -176,7 +176,7 @@ def new_init_domain(self, *args, **kwargs):
 def _(self, modl: MODL) -> None:
     """Check types annotations of a MODL."""
     # find the deepest child of the MODL, which should be a Predicate
-    deepest_child = modl._get_deepest_child()
+    deepest_child = modl._get_predicate()
     if not isinstance(deepest_child, Predicate):
         raise TypeError("The deepest child of a MODL must be a Predicate.")
     self.check_type(deepest_child.terms)
@@ -219,7 +219,7 @@ def modify_predicate_class(print_rml_style=True):
     pddl.logic.predicates.Predicate.always_known = False
     pddl.logic.predicates.Predicate.negated = False
     pddl.logic.predicates.Predicate._negate = negate_predicate
-    pddl.logic.predicates.Predicate._get_deepest_child = lambda self: deepcopy(self)
+    pddl.logic.predicates.Predicate._get_predicate = lambda self: deepcopy(self)
 
 # to build the domain grammar via Python magic
 def construct_domain_grammar(print_rml_style=True):

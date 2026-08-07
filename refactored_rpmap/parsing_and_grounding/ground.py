@@ -81,7 +81,7 @@ def ground_formula(formula, assignment, domain, problem):
             fluents.add(ground_formula([fo.argument], assignment, domain, problem))
         elif isinstance(fo, MODL):
             # need to set the base predicate of the MODL to the grounded predicate
-            grounded_predicate = list(ground_formula([fo._get_deepest_child()], assignment, domain, problem))[0]
+            grounded_predicate = list(ground_formula([fo._get_predicate()], assignment, domain, problem))[0]
             grounded_modl = set_modl_deepest_child(fo, grounded_predicate, assignment)
             # need to ground the agents in the MODLs as well
             check_intention_error(grounded_modl, domain)
@@ -146,8 +146,8 @@ def ground_problem_rmls(p_init, domain):
         if isinstance(p_init[i], Predicate):
             assign_always_known(p_init[i], domain)
         else:
-            assign_always_known(p_init[i]._get_deepest_child(), domain)
-            p_init[i] = set_modl_deepest_child(p_init[i], p_init[i]._get_deepest_child())
+            assign_always_known(p_init[i]._get_predicate(), domain)
+            p_init[i] = set_modl_deepest_child(p_init[i], p_init[i]._get_predicate())
     p_init = frozenset(p_init)
 
 def ground(domain, problem, grounded_dom_path):
