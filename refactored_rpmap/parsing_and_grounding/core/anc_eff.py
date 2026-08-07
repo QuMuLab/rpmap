@@ -54,6 +54,12 @@ class MODL:
                 raise ValueError("Cannot apply an Action MODL to another MODL.")
             new_base = deepcopy(self)
             new_base.child = deepcopy(arg)
+            # check that the MODL is "terminal" (ends in a Predicate)
+            # current = deepcopy(new_base)
+            # while isinstance(current.child, MODL):
+            #     current = deepcopy(current.child)
+            # if not isinstance(current.child, Predicate):
+            #     raise ValueError("MODL must end in a Predicate.")
             return new_base
         else:
             raise TypeError("Expecting another MODL or a Predicate.")
@@ -74,7 +80,7 @@ class MODL:
             return new_base(self.child._negate())
         return new_base
 
-    def get_deepest_child(self):
+    def _get_deepest_child(self):
         current = deepcopy(self)
         while isinstance(current.child, MODL):
             current = deepcopy(current.child)

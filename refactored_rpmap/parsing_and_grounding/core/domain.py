@@ -74,11 +74,14 @@ def atomic_formula_term(self, args):
     modl = modls_no_neg[0]
     return NOT_MODL()(modl) if negate_modalities else modl
 
+def dollar_term_transformer(self, args):
+    return Variable(f"{args[1].value}")
+
 def derived_conditions_transformer(self, args):
     if len(args) == 1: # result is ALWAYS or NEVER
         return args[0].value
     else: # result is a complex derived condition
-        return Predicate(f"derived__{args[2][0][1]}", *[a[0] for a in args[3:-1]])
+        return Predicate(f"{args[1].value}", *[a[0] for a in args[2:-1]])
 
 # ----- STRING AND PRINT FUNCTIONS -----
 
@@ -173,7 +176,7 @@ def new_init_domain(self, *args, **kwargs):
 def _(self, modl: MODL) -> None:
     """Check types annotations of a MODL."""
     # find the deepest child of the MODL, which should be a Predicate
-    deepest_child = modl.get_deepest_child()
+    deepest_child = modl._get_deepest_child()
     if not isinstance(deepest_child, Predicate):
         raise TypeError("The deepest child of a MODL must be a Predicate.")
     self.check_type(deepest_child.terms)
@@ -216,7 +219,7 @@ def modify_predicate_class(print_rml_style=True):
     pddl.logic.predicates.Predicate.always_known = False
     pddl.logic.predicates.Predicate.negated = False
     pddl.logic.predicates.Predicate._negate = negate_predicate
-    pddl.logic.predicates.Predicate.get_deepest_child = lambda self: deepcopy(self)
+    pddl.logic.predicates.Predicate._get_deepest_child = lambda self: deepcopy(self)
 
 # to build the domain grammar via Python magic
 def construct_domain_grammar(print_rml_style=True):
@@ -240,7 +243,7 @@ def construct_domain_grammar(print_rml_style=True):
         ""
     )
     inject_domain_grammar("atomic_formula_skeleton", "[AK] LPAR NAME typed_list_variable RPAR", atomic_formula_skeleton)
-    inject_domain_grammar("dollar_term", "DLR NAME DLR", basic_tokens_transformer)
+    inject_domain_grammar("dollar_term", "DLR NAME DLR", dollar_term_transformer)
     inject_domain_grammar("DLR", "\"$\"", basic_token_transformer)
     inject_domain_grammar("derived_term", "var | dollar_term", basic_tokens_transformer)
     inject_domain_grammar("ALWAYS", "\"always\"", basic_token_transformer)

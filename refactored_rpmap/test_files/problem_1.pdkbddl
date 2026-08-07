@@ -22,6 +22,10 @@
 
         [bel, alice](secret alice)
         [bel, bob](secret bob)
+
+        ;; (forall (?ag - agent)
+        ;;     [bel, ?ag](secret ?ag)
+        ;; )
     )
     (:goal
         (and

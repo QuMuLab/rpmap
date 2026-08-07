@@ -117,7 +117,7 @@ def is_literal_w_modl(formula: Formula) -> bool:
         or (isinstance(formula, Not)
             and isinstance(formula.argument, Atomic))
         or (isinstance(formula, MODL)
-            and isinstance(formula.get_deepest_child(), Atomic)) 
+            and isinstance(formula._get_deepest_child(), Atomic)) 
     )
 
 # ----- GRAMMAR CONSTRUCTION -----
