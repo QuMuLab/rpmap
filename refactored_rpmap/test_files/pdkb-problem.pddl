@@ -3,12 +3,14 @@
 	(:requirements :typing)
 	(:objects l1 l2 - loc)
 	(:init 
-		(connected_l1_l2)
-		(at_bob_l2)
 		(connected_l2_l1)
+		[BEL, alice](secret_alice)
+		(connected_l1_l2)
 		[BEL, bob](secret_bob)
 		(at_alice_l1)
-		[BEL, alice](secret_alice)
+		(at_bob_l2)
 	)
-	(:goal frozenset({[ITN, alice](move_alice_l1_l2)}))
+	(:goal 
+		[ITN, alice](move_alice_l1_l2)
+	)
 )

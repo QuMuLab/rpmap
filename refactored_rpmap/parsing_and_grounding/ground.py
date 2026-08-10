@@ -105,6 +105,7 @@ def ground_formula(formula: Sequence, assignment, domain, problem):
     return fluents
 
 def ground_problem_rmls(all_fo, domain):
+    # TODO: allow for Not, Forall, etc. here
     all_fo = list(all_fo)
     for i in range(len(all_fo)):
         if isinstance(all_fo[i], Predicate):
@@ -187,7 +188,7 @@ def create_itn_action_preds(operators, agents, goal):
             # all_iaps = []
             action_iaps = []
             for ag in agents:
-                iap = MODL(ActionMODLType.ITN, Agent(ag, False))(NOT_MODL()(intend_action_p))
+                iap = NOT_MODL()(MODL(PossibleActionMODLType.PITN, Agent(ag, False))(intend_action_p))
                 action_iaps.append(iap)
                 # all_iaps.append(iap)
                 # # these are to add to the domain
