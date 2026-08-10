@@ -1,62 +1,87 @@
 import itertools
-import os
-from pddl.logic.terms import Variable
+import re
 from typing import Sequence
+from lark.lexer import Token
+from pddl.custom_types import namelike, _check_not_a_keyword, name
+from pddl.helpers.base import RegexConstrainedString
+from pddl.logic.predicates import Predicate, _check_terms_consistency
+from pddl.logic.terms import Term, Variable
+from pddl.parser import GRAMMAR_FILE
+
+
+NL = "\n"
+NL_AND_TAB = "\n" + "\t"
+NL_AND_TABS = "\n" + "\t" * 2
+NL_AND_3_TABS = "\n" + "\t" * 3
+
+# ----- GROUNDING/ASSIGNMENTS
 
 def create_valuations(agents, objects, variables: Sequence[Variable]):
     assignment = {}
     for var in variables:
-        assignment[var.name] = list(agents) if var.type_tags == frozenset({"agent"}) else [o.name for o in objects if o.type_tags == var.type_tags]
+        if type(var) is Variable:
+            assignment[var.name] = list(agents) if var.type_tags == frozenset({"agent"}) else [o.name for o in objects if o.type_tags == var.type_tags]
+        else:
+            assignment[var.name] = list(agents)
     return itertools.product(*assignment.values())
 
-def run_command(cmd, output_file, MEMLIMIT, TIMELIMIT):
-    os.system("ulimit -m %s; timeout %s %s > %s 2> %s" % \
-        (MEMLIMIT, TIMELIMIT, cmd, output_file, output_file))
+# ----- PRINT AND FILE WRITE FUNCTIONS -----
 
-def parse_output_ipc(file_name):
-    class Plan():
-        def __init__(self, actions=None):
-            self.actions = actions or []
+def write(file_path, content):
+    """Write content to a file."""
+    with open(file_path, "w") as file:
+        file.write(content)
 
-        def add_actions(self, new_actions):
-            self.actions.extend(new_actions)
+def write_no_duplicate(content, filename):
+    """Write content to a file while ensuring there are no duplicates of that content."""
+    with open(filename, "r") as f:
+        grammar = f.read()
+    if content not in grammar:
+        with open(filename, "a+") as f:
+            f.write(content)
 
-        def write_to_file(self, file_name):
-            # Write the script to a file
-            f = open(file_name, 'w')
+def recursive_print(tree, outer_sep=""):
+    """General function for the recursive printing of Tokens and lists of Tokens.
+    outer_sep: determines how to separate what is being parsed. 
+        It's an empty space by default, or a space for "compound" type objects."""
+    new_str = []
+    if type(tree) is list:
+        for child in tree:
+            if type(child) is list:
+                # other printing type is defined
+                if type(child[0]) is str:
+                    if child[0] == "COMPOUND": # printing a list comp 
+                        new_str.append(recursive_print(child[1:], " "))
+                else:
+                    new_str.append(recursive_print(child, ""))
+            else:
+                new_str.append(recursive_print(child, ""))
+        return outer_sep.join(new_str)
+    elif type(tree) is Token:
+        return tree.value
+    else:
+        return str(tree) if tree else ""
+    
+def replace_in_grammar(old, new, grammar_file=GRAMMAR_FILE):
+    """Replace old content in the .lark file with new content."""
+    with open(grammar_file, "r") as f:
+        grammar = f.read()
+    if old in grammar:
+        grammar = grammar.replace(old, new)
+        with open(grammar_file, "w") as f:
+            f.write(grammar)
 
-            step = 0
-            for action in self.actions:
-                line = str(step) + ': (' + action.operator + ' ' + ' '.join(action.arguments) + ") [1]\n"
-                f.write(line)
-                step += 1
+# ----- GENERAL TRANSFORMERS -----
+    
+def basic_token_transformer(self, args):
+    """Basic token transformer in which the arguments are simply returned."""
+    if type(args) is not Token:
+        raise ValueError(f"Invalid token definition: {args}")
+    return args
 
-            f.close()
+def basic_tokens_transformer(self, args):
+    """Basic tokens transformer in which the arguments are simply returned."""
+    if not args or args is None:
+        raise ValueError(f"Invalid definition of tokens: {args}")
+    return args
 
-        def get_action_sequence(self):
-            return [item.operator for item in self.actions]
-
-    class Action():
-        def __init__(self, line):
-            self.operator = line.split(' ')[0]
-            self.arguments = line.split(' ')[1:]
-
-        def compact_rep(self):
-            toReturn = self.operator
-            for arg in self.arguments:
-                toReturn += "\\n" + str(arg)
-            return toReturn
-
-        def __str__(self):
-            return "(" + ' '.join([self.operator] + self.arguments) + ")"
-
-        def __repr__(self):
-            return self.__str__()
-
-    # Get the plan
-    with open(file_name, 'r') as f:
-        action_list = [line.strip() for line in f.readlines()]
-
-    actions = [Action(line[1:-1].strip(' ').lower()) for line in action_list]
-
-    return Plan(actions)

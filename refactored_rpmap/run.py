@@ -2,6 +2,7 @@ from parsing_and_grounding.parser_setup import AncEffDomProbParser, read_pdkbddl
 from parsing_and_grounding.ground import ground
 from parsing_and_grounding.core.domain import construct_domain_grammar
 from parsing_and_grounding.core.problem import construct_problem_grammar
+from parsing_and_grounding.utils import write
 from pddl.parser import GRAMMAR_FILE
 import os
 
@@ -31,8 +32,12 @@ def test_parse():
     # set up the parser with the lark and parse the PDDL
     parser = AncEffDomProbParser(grammar)
     result = parser(pddl_str)
-    anc_effs, domain, problem = (result[0], *ground(result[1], result[2], os.path.join("refactored_rpmap", "test_files")))
-    print()
+    anc_effs, grounded_domain, grounded_problem = (result[0], *ground(result[1], result[2]))
+    base_path = os.path.join("refactored_rpmap", "test_files")
+    grounded_dom_path = os.path.join(base_path, "pdkb-domain.pddl")
+    grounded_prob_path = os.path.join(base_path, "pdkb-problem.pddl")
+    write(grounded_dom_path, str(grounded_domain))
+    write(grounded_prob_path, str(grounded_problem))
 
 if __name__ == "__main__":
     test_parse()

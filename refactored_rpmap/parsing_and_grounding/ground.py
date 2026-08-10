@@ -1,11 +1,13 @@
-from .parsing_utils import create_valuations
-from .core.anc_eff import ActionMODLType, PossibleActionMODLType, MODL, Agent
+from collections.abc import Sequence
+from .utils import create_valuations
+from .core.anc_eff import ActionMODLType, PossibleActionMODLType, MODL, NOT_MODL, Agent
 from copy import deepcopy
 from pddl.action import Action
 from pddl.logic.base import And, Not, ForallCondition
 from pddl.logic.effects import Forall, When
 from pddl.logic.terms import Constant
 from pddl.logic.predicates import Predicate
+import pddl.core as pddl_core
 
 
 def assign_always_known(fl, domain):
@@ -42,7 +44,7 @@ def set_modl_deepest_child(modl, new_child, assignment = None):
             modls[i] = modls[i](modls[i + 1])
         return modls[0]
 
-def ground_formula(formula, assignment, domain, problem):
+def ground_formula(formula: Sequence, assignment, domain, problem):
     fluents = set()
     for fo in formula:
         fo = deepcopy(fo)
@@ -101,8 +103,29 @@ def ground_formula(formula, assignment, domain, problem):
         else:
             raise ValueError("Unknown formula type: " + str(type(fo)))
     return fluents
-        
-def create_base_operators(domain, problem):
+
+def ground_problem_rmls(all_fo, domain):
+    all_fo = list(all_fo)
+    for i in range(len(all_fo)):
+        if isinstance(all_fo[i], Predicate):
+            assign_always_known(all_fo[i], domain)
+        else:
+            assign_always_known(all_fo[i]._get_predicate(), domain)
+            all_fo[i] = set_modl_deepest_child(all_fo[i], all_fo[i]._get_predicate())
+    return frozenset(all_fo)
+
+def create_grounded_fluents(domain, problem):
+    fluents = set()
+    for p in domain.predicates:
+        val_generator = create_valuations(domain._agents, problem.objects, p.terms)
+        vars = p.terms if isinstance(p, Predicate) else p._get_predicate().terms
+        var_names = [v.name for v in vars]
+        for valuation in val_generator:
+            assignment = {var_name: val for var_name, val in zip(var_names, valuation)}
+            fluents.update(ground_formula([p], assignment, domain, problem))
+    return fluents
+
+def create_grounded_operators(domain, problem):
     operators = set()
     for a in domain.actions:
         vars = set(a.parameters)
@@ -140,18 +163,75 @@ def create_base_operators(domain, problem):
             operators.add(new_a)
     return operators
 
-def ground_problem_rmls(p_init, domain):
-    p_init = list(p_init)
-    for i in range(len(p_init)):
-        if isinstance(p_init[i], Predicate):
-            assign_always_known(p_init[i], domain)
-        else:
-            assign_always_known(p_init[i]._get_predicate(), domain)
-            p_init[i] = set_modl_deepest_child(p_init[i], p_init[i]._get_predicate())
-    p_init = frozenset(p_init)
+def create_itn_action_preds(operators, agents, goal):
+    operators = list(operators)
+    itn_preds = set()
+    # find all intention predicates in the goal or in action preconditions
+    for rml in goal:
+        if isinstance(rml, MODL):
+            if isinstance(rml.mod_type, ActionMODLType) or isinstance(rml.mod_type, PossibleActionMODLType):
+                itn_preds.add(rml._get_predicate())
+    for a in operators:
+        for rml in a.precondition.operands:
+            if isinstance(rml, MODL):
+                if isinstance(rml.mod_type, ActionMODLType) or isinstance(rml.mod_type, PossibleActionMODLType):
+                    itn_preds.add(rml._get_predicate())
+    action_intention_f = set()
+    for i in range(len(operators)):
+        o_name = operators[i].name.split("_")
+        intend_action_p = Predicate(o_name[0], *[Constant(n) for n in o_name[1:]])
+        intend_action_p.always_known = False
+        intend_action_p.negated = False
+        if intend_action_p in itn_preds:
+            itn_preds.remove(intend_action_p)
+            # all_iaps = []
+            action_iaps = []
+            for ag in agents:
+                iap = MODL(ActionMODLType.ITN, Agent(ag, False))(NOT_MODL()(intend_action_p))
+                action_iaps.append(iap)
+                # all_iaps.append(iap)
+                # # these are to add to the domain
+                # all_iaps.append((MODL(ActionMODLType.ITN, Agent(ag, False))(intend_action_p)))
+                # all_iaps.append(MODL(PossibleActionMODLType.PITN, Agent(ag, False))(NOT_MODL()(intend_action_p)))
+                # all_iaps.append(MODL(PossibleActionMODLType.PITN, Agent(ag, False))(intend_action_p))
+            operators[i].effect._operands.extend(action_iaps)
+            action_intention_f.add(intend_action_p)
+    if itn_preds:
+        raise ValueError(f"One or more of these intentions references an action not in the grounded domain: {itn_preds}")
+    return set(operators), action_intention_f
 
-def ground(domain, problem, grounded_dom_path):
-    operators = create_base_operators(domain, problem)
-    ground_problem_rmls(problem.init, domain)
-    ground_problem_rmls(problem.goal, domain)
-    return domain, problem
+
+def ground(domain, problem):
+    g_fluents = create_grounded_fluents(domain, problem)
+    g_operators = create_grounded_operators(domain, problem)
+    g_operators, action_intention_f = create_itn_action_preds(g_operators, domain._agents, problem.goal)
+    g_fluents.update(action_intention_f)
+    grounded_domain = pddl_core.Domain(
+        name=domain.name,
+        requirements=domain.requirements,
+        types=domain.types,
+        constants=domain.constants,
+        predicates=g_fluents,
+        derived_predicates=domain.derived_predicates,
+        functions=domain.functions,
+        actions=g_operators,
+        agents=domain._agents
+    )
+    g_init = ground_problem_rmls(problem.init, grounded_domain)
+    g_goal = ground_problem_rmls(problem.goal, grounded_domain)
+    grounded_problem = pddl_core.Problem(
+        name=problem.name,
+        domain=grounded_domain,
+        domain_name=grounded_domain.name,
+        requirements=domain.requirements,
+        objects=problem.objects,
+        init=g_init,
+        goal=g_goal,
+        metric=problem.metric,
+        depth=problem.depth,
+        task=problem.task,
+        init_type=problem.init_type,
+        plan=problem.plan,
+        projection=problem.projection
+    )
+    return grounded_domain, grounded_problem

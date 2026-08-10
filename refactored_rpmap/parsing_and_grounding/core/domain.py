@@ -1,6 +1,6 @@
 import pddl.core
 import pddl.logic
-from ..parsing_utils import *
+from ..utils import *
 from copy import deepcopy
 from pddl.action import Action
 from pddl.formatter import (

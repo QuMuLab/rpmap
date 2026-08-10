@@ -29,7 +29,7 @@
     )
     (:goal
         (and
-            [bel, alice](secret bob)
+            [itn, alice](move alice l1 l2)
         )  
     )
     (:plan )
