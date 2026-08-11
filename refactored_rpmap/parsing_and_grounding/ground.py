@@ -53,7 +53,13 @@ def ground_formula(formula: Sequence, assignment, domain, problem):
             fl.negated = fo.negated
             assign_always_known(fl, domain)
             fluents.add(fl)
-        # change to isinstance
+        elif isinstance(fo, MODL):
+            # need to set the base predicate of the MODL to the grounded predicate
+            grounded_predicate = list(ground_formula([fo._get_predicate()], assignment, domain, problem))[0]
+            grounded_modl = set_modl_deepest_child(fo, grounded_predicate, assignment)
+            # need to ground the agents in the MODLs as well
+            check_intention_error(grounded_modl, domain)
+            fluents.add(grounded_modl)
         elif isinstance(fo, ForallCondition):
             vars = {v for v in fo.variables}
             val_generator = create_valuations(domain._agents, problem.objects, vars)
@@ -79,15 +85,6 @@ def ground_formula(formula: Sequence, assignment, domain, problem):
             fl = ground_formula([fo.argument], assignment, domain, problem)
             fl.negated = True
             fluents.add(fl)
-        elif hasattr(fo, "argument"):
-            fluents.add(ground_formula([fo.argument], assignment, domain, problem))
-        elif isinstance(fo, MODL):
-            # need to set the base predicate of the MODL to the grounded predicate
-            grounded_predicate = list(ground_formula([fo._get_predicate()], assignment, domain, problem))[0]
-            grounded_modl = set_modl_deepest_child(fo, grounded_predicate, assignment)
-            # need to ground the agents in the MODLs as well
-            check_intention_error(grounded_modl, domain)
-            fluents.add(grounded_modl)
         elif isinstance(fo, When):
             cond = ground_formula([fo.condition], assignment, domain, problem)
             # for formatting reasons we want to force this into being an "And"
@@ -104,15 +101,24 @@ def ground_formula(formula: Sequence, assignment, domain, problem):
             raise ValueError("Unknown formula type: " + str(type(fo)))
     return fluents
 
-def ground_problem_rmls(all_fo, domain):
+def ground_problem_rmls(all_fo, domain, init=True):
     # TODO: allow for Not, Forall, etc. here
     all_fo = list(all_fo)
     for i in range(len(all_fo)):
         if isinstance(all_fo[i], Predicate):
             assign_always_known(all_fo[i], domain)
-        else:
+        elif isinstance(all_fo[i], MODL):
             assign_always_known(all_fo[i]._get_predicate(), domain)
             all_fo[i] = set_modl_deepest_child(all_fo[i], all_fo[i]._get_predicate())
+        elif isinstance(all_fo[i], Forall):
+            print()
+        elif isinstance(all_fo[i], And):
+            print()
+        elif isinstance(all_fo[i], Not):
+            if init:
+                raise ValueError("Cannot have Not formulas in the initial state.")
+            all_fo[i] = all_fo[i].argument
+            all_fo[i].negated = True
     return frozenset(all_fo)
 
 def create_grounded_fluents(domain, problem):
@@ -219,7 +225,7 @@ def ground(domain, problem):
         agents=domain._agents
     )
     g_init = ground_problem_rmls(problem.init, grounded_domain)
-    g_goal = ground_problem_rmls(problem.goal, grounded_domain)
+    g_goal = ground_problem_rmls(problem.goal, grounded_domain, init=False)
     grounded_problem = pddl_core.Problem(
         name=problem.name,
         domain=grounded_domain,
