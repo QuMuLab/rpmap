@@ -82,6 +82,8 @@ def ground_formula(formula: Sequence, assignment, domain, problem):
             for o in fo.operands:
                 fluents.update(ground_formula([o], assignment, domain, problem))
         elif isinstance(fo, Not):
+            if not isinstance(fo.argument, MODL) and not isinstance(fo.Predicate):
+                raise ValueError("Not can only be applied to a MODL or Predicate.")
             fl = ground_formula([fo.argument], assignment, domain, problem)
             fl.negated = True
             fluents.add(fl)
@@ -101,7 +103,7 @@ def ground_formula(formula: Sequence, assignment, domain, problem):
             raise ValueError("Unknown formula type: " + str(type(fo)))
     return fluents
 
-def ground_problem_rmls(all_fo, domain, init=True):
+def ground_problem_rmls(all_fo, domain):
     # TODO: allow for Not, Forall, etc. here
     all_fo = list(all_fo)
     for i in range(len(all_fo)):
@@ -115,10 +117,13 @@ def ground_problem_rmls(all_fo, domain, init=True):
         elif isinstance(all_fo[i], And):
             print()
         elif isinstance(all_fo[i], Not):
-            if init:
-                raise ValueError("Cannot have Not formulas in the initial state.")
-            all_fo[i] = all_fo[i].argument
-            all_fo[i].negated = True
+            print()
+            # if init:
+            #     raise ValueError("Cannot have Not formulas in the initial state.")
+            # if not isinstance(all_fo[i].argument, MODL) and not isinstance(all_fo[i].Predicate):
+            #     raise ValueError("Not can only be applied to a MODL or Predicate.")
+            # all_fo[i] = all_fo[i].argument
+            # all_fo[i].negated = True
     return frozenset(all_fo)
 
 def create_grounded_fluents(domain, problem):
@@ -225,7 +230,7 @@ def ground(domain, problem):
         agents=domain._agents
     )
     g_init = ground_problem_rmls(problem.init, grounded_domain)
-    g_goal = ground_problem_rmls(problem.goal, grounded_domain, init=False)
+    g_goal = ground_problem_rmls(problem.goal, grounded_domain)
     grounded_problem = pddl_core.Problem(
         name=problem.name,
         domain=grounded_domain,

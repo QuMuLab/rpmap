@@ -60,7 +60,6 @@ def new_problem_str(self):
     body += sort_and_print_collection("(:requirements ", self.requirements, ")\n")
     if self.objects:
         body += print_constants("(:objects", self.objects, ")\n")
-    # TODO: handle projection later
     # body += f"(:projection )\n"
     # body += f"(:depth {self.depth})\n"
     # body += f"(:task {self.task})\n"
@@ -101,25 +100,6 @@ def problem__constant(self, args):
     """
     return Constant(args[0])
 
-def is_literal_w_modl(formula: Formula) -> bool:
-    """
-    Check whether a formula is a literal.
-
-    That is, whether it is one of the following:
-    - an atomic formula,
-    - a Not formula whose argument is an atomic formula.
-
-    :param formula: the formula.
-    :return: True if the formula is a literal; False otherwise.
-    """
-    return (
-        isinstance(formula, Atomic)
-        or (isinstance(formula, Not)
-            and isinstance(formula.argument, Atomic))
-        or (isinstance(formula, MODL)
-            and isinstance(formula._get_predicate(), Atomic)) 
-    )
-
 # ----- GRAMMAR CONSTRUCTION -----
 
 def inject_problem_grammar(label, rule, function, grammar_file=GRAMMAR_FILE):
@@ -149,25 +129,35 @@ def construct_problem_grammar():
         "atomic_formula_name:   LPAR predicate NAME* RPAR",
         ""
     )
+    # replace_in_grammar(
+    #     "goal:  LPAR GOAL gd RPAR",
+    #     ""
+    # )
     replace_in_grammar(
-        "goal:  LPAR GOAL gd RPAR",
-        ""
+        "init_el:               literal_name",
+        "init_el:               gd_name"
     )
+    inject_problem_grammar("problem__constant", "NAME", problem__constant)
     inject_problem_grammar("terminal_predicate_constant_problem", "LPAR [EXC] predicate problem__constant* RPAR", terminal_predicate)
     inject_problem_grammar("atomic_formula_name", "[EXC] problem_modl* terminal_predicate_constant_problem", atomic_formula_term)
     inject_problem_grammar("problem_modl", "LSQB modl_term COMMA problem__constant RSQB | LESSER_OP modl_term COMMA problem__constant GREATER_OP", modl)
-    # TODO: handle projection later
     inject_problem_grammar("projection", "LPAR PROJECTION RPAR", projection_transformer)
     inject_problem_grammar("depth", "LPAR DEPTH NUMBER RPAR", depth_transformer)
     inject_problem_grammar("task", "LPAR TASK require_task_key RPAR", task_transformer)
     inject_problem_grammar("init_type", "LPAR INIT_TYPE COMPLETE RPAR", init_type_transformer)
     inject_problem_grammar("plan", "LPAR PLAN gd_name* RPAR", plan_transformer)
-    inject_problem_grammar("goal", "LPAR GOAL gd_name* RPAR", goal_transformer)
-    inject_problem_grammar("gd_name", "atomic_formula_name | LPAR NOT atomic_formula_name RPAR | LPAR AND gd_name* RPAR | LPAR binary_comp metric_f_exp metric_f_exp RPAR", basic_tokens_transformer)
+    # inject_problem_grammar("goal", "LPAR GOAL gd_name* RPAR", goal_transformer)
+
+    inject_problem_grammar("gd_name", "atomic_formula_name | LPAR NOT atomic_formula_name RPAR | LPAR AND gd_name* RPAR | problem_forall", basic_tokens_transformer)
+    inject_problem_grammar("problem_forall", "LPAR FORALL LPAR typed_list_variable RPAR problem_effect RPAR", basic_tokens_transformer)
+    inject_problem_grammar("problem_effect", "LPAR AND atomic_formula_term* RPAR | atomic_formula_term", basic_tokens_transformer)
+
+
     pddl.core.Problem.orig_init = pddl.core.Problem.__init__
     pddl.core.Problem.__init__ = new_init_problem
     pddl.core.Problem.__str__ = new_problem_str
 
+    delattr(problem.ProblemTransformer, "literal_name")
     # delete the start attribute (a new start rule will be made)
     delattr(problem.ProblemTransformer, "start")
     # delete the other attributes overlapping with the domain,
@@ -178,8 +168,4 @@ def construct_problem_grammar():
     delattr(problem.ProblemTransformer, "f_head")
     delattr(problem.ProblemTransformer, "gd")
     delattr(problem.ProblemTransformer, "constant")
-    inject_problem_grammar("problem__constant", "NAME", problem__constant)
     delattr(problem.ProblemTransformer, "requirements")
-    delattr(pddl.logic.base, "is_literal")
-    pddl.logic.base.is_literal = is_literal_w_modl
-    pddl.core.is_literal = is_literal_w_modl

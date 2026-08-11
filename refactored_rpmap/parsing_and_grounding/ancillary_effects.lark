@@ -44,7 +44,7 @@ var: QMRK NAME
 
 modl_term: BELIEF | DESIRE | INTENTION | DISDAIN | LOVE
 
-modl: LSQB modl_term COMMA var RSQB | LESSER_OP modl_term COMMA var GREATER_OP
+modl: LSQB modl_term COMMA const_or_var_term RSQB | LESSER_OP modl_term COMMA const_or_var_term GREATER_OP
 
 rml_options: var | list_comp_r_var | list_comp_r_agents | list_comp_rml_var | list_comp_rml_agents | atomic_formula_term_rml | gd
 

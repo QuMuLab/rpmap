@@ -12,12 +12,22 @@ from pddl.formatter import (
 )
 from pddl.helpers.base import _typed_parameters
 from pddl.logic.predicates import Predicate
+from pddl.logic.terms import Variable, Constant
 from pddl.parser import domain, GRAMMAR_FILE
 from pddl._validation import Types, TypeChecker
 from textwrap import indent
 from .anc_eff import MODL, NOT_MODL
 
 # ----- TRANSFORMER FUNCTIONS -----
+
+def constant(self, args):
+    return Constant(args[0].value)
+
+def var(self, args):
+    return Variable(args[1].value)
+
+def const_or_var_term(self, args):
+    return args[0]
 
 def action_transformer(self, args):
     """Adapted from the pddl.parser.domain.DomainTransformer.action_def method."""
@@ -230,10 +240,6 @@ def construct_domain_grammar():
         "atomic_formula_skeleton:   LPAR NAME typed_list_variable RPAR",
         ""
     )
-    replace_in_grammar(
-        "atomic_formula_term:   [EXC] modl* LPAR [EXC] predicate term* RPAR",
-        ""
-    )
     inject_domain_grammar("atomic_formula_skeleton", "[AK] LPAR NAME typed_list_variable RPAR", atomic_formula_skeleton)
     inject_domain_grammar("dollar_term", "DLR NAME DLR", dollar_term_transformer)
     inject_domain_grammar("DLR", "\"$\"", basic_token_transformer)
@@ -251,22 +257,8 @@ def construct_domain_grammar():
         "atomic_formula_term:   LPAR predicate term* RPAR",
         ""
     )
-    replace_in_grammar(
-        "gd:                atomic_formula_term",
-        "gd:                atomic_formula_term_var | atomic_formula_term_constant"
-    )
-    replace_in_grammar(
-        "p_effect:          LPAR NOT atomic_formula_term RPAR",
-        "p_effect:          LPAR NOT atomic_formula_term_var RPAR | LPAR NOT atomic_formula_term_constant RPAR"
-    )
-    replace_in_grammar(
-        "        |          atomic_formula_term",
-        "        |          atomic_formula_term_var | atomic_formula_term_constant"
-    )
-    inject_domain_grammar("terminal_predicate_var", "LPAR [EXC] predicate var* RPAR", terminal_predicate)
-    inject_domain_grammar("atomic_formula_term_var", "[EXC] modl* terminal_predicate_var", atomic_formula_term)
-    inject_domain_grammar("terminal_predicate_constant", "LPAR [EXC] predicate constant* RPAR", terminal_predicate)
-    inject_domain_grammar("atomic_formula_term_constant", "[EXC] modl* terminal_predicate_constant", atomic_formula_term)
+    inject_domain_grammar("terminal_predicate", "LPAR [EXC] predicate const_or_var_term* RPAR", terminal_predicate)
+    inject_domain_grammar("atomic_formula_term", "[EXC] modl* terminal_predicate", atomic_formula_term)
     pddl.core.Domain.orig_init = pddl.core.Domain.__init__
     pddl.core.Domain.__init__ = new_init_domain
     pddl.core.Domain.__str__ = new_domain_str
@@ -274,3 +266,7 @@ def construct_domain_grammar():
     pddl.core.Action.grounded_print = False
     # delete the start attribute (a new start rule will be made)
     delattr(domain.DomainTransformer, "start")
+    delattr(domain.DomainTransformer, "constant")
+    inject_domain_grammar("const_or_var_term", "constant | var", const_or_var_term)
+    inject_domain_grammar("constant", "NAME", constant)
+
