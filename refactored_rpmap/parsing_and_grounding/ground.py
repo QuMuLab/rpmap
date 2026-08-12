@@ -5,17 +5,18 @@ from copy import deepcopy
 from pddl.action import Action
 from pddl.logic.base import And, Not, ForallCondition
 from pddl.logic.effects import Forall, When
-from pddl.logic.terms import Constant
+from pddl.logic.terms import Constant, Variable
 from pddl.logic.predicates import Predicate
 import pddl.core as pddl_core
 
 
-def assign_always_known(fl, domain):
+def get_always_known_assigned(fl, domain):
+    fl = deepcopy(fl)
     # find the "always known" status by referencing it from the domain predicates
     for dp in domain.predicates:
         if dp.name == fl.name and len(dp.terms) == len(fl.terms):
             fl.always_known = dp.always_known
-            return
+            return fl
     raise ValueError(f"Predicate {fl.name} with terms {fl.terms} terms not found in domain predicates.")
 
 def check_intention_error(modl: MODL, domain):
@@ -45,21 +46,27 @@ def set_modl_deepest_child(modl, new_child, assignment = None):
         return modls[0]
 
 def ground_formula(formula: Sequence, assignment, domain, problem):
-    fluents = set()
+    grounded_formulas = set()
     for fo in formula:
         fo = deepcopy(fo)
         if isinstance(fo, Predicate):
-            fl = Predicate(fo.name, *[Constant(assignment[t.name]) for t in fo.terms])
-            fl.negated = fo.negated
-            assign_always_known(fl, domain)
-            fluents.add(fl)
+            # turn action predicate into atomic predicate
+            if fo.name in domain.lifted_action_names:
+                grounded_formulas.add(Predicate(f"{fo.name}_{'_'.join(t.name for t in fo.terms)}"))
+            else:
+                terms = list(fo.terms)
+                for i in range(len(terms)):
+                    terms[i] = Constant(assignment[terms[i].name]) if isinstance(terms[i], Variable) else terms[i]
+                fl = Predicate(fo.name, *terms)
+                fl.negated = fo.negated
+                grounded_formulas.add(get_always_known_assigned(fl, domain))
         elif isinstance(fo, MODL):
             # need to set the base predicate of the MODL to the grounded predicate
             grounded_predicate = list(ground_formula([fo._get_predicate()], assignment, domain, problem))[0]
             grounded_modl = set_modl_deepest_child(fo, grounded_predicate, assignment)
             # need to ground the agents in the MODLs as well
             check_intention_error(grounded_modl, domain)
-            fluents.add(grounded_modl)
+            grounded_formulas.add(grounded_modl)
         elif isinstance(fo, ForallCondition):
             vars = {v for v in fo.variables}
             val_generator = create_valuations(domain._agents, problem.objects, vars)
@@ -67,75 +74,49 @@ def ground_formula(formula: Sequence, assignment, domain, problem):
                 var_names = [v.name for v in vars]
                 for var_name, val in zip(var_names, valuation):
                     assignment[var_name] = val
-                fluents.update(ground_formula([fo.condition], assignment, domain, problem))
+                    grounded_formulas.update(ground_formula([fo.condition], assignment, domain, problem))
         elif isinstance(fo, Forall):
-            grounded = []
             var_names = [v.name for v in fo.variables]
             val_generator = create_valuations(domain._agents, problem.objects, fo.variables)
             for valuation in val_generator:
                 # need to add onto the existing assignment so we retain knowledge of outer variables
                 for var_name, val in zip(var_names, valuation):
                     assignment[var_name] = val
-                grounded.append(ground_formula([fo.effect], assignment, domain, problem))
-            return And(*grounded)
+                    grounded_formulas.update(ground_formula([fo.effect], assignment, domain, problem))
         elif isinstance(fo, And):
             for o in fo.operands:
-                fluents.update(ground_formula([o], assignment, domain, problem))
+                grounded_formulas.update(ground_formula([o], assignment, domain, problem))
         elif isinstance(fo, Not):
             if not isinstance(fo.argument, MODL) and not isinstance(fo.Predicate):
                 raise ValueError("Not can only be applied to a MODL or Predicate.")
             fl = ground_formula([fo.argument], assignment, domain, problem)
             fl.negated = True
-            fluents.add(fl)
+            grounded_formulas.add(fl)
         elif isinstance(fo, When):
             cond = ground_formula([fo.condition], assignment, domain, problem)
             # for formatting reasons we want to force this into being an "And"
             and_term = And(*[])
             and_term._operands.extend(cond)
             cond = and_term
-
             eff = ground_formula([fo.effect], assignment, domain, problem)
             and_term = And(*[])
             and_term._operands.extend(eff)
             eff = and_term
-            return When(cond, eff)
+            grounded_formulas.add(When(cond, eff))
         else:
-            raise ValueError("Unknown formula type: " + str(type(fo)))
-    return fluents
-
-def ground_problem_rmls(all_fo, domain):
-    # TODO: allow for Not, Forall, etc. here
-    all_fo = list(all_fo)
-    for i in range(len(all_fo)):
-        if isinstance(all_fo[i], Predicate):
-            assign_always_known(all_fo[i], domain)
-        elif isinstance(all_fo[i], MODL):
-            assign_always_known(all_fo[i]._get_predicate(), domain)
-            all_fo[i] = set_modl_deepest_child(all_fo[i], all_fo[i]._get_predicate())
-        elif isinstance(all_fo[i], Forall):
-            print()
-        elif isinstance(all_fo[i], And):
-            print()
-        elif isinstance(all_fo[i], Not):
-            print()
-            # if init:
-            #     raise ValueError("Cannot have Not formulas in the initial state.")
-            # if not isinstance(all_fo[i].argument, MODL) and not isinstance(all_fo[i].Predicate):
-            #     raise ValueError("Not can only be applied to a MODL or Predicate.")
-            # all_fo[i] = all_fo[i].argument
-            # all_fo[i].negated = True
-    return frozenset(all_fo)
+            raise NotImplementedError("Unknown formula type: " + str(type(fo)))
+    return grounded_formulas
 
 def create_grounded_fluents(domain, problem):
-    fluents = set()
+    formulas = set()
     for p in domain.predicates:
         val_generator = create_valuations(domain._agents, problem.objects, p.terms)
         vars = p.terms if isinstance(p, Predicate) else p._get_predicate().terms
         var_names = [v.name for v in vars]
         for valuation in val_generator:
             assignment = {var_name: val for var_name, val in zip(var_names, valuation)}
-            fluents.update(ground_formula([p], assignment, domain, problem))
-    return fluents
+            formulas.update(ground_formula([p], assignment, domain, problem))
+    return formulas
 
 def create_grounded_operators(domain, problem):
     operators = set()
@@ -192,45 +173,47 @@ def create_itn_action_preds(operators, agents, goal):
     for i in range(len(operators)):
         o_name = operators[i].name.split("_")
         intend_action_p = Predicate(o_name[0], *[Constant(n) for n in o_name[1:]])
-        intend_action_p.always_known = False
-        intend_action_p.negated = False
+        atomic_iap = Predicate(operators[i].name)
         if intend_action_p in itn_preds:
             itn_preds.remove(intend_action_p)
             # all_iaps = []
             action_iaps = []
             for ag in agents:
-                iap = NOT_MODL()(MODL(PossibleActionMODLType.PITN, Agent(ag, False))(intend_action_p))
+                iap = NOT_MODL()(MODL(PossibleActionMODLType.PITN, Agent(ag, False))(atomic_iap))
                 action_iaps.append(iap)
                 # all_iaps.append(iap)
                 # # these are to add to the domain
-                # all_iaps.append((MODL(ActionMODLType.ITN, Agent(ag, False))(intend_action_p)))
-                # all_iaps.append(MODL(PossibleActionMODLType.PITN, Agent(ag, False))(NOT_MODL()(intend_action_p)))
-                # all_iaps.append(MODL(PossibleActionMODLType.PITN, Agent(ag, False))(intend_action_p))
+                # all_iaps.append((MODL(ActionMODLType.ITN, Agent(ag, False))(atomic_iap)))
+                # all_iaps.append(MODL(PossibleActionMODLType.PITN, Agent(ag, False))(NOT_MODL()(atomic_iap)))
+                # all_iaps.append(MODL(PossibleActionMODLType.PITN, Agent(ag, False))(atomic_iap))
             operators[i].effect._operands.extend(action_iaps)
-            action_intention_f.add(intend_action_p)
+            action_intention_f.add(atomic_iap)
     if itn_preds:
         raise ValueError(f"One or more of these intentions references an action not in the grounded domain: {itn_preds}")
     return set(operators), action_intention_f
 
 
 def ground(domain, problem):
-    g_fluents = create_grounded_fluents(domain, problem)
+    lifted_action_names = {a.name for a in domain.actions}
+    domain.lifted_action_names = lifted_action_names
+    g_formulas = create_grounded_fluents(domain, problem)
     g_operators = create_grounded_operators(domain, problem)
     g_operators, action_intention_f = create_itn_action_preds(g_operators, domain._agents, problem.goal)
-    g_fluents.update(action_intention_f)
+    g_formulas.update(action_intention_f)
     grounded_domain = pddl_core.Domain(
         name=domain.name,
         requirements=domain.requirements,
         types=domain.types,
         constants=domain.constants,
-        predicates=g_fluents,
+        predicates=g_formulas,
         derived_predicates=domain.derived_predicates,
         functions=domain.functions,
         actions=g_operators,
         agents=domain._agents
     )
-    g_init = ground_problem_rmls(problem.init, grounded_domain)
-    g_goal = ground_problem_rmls(problem.goal, grounded_domain)
+    grounded_domain.lifted_action_names = lifted_action_names
+    g_init = ground_formula(problem.init, {}, grounded_domain, problem)
+    g_goal = ground_formula(problem.goal, {}, grounded_domain, problem)
     grounded_problem = pddl_core.Problem(
         name=problem.name,
         domain=grounded_domain,

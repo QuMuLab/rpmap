@@ -10,7 +10,9 @@ from pddl.formatter import (
 )
 from pddl.helpers.base import assert_
 from pddl.logic.terms import Constant
-from pddl.logic.base import Formula, Atomic, Not
+from pddl.logic.base import Formula, Atomic, Not, And
+from pddl.logic.terms import Constant
+from pddl.logic.effects import Forall
 from pddl.parser import problem, GRAMMAR_FILE
 from textwrap import indent
 
@@ -28,9 +30,7 @@ def depth_transformer(self, args):
 
 def goal_transformer(self, args):
     """Transformer for the problem goal."""
-    args = self.init(args)[1]
-    args = args[2] if args else args
-    return ("goal", frozenset(args))
+    return ("goal", frozenset(args[2:-1]))
 
 def init_type_transformer(self, args):
     """Transformer for the problem init type."""
@@ -39,14 +39,17 @@ def init_type_transformer(self, args):
 
 def plan_transformer(self, args):
     """Transformer for the problem plan."""
-    args = self.init(args)[1]
-    args = args[2] if args else args
-    return ("plan", frozenset(args)) 
+    return ("plan", frozenset(args[2:-1])) 
 
 def task_transformer(self, args):
     """Transformer for the problem task."""
     args = basic_tokens_transformer(self, args)
     return ("task", args)
+
+def problem_forall(self, args):
+    """Transformer for foralls, adapted from the pddl.parser.domain.c_effect method."""
+    variables = [Variable(var_name, tags) for var_name, tags in args[3]]
+    return Forall(effect=args[-2], variables=variables)
 
 # ----- STRING AND PRINT FUNCTIONS -----
 def pprint_pddl_collection(prefix, collection,):
@@ -87,6 +90,29 @@ def new_init_problem(self, *args, **kwargs):
     kwargs.pop("init_type")
     kwargs.pop("plan")
     self.orig_init(*args, **kwargs)
+
+def is_literal_modified(formula: Formula) -> bool:
+    """
+    Check whether a formula is a literal.
+
+    That is, whether it is one of the following:
+    - an atomic formula,
+    - a Not formula whose argument is an atomic formula.
+
+    :param formula: the formula.
+    :return: True if the formula is a literal; False otherwise.
+    """
+    return (
+        isinstance(formula, Atomic)
+        or (isinstance(formula, And)
+            and False not in [is_literal_modified(o) for o in formula._operands])
+        or (isinstance(formula, Not)
+            and isinstance(formula.argument, Atomic))
+        or (isinstance(formula, MODL)
+            and isinstance(formula._get_predicate(), Atomic))
+        or (isinstance(formula, Forall)
+            and is_literal_modified(formula.effect))
+    )
 
 def problem__constant(self, args):
     """
@@ -129,10 +155,10 @@ def construct_problem_grammar():
         "atomic_formula_name:   LPAR predicate NAME* RPAR",
         ""
     )
-    # replace_in_grammar(
-    #     "goal:  LPAR GOAL gd RPAR",
-    #     ""
-    # )
+    replace_in_grammar(
+        "goal:  LPAR GOAL gd RPAR",
+        ""
+    )
     replace_in_grammar(
         "init_el:               literal_name",
         "init_el:               gd_name"
@@ -146,11 +172,11 @@ def construct_problem_grammar():
     inject_problem_grammar("task", "LPAR TASK require_task_key RPAR", task_transformer)
     inject_problem_grammar("init_type", "LPAR INIT_TYPE COMPLETE RPAR", init_type_transformer)
     inject_problem_grammar("plan", "LPAR PLAN gd_name* RPAR", plan_transformer)
-    # inject_problem_grammar("goal", "LPAR GOAL gd_name* RPAR", goal_transformer)
+    inject_problem_grammar("goal", "LPAR GOAL gd RPAR", goal_transformer)
 
-    inject_problem_grammar("gd_name", "atomic_formula_name | LPAR NOT atomic_formula_name RPAR | LPAR AND gd_name* RPAR | problem_forall", basic_tokens_transformer)
-    inject_problem_grammar("problem_forall", "LPAR FORALL LPAR typed_list_variable RPAR problem_effect RPAR", basic_tokens_transformer)
-    inject_problem_grammar("problem_effect", "LPAR AND atomic_formula_term* RPAR | atomic_formula_term", basic_tokens_transformer)
+    inject_problem_grammar("gd_name", "atomic_formula_name | LPAR AND gd_name* RPAR | problem_forall", basic_tokens_transformer)
+    inject_problem_grammar("problem_forall", "LPAR FORALL LPAR typed_list_variable RPAR problem_effect RPAR", problem_forall)
+    inject_problem_grammar("problem_effect", "LPAR AND atomic_formula_term* RPAR | atomic_formula_term", return_option)
 
 
     pddl.core.Problem.orig_init = pddl.core.Problem.__init__
@@ -169,3 +195,6 @@ def construct_problem_grammar():
     delattr(problem.ProblemTransformer, "gd")
     delattr(problem.ProblemTransformer, "constant")
     delattr(problem.ProblemTransformer, "requirements")
+    delattr(pddl.logic.base, "is_literal")
+    pddl.logic.base.is_literal = is_literal_modified
+    pddl.core.is_literal = is_literal_modified

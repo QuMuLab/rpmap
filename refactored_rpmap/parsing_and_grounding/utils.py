@@ -85,3 +85,5 @@ def basic_tokens_transformer(self, args):
         raise ValueError(f"Invalid definition of tokens: {args}")
     return args
 
+def return_option(self, args):
+    return args[0]

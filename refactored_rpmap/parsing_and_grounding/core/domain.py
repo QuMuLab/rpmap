@@ -97,7 +97,6 @@ def derived_conditions_transformer(self, args):
 
 def new_action_str(self):
     """New action string adapted from the pddl.action.Action.__str__ method."""
-    # TODO: add support for derived conditions
     operator_str = "(:action {0}\n".format(self.name)
     if not self.grounded_print:
         if self.derive_condition:
@@ -178,11 +177,7 @@ def new_init_domain(self, *args, **kwargs):
 @TypeChecker.check_type.register
 def _(self, modl: MODL) -> None:
     """Check types annotations of a MODL."""
-    # find the deepest child of the MODL, which should be a Predicate
-    deepest_child = modl._get_predicate()
-    if not isinstance(deepest_child, Predicate):
-        raise TypeError("The deepest child of a MODL must be a Predicate.")
-    self.check_type(deepest_child.terms)
+    self.check_type(modl._get_predicate())
 
 def new_predicate_eq(self, other):
     """New predicate equality check that takes into account the new always_known, modl, and negated terms."""

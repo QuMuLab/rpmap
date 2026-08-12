@@ -4,7 +4,7 @@ from lark.visitors import Transformer, Token
 from pddl.core import Predicate
 from pddl.logic.terms import Variable
 from copy import deepcopy
-import pddl
+from ..utils import return_option
 
 # ----- CLASSES -----
 
@@ -58,6 +58,9 @@ class MODL:
         else:
             raise TypeError("Expecting another MODL or a Predicate.")
             
+    def __str__(self):
+        return f"({self.mod_type.name}_{self.agent}_{str(self.child)[1:-1]})"
+
     def __repr__(self):
         return f"[{self.mod_type.name}, {self.agent}]{str(self.child)}" if self.mod_type in GenericMODLType or self.mod_type in ActionMODLType else f"<{self.mod_type.name[1:]}, {self.agent}>{str(self.child)}"
     
@@ -204,9 +207,6 @@ def list_comp_var(self, args):
 
 def list_comp_agents(self, args):
     return ListCompAgents(args[1])
-
-def return_option(self, args):
-    return args[0]
 
 def plural(self, args):
     return [a for a in args[1:] if a != Token("PLUS", "+")]
