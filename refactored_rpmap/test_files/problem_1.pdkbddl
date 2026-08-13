@@ -23,7 +23,7 @@
         ;; [bel, alice](secret alice)
         ;; [bel, bob](secret bob)
 
-        (!connected l1 l2)
+        [itn, alice](move bob l1 l2)
 
         (forall (?ag - agent)
             [bel, ?ag][des, ?ag](secret ?ag)

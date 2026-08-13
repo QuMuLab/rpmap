@@ -74,7 +74,7 @@ def terminal_predicate(self, args):
     pred.always_known = domain_preds[pred_name].always_known
     if args[1]:
         pred.negated = True
-    if pred.negated and not pred.always_known:
+    if pred.negated and pred.always_known:
         raise ValueError("Cannot apply a `!` to a predicate that is always known.")
     return pred
 

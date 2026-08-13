@@ -179,13 +179,15 @@ def gather_itn_preds(formula):
             raise NotImplementedError("Unknown formula type: " + str(type(fo)))
     return itn_preds
 
-def create_itn_action_preds(operators, agents, goal):
+def create_itn_action_preds(operators, agents, problem):
     operators = list(operators)
     itn_preds = set()
-    # find all intention predicates in the goal or in action preconditions
-    itn_preds.update(gather_itn_preds(goal))
+    # find all intention predicates
+    itn_preds.update(gather_itn_preds(problem.init))
+    itn_preds.update(gather_itn_preds(problem.goal))
     for a in operators:
         itn_preds.update(gather_itn_preds(a.precondition.operands))
+        itn_preds.update(gather_itn_preds(a.effect.operands))
     itn_preds_strs = [str(p) for p in itn_preds]
     action_intention_f = set()
     for i in range(len(operators)):
@@ -196,7 +198,7 @@ def create_itn_action_preds(operators, agents, goal):
                 iap = NOT_MODL()(MODL(PossibleActionMODLType.PITN, Agent(ag, False))(Predicate(operators[i].name)))
                 action_iaps.append(iap)
             operators[i].effect._operands.extend(action_iaps)
-        action_intention_f.add(Predicate(operators[i].name))
+            action_intention_f.update(action_iaps)
     return set(operators), action_intention_f
 
 def ground(domain, problem):
@@ -204,7 +206,7 @@ def ground(domain, problem):
     domain.lifted_action_names = lifted_action_names
     g_formulas = create_grounded_fluents(domain, problem)
     g_operators = create_grounded_operators(domain, problem)
-    g_operators, action_intention_f = create_itn_action_preds(g_operators, domain._agents, problem.goal)
+    g_operators, action_intention_f = create_itn_action_preds(g_operators, domain._agents, problem)
     g_formulas.update(action_intention_f)
     grounded_domain = pddl_core.Domain(
         name=domain.name,
