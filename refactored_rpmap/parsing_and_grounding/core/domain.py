@@ -95,7 +95,8 @@ def derived_conditions_transformer(self, args):
     if len(args) == 1: # result is ALWAYS or NEVER
         return args[0].value
     else: # result is a complex derived condition
-        return Predicate(f"{args[1].value}", *[a[0] for a in args[2:-1]])
+        args = [args[0]] + [None] + args[1:]
+        return terminal_predicate(self, args)
 
 # ----- STRING AND PRINT FUNCTIONS -----
 
@@ -242,7 +243,7 @@ def construct_domain_grammar():
     inject_domain_grammar("atomic_formula_skeleton", "[AK] LPAR NAME typed_list_variable RPAR", atomic_formula_skeleton)
     inject_domain_grammar("dollar_term", "DLR NAME DLR", dollar_term_transformer)
     inject_domain_grammar("DLR", "\"$\"", basic_token_transformer)
-    inject_domain_grammar("derived_term", "var | dollar_term", basic_tokens_transformer)
+    inject_domain_grammar("derived_term", "var | dollar_term", return_option)
     inject_domain_grammar("ALWAYS", "\"always\"", basic_token_transformer)
     inject_domain_grammar("NEVER", "\"never\"", basic_token_transformer)
     inject_domain_grammar("derived_conditions", "ALWAYS | NEVER | LPAR predicate derived_term* RPAR", derived_conditions_transformer)
