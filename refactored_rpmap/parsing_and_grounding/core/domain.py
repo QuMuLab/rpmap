@@ -23,12 +23,6 @@ from .anc_eff import MODL, NOT_MODL
 def constant(self, args):
     return Constant(args[0].value)
 
-def var(self, args):
-    return Variable(args[1].value)
-
-def const_or_var_term(self, args):
-    return args[0]
-
 def action_transformer(self, args):
     """Adapted from the pddl.parser.domain.DomainTransformer.action_def method."""
     action_name = args[2]
@@ -41,6 +35,7 @@ def action_transformer(self, args):
     }
     a = Action(action_name, variables, **action_body)
     a.derive_condition = args[4]
+    self._predicates_by_name[a.name] = Predicate(a.name, *a.parameters)
     return a
 
 def agent_transformer(self, args):
@@ -65,13 +60,22 @@ def atomic_formula_skeleton(self, args):
     variables = self._formula_skeleton(args)
     p = Predicate(predicate_name, *variables)
     p.always_known = True if ak else False
-    p.negated = False
     return p
 
 def terminal_predicate(self, args):
-    pred = Predicate(args[2].value, *args[3:-1])
+    domain_preds = self._predicates_by_name if hasattr(self, "_predicates_by_name") else self._domain_transformer._predicates_by_name
+    pred_name = args[2].value
+    if pred_name not in domain_preds:
+        raise ValueError(f"Predicate {pred_name} not defined in the domain.")
+    terms = args[3:-1]
+    for i in range(len(terms)):
+        terms[i]._type_tags = domain_preds[pred_name].terms[i].type_tags
+    pred = Predicate(pred_name, *terms)
+    pred.always_known = domain_preds[pred_name].always_known
     if args[1]:
         pred.negated = True
+    if pred.negated and not pred.always_known:
+        raise ValueError("Cannot apply a `!` to a predicate that is always known.")
     return pred
 
 def atomic_formula_term(self, args):
@@ -105,7 +109,7 @@ def new_action_str(self):
     if self.precondition is not None:
         operator_str += f"    :precondition ({self.precondition.SYMBOL}{NL_AND_TABS}{NL_AND_TABS.join(map(str, self.precondition.operands))}{NL_AND_TAB})\n"
     if self.effect is not None:
-        operator_str += f"    :effect ({self.effect.SYMBOL}{NL_AND_TABS}" #{NL_AND_TABS.join(map(str, self.effect.operands))}{NL_AND_TAB})\n"
+        operator_str += f"    :effect ({self.effect.SYMBOL}{NL_AND_TABS}"
         for o in self.effect.operands:
             operator_str += f"{NL_AND_TABS}{o}"
             if hasattr(o, "comment"):
@@ -123,7 +127,7 @@ def new_predicate_str_rmls(self):
         terms = f"{'_'.join(map(str, self.terms))})" 
         p_str = f"{p_str}_{terms}"
     if self.negated:
-        p_str = f"(not ({p_str})" if self.always_known else  f"(not_{p_str}"
+        p_str = f"(not ({p_str})" if self.always_known else f"(not_{p_str}"
     else:
         p_str = f"({p_str}"
     return p_str   
@@ -136,7 +140,6 @@ def new_domain_str(self):
     body += sort_and_print_collection("(:requirements ", self.requirements, ")\n")
     if not self.grounded_print:
         body += f"(:agents {' '.join(sorted(self._agents)) if self._agents else ''})\n"
-    # del self.types["agent"]  # remove agents from types
     self._types = Types(self.types, self._requirements)
     types_str = print_types_or_functions_with_parents("(:types", self.types, ")\n")
     types_str = types_str.replace(" - object", "")  # remove the default object type
@@ -211,6 +214,7 @@ def inject_domain_grammar(label, rule, function, grammar_file=GRAMMAR_FILE):
 
 def modify_predicate_class():
     pddl.logic.predicates.Predicate.__str__ = new_predicate_str_rmls
+    pddl.logic.predicates.Predicate.__repr__ = new_predicate_str_rmls
     pddl.logic.predicates.Predicate.__eq__ = new_predicate_eq
     pddl.logic.predicates.Predicate.__hash__ = new_predicate_hash
     pddl.logic.predicates.Predicate.always_known = False
@@ -262,6 +266,6 @@ def construct_domain_grammar():
     # delete the start attribute (a new start rule will be made)
     delattr(domain.DomainTransformer, "start")
     delattr(domain.DomainTransformer, "constant")
-    inject_domain_grammar("const_or_var_term", "constant | var", const_or_var_term)
+    inject_domain_grammar("const_or_var_term", "constant | var", return_option)
     inject_domain_grammar("constant", "NAME", constant)
 

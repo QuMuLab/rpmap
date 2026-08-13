@@ -1,5 +1,5 @@
-{include:ancillary_effects.pdkbddl}
 {include:domain.pdkbddl}
+{include:ancillary_effects.pdkbddl}
 
 (define (problem depth_2_agents_2)
 
@@ -23,8 +23,7 @@
         ;; [bel, alice](secret alice)
         ;; [bel, bob](secret bob)
 
-        ;; (!connected l1 l2)
-        ;; (not (connected l2 l1))
+        (!connected l1 l2)
 
         (forall (?ag - agent)
             [bel, ?ag][des, ?ag](secret ?ag)
@@ -33,10 +32,9 @@
     (:goal
         ;; (and (secret alice))
         (and
-            (or
-                [itn, alice](move alice l1 l2)
-                [itn, bob](move alice l1 l2)
-            )
+            (not (connected l1 l2))
+            [itn, alice](move alice l1 l2)
+            [itn, bob](move alice l1 l2)
         )  
     )
     (:plan )

@@ -32,7 +32,7 @@ def test_parse():
     # set up the parser with the lark and parse the PDDL
     parser = AncEffDomProbParser(grammar)
     result = parser(pddl_str)
-    anc_effs, grounded_domain, grounded_problem = (result[0], *ground(result[1], result[2]))
+    anc_effs, grounded_domain, grounded_problem = (result[1][0], *ground(result[0], result[2]))
     base_path = os.path.join("refactored_rpmap", "test_files")
     grounded_dom_path = os.path.join(base_path, "pdkb-domain.pddl")
     grounded_prob_path = os.path.join(base_path, "pdkb-problem.pddl")

@@ -6,6 +6,7 @@ from .core.anc_eff import AncEffTransformer
 from pddl.parser.domain import DomainTransformer
 from pddl.parser.problem import ProblemTransformer
 from pddl.parser import GRAMMAR_FILE
+import pddl
 
 
 def read_pdkbddl_file(fname):
@@ -99,17 +100,26 @@ def merge_transformers_modified(base_transformer=None, **transformers_to_merge):
 
     return base_transformer
 
+def new_problem_transformer_init(self, domain_transformer):
+    super(ProblemTransformer, self).__init__()
+
+    self._domain_transformer = domain_transformer
+    self._objects_by_name = {} # dict of strings to constants
+
 class AncEffDomProbParser:
     """Domain and/or problem PDDL domain parser class.
     Taken from the fond-utils library"""
 
     def __init__(self, grammar, import_paths=GRAMMAR_FILE):
         """Initialize."""
+        # monkey patch the ProblemTransformer to include a direct reference to the DomainTransformer used
+        pddl.parser.problem.ProblemTransformer.__init__ = new_problem_transformer_init
+        domain=DomainTransformer()
         self._transformer = merge_transformers_modified(
             AncEffDomainProblemTransformer(),
-            anceff=AncEffTransformer(),
-            domain=DomainTransformer(),
-            problem=ProblemTransformer(),
+            domain=domain,
+            anceff=AncEffTransformer(domain),
+            problem=ProblemTransformer(domain),
         )
         # need to use earley; lalr will not be able to recognise files with just problems (no left)
         self._parser = Lark(

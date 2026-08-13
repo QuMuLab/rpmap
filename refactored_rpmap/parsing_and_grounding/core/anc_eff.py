@@ -62,7 +62,7 @@ class MODL:
         return f"({self.mod_type.name}_{self.agent}_{str(self.child)[1:-1]})"
 
     def __repr__(self):
-        return f"[{self.mod_type.name}, {self.agent}]{str(self.child)}" if self.mod_type in GenericMODLType or self.mod_type in ActionMODLType else f"<{self.mod_type.name[1:]}, {self.agent}>{str(self.child)}"
+        return f"[{self.mod_type.name}, {self.agent}]{repr(self.child)}" if self.mod_type in GenericMODLType or self.mod_type in ActionMODLType else f"<{self.mod_type.name[1:]}, {self.agent}>{repr(self.child)}"
     
     def _negate(self):
         if self.mod_type in GenericMODLType:
@@ -217,9 +217,10 @@ def cond_type_def(self, args):
 # ----- ANCILLARY EFFECT TRANSFORMER -----
 
 class AncEffTransformer(Transformer):
-    def __init__(self):
+    def __init__(self, domain_transformer):
         """Initialize the AncEffTransformer."""
         super().__init__()
+        self._domain_transformer = domain_transformer
         self.set_up_transformers()
 
     def start(self, children):

@@ -10,14 +10,14 @@ from pddl.logic.predicates import Predicate
 import pddl.core as pddl_core
 
 
-def get_always_known_assigned(fl, domain):
-    fl = deepcopy(fl)
-    # find the "always known" status by referencing it from the domain predicates
-    for dp in domain.predicates:
-        if dp.name == fl.name and len(dp.terms) == len(fl.terms):
-            fl.always_known = dp.always_known
-            return fl
-    raise ValueError(f"Predicate {fl.name} with terms {fl.terms} terms not found in domain predicates.")
+# def get_always_known_assigned(fl, domain):
+#     fl = deepcopy(fl)
+#     # find the "always known" status by referencing it from the domain predicates
+#     for dp in domain.predicates:
+#         if dp.name == fl.name and len(dp.terms) == len(fl.terms):
+#             fl.always_known = dp.always_known
+#             return fl
+#     raise ValueError(f"Predicate {fl.name} with terms {fl.terms} terms not found in domain predicates.")
 
 def check_intention_error(modl: MODL, domain):
     action_names = [a.name for a in domain.actions]
@@ -59,7 +59,8 @@ def ground_formula(formula: Sequence, assignment, domain, problem):
                     terms[i] = Constant(assignment[terms[i].name]) if isinstance(terms[i], Variable) else terms[i]
                 fl = Predicate(fo.name, *terms)
                 fl.negated = fo.negated
-                grounded_formulas.add(get_always_known_assigned(fl, domain))
+                grounded_formulas.add(fl)
+                # grounded_formulas.add(get_always_known_assigned(fl, domain))
         elif isinstance(fo, MODL):
             # need to set the base predicate of the MODL to the grounded predicate
             grounded_predicate = list(ground_formula([fo._get_predicate()], assignment, domain, problem))[0]
@@ -87,11 +88,9 @@ def ground_formula(formula: Sequence, assignment, domain, problem):
             for o in fo.operands:
                 grounded_formulas.update(ground_formula([o], assignment, domain, problem))
         elif isinstance(fo, Not):
-            if not isinstance(fo.argument, MODL) and not isinstance(fo.Predicate):
-                raise ValueError("Not can only be applied to a MODL or Predicate.")
-            fl = ground_formula([fo.argument], assignment, domain, problem)
-            fl.negated = True
-            grounded_formulas.add(fl)
+            if not isinstance(fo.argument, MODL) and not isinstance(fo.argument, Predicate):
+                raise ValueError(f"`Not` was applied to {type(fo.argument)}. `Not` can only be applied to a MODL or Predicate.")
+            grounded_formulas.add(Not(list(ground_formula([fo.argument], assignment, domain, problem))[0]))
         elif isinstance(fo, When):
             cond = ground_formula([fo.condition], assignment, domain, problem)
             # for formatting reasons we want to force this into being an "And"
@@ -156,42 +155,49 @@ def create_grounded_operators(domain, problem):
             operators.add(new_a)
     return operators
 
+def gather_itn_preds(formula):
+    itn_preds = set()
+    for fo in formula:
+        if isinstance(fo, MODL):
+            if isinstance(fo.mod_type, ActionMODLType) or isinstance(fo.mod_type, PossibleActionMODLType):
+                itn_preds.add(fo._get_predicate())
+        elif isinstance(fo, Predicate):
+            pass
+        elif isinstance(fo, ForallCondition):
+            itn_preds.update(gather_itn_preds([fo.condition]))
+        elif isinstance(fo, Forall):
+            itn_preds.update(gather_itn_preds([fo.effect]))
+        elif isinstance(fo, And):
+            for o in fo.operands:
+                itn_preds.update(gather_itn_preds([o]))
+        elif isinstance(fo, Not):
+            itn_preds.update(gather_itn_preds([fo.argument]))
+        elif isinstance(fo, When):
+            itn_preds.update(gather_itn_preds([fo.condition]))
+            itn_preds.update(gather_itn_preds([fo.effect]))
+        else:
+            raise NotImplementedError("Unknown formula type: " + str(type(fo)))
+    return itn_preds
+
 def create_itn_action_preds(operators, agents, goal):
     operators = list(operators)
     itn_preds = set()
     # find all intention predicates in the goal or in action preconditions
-    for rml in goal:
-        if isinstance(rml, MODL):
-            if isinstance(rml.mod_type, ActionMODLType) or isinstance(rml.mod_type, PossibleActionMODLType):
-                itn_preds.add(rml._get_predicate())
+    itn_preds.update(gather_itn_preds(goal))
     for a in operators:
-        for rml in a.precondition.operands:
-            if isinstance(rml, MODL):
-                if isinstance(rml.mod_type, ActionMODLType) or isinstance(rml.mod_type, PossibleActionMODLType):
-                    itn_preds.add(rml._get_predicate())
+        itn_preds.update(gather_itn_preds(a.precondition.operands))
+    itn_preds_strs = [str(p) for p in itn_preds]
     action_intention_f = set()
     for i in range(len(operators)):
-        o_name = operators[i].name.split("_")
-        intend_action_p = Predicate(o_name[0], *[Constant(n) for n in o_name[1:]])
-        atomic_iap = Predicate(operators[i].name)
-        if intend_action_p in itn_preds:
-            itn_preds.remove(intend_action_p)
-            # all_iaps = []
+        o_name = f"({operators[i].name})"
+        if o_name in itn_preds_strs:
             action_iaps = []
             for ag in agents:
-                iap = NOT_MODL()(MODL(PossibleActionMODLType.PITN, Agent(ag, False))(atomic_iap))
+                iap = NOT_MODL()(MODL(PossibleActionMODLType.PITN, Agent(ag, False))(Predicate(operators[i].name)))
                 action_iaps.append(iap)
-                # all_iaps.append(iap)
-                # # these are to add to the domain
-                # all_iaps.append((MODL(ActionMODLType.ITN, Agent(ag, False))(atomic_iap)))
-                # all_iaps.append(MODL(PossibleActionMODLType.PITN, Agent(ag, False))(NOT_MODL()(atomic_iap)))
-                # all_iaps.append(MODL(PossibleActionMODLType.PITN, Agent(ag, False))(atomic_iap))
             operators[i].effect._operands.extend(action_iaps)
-            action_intention_f.add(atomic_iap)
-    if itn_preds:
-        raise ValueError(f"One or more of these intentions references an action not in the grounded domain: {itn_preds}")
+        action_intention_f.add(Predicate(operators[i].name))
     return set(operators), action_intention_f
-
 
 def ground(domain, problem):
     lifted_action_names = {a.name for a in domain.actions}
