@@ -76,6 +76,7 @@ def ground_formula(formula: Sequence, assignment, domain, problem):
                 for var_name, val in zip(var_names, valuation):
                     assignment[var_name] = val
                     grounded_formulas.update(ground_formula([fo.condition], assignment, domain, problem))
+            assignment = {}
         elif isinstance(fo, Forall):
             var_names = [v.name for v in fo.variables]
             val_generator = create_valuations(domain._agents, problem.objects, fo.variables)
@@ -84,6 +85,7 @@ def ground_formula(formula: Sequence, assignment, domain, problem):
                 for var_name, val in zip(var_names, valuation):
                     assignment[var_name] = val
                     grounded_formulas.update(ground_formula([fo.effect], assignment, domain, problem))
+            assignment = {}
         elif isinstance(fo, And):
             for o in fo.operands:
                 grounded_formulas.update(ground_formula([o], assignment, domain, problem))
