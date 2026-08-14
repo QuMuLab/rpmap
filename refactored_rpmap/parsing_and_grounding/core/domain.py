@@ -16,7 +16,7 @@ from pddl.logic.terms import Variable, Constant
 from pddl.parser import domain, GRAMMAR_FILE
 from pddl._validation import Types, TypeChecker
 from textwrap import indent
-from .anc_eff import MODL, NOT_MODL
+from .anc_eff import MODL, atomic_formula_term
 
 # ----- TRANSFORMER FUNCTIONS -----
 
@@ -77,16 +77,6 @@ def terminal_predicate(self, args):
     if pred.negated and pred.always_known:
         raise ValueError("Cannot apply a `!` to a predicate that is always known.")
     return pred
-
-def atomic_formula_term(self, args):
-    negate_modalities = True if args[0] else False
-    modls_no_neg = args[1:]
-    for i in range(len(modls_no_neg) - 1, - 1, - 1):
-        if isinstance(modls_no_neg[i], Predicate):
-            continue
-        modls_no_neg[i] = modls_no_neg[i](modls_no_neg[i + 1])
-    modl = modls_no_neg[0]
-    return NOT_MODL()(modl) if negate_modalities else modl
 
 def dollar_term_transformer(self, args):
     return Variable(f"{args[1].value}")

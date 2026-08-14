@@ -105,13 +105,13 @@ class RMLPredicate(Predicate):
         self.nest = False
 
 class ListCompVar:
-    def __init__(self, rml_pred: RMLPredicate, var: Variable):
-        self.rml_pred = RMLPredicate
+    def __init__(self, term: RMLPredicate | MODL, var: Variable):
+        self.term = term
         self.var = Variable
 
 class ListCompAgents:
-    def __init__(self, rml_pred: RMLPredicate):
-        self.rml_pred = RMLPredicate
+    def __init__(self, term: RMLPredicate | MODL):
+        self.term = term
 
 class AncEffPart:
     def __init__(self, poscond, negcond, rml: list, type: str):
@@ -160,12 +160,12 @@ def modl(self, args):
         if term_name in [m.name for m in modl_type]:
             return MODL(modl_type[term_name], Agent(args[3].name, True if isinstance(args[3], Variable) else False))
     raise ValueError(f"MODL Type {term_name} is not specified in any of the MODLType categories in 'anc_eff.py.'")
-        
-def anceff_atomic_formula_term(self, args):
+
+def atomic_formula_term(self, args):
     negate_modalities = True if args[0] else False
     modls_no_neg = args[1:]
     for i in range(len(modls_no_neg) - 1, - 1, - 1):
-        if isinstance(modls_no_neg[i], RMLPredicate):
+        if isinstance(modls_no_neg[i], Predicate):
             continue
         modls_no_neg[i] = modls_no_neg[i](modls_no_neg[i + 1])
     modl = modls_no_neg[0]
@@ -228,12 +228,12 @@ class AncEffTransformer(Transformer):
         return children
 
     def set_up_transformers(self):
-        setattr(AncEffTransformer, "atomic_formula_term_rml", anceff_atomic_formula_term)
+        setattr(AncEffTransformer, "atomic_formula_term_rml", atomic_formula_term)
         setattr(AncEffTransformer, "terminal_rml", terminal_rml)
         setattr(AncEffTransformer, "terminal_r", terminal_r)
         setattr(AncEffTransformer, "modl", modl)
         setattr(AncEffTransformer, "var", var)
-        setattr(AncEffTransformer, "atomic_formula_term_list_comp_r", anceff_atomic_formula_term)
+        setattr(AncEffTransformer, "atomic_formula_term_list_comp_r", atomic_formula_term)
         setattr(AncEffTransformer, "list_comp_r_var", list_comp_var)
         setattr(AncEffTransformer, "list_comp_rml_var", list_comp_var)
         setattr(AncEffTransformer, "list_comp_r_agents", list_comp_agents)

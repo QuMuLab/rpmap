@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 from .utils import create_valuations
-from .core.anc_eff import ActionMODLType, PossibleActionMODLType, MODL, NOT_MODL, Agent
+from .core.anc_eff import ActionMODLType, PossibleActionMODLType, MODL, NOT_MODL, Agent, RMLPredicate, ListCompVar, ListCompAgents
 from copy import deepcopy
 from pddl.action import Action
 from pddl.logic.base import And, Not, ForallCondition
@@ -9,15 +9,6 @@ from pddl.logic.terms import Constant, Variable
 from pddl.logic.predicates import Predicate
 import pddl.core as pddl_core
 
-
-# def get_always_known_assigned(fl, domain):
-#     fl = deepcopy(fl)
-#     # find the "always known" status by referencing it from the domain predicates
-#     for dp in domain.predicates:
-#         if dp.name == fl.name and len(dp.terms) == len(fl.terms):
-#             fl.always_known = dp.always_known
-#             return fl
-#     raise ValueError(f"Predicate {fl.name} with terms {fl.terms} terms not found in domain predicates.")
 
 def check_intention_error(modl: MODL, domain):
     action_names = [a.name for a in domain.actions]
@@ -160,11 +151,13 @@ def create_grounded_operators(domain, problem):
 def gather_itn_preds(formula):
     itn_preds = set()
     for fo in formula:
-        if isinstance(fo, MODL):
-            if isinstance(fo.mod_type, ActionMODLType) or isinstance(fo.mod_type, PossibleActionMODLType):
-                itn_preds.add(fo._get_predicate())
-        elif isinstance(fo, Predicate):
+        if isinstance(fo, Predicate):
             pass
+        elif isinstance(fo, MODL):
+            if isinstance(fo.mod_type, ActionMODLType) or isinstance(fo.mod_type, PossibleActionMODLType):
+                pred = fo._get_predicate()
+                if not isinstance(pred, RMLPredicate):
+                    itn_preds.add(pred)
         elif isinstance(fo, ForallCondition):
             itn_preds.update(gather_itn_preds([fo.condition]))
         elif isinstance(fo, Forall):
@@ -181,7 +174,7 @@ def gather_itn_preds(formula):
             raise NotImplementedError("Unknown formula type: " + str(type(fo)))
     return itn_preds
 
-def create_itn_action_preds(operators, agents, problem):
+def create_itn_action_preds(operators, agents, problem, anc_effs):
     operators = list(operators)
     itn_preds = set()
     # find all intention predicates
@@ -190,6 +183,12 @@ def create_itn_action_preds(operators, agents, problem):
     for a in operators:
         itn_preds.update(gather_itn_preds(a.precondition.operands))
         itn_preds.update(gather_itn_preds(a.effect.operands))
+    for ae in anc_effs.anceffs:
+        for fo in (ae.antecedent.rml + ae.consequent.rml):
+            if isinstance(fo, ListCompVar) or isinstance(fo, ListCompAgents):
+                itn_preds.update(gather_itn_preds([fo.term]))
+            else:
+                itn_preds.update(gather_itn_preds([fo]))
     itn_preds_strs = [str(p) for p in itn_preds]
     action_intention_f = set()
     for i in range(len(operators)):
@@ -203,12 +202,12 @@ def create_itn_action_preds(operators, agents, problem):
             action_intention_f.update(action_iaps)
     return set(operators), action_intention_f
 
-def ground(domain, problem):
+def ground(anc_effs, domain, problem):
     lifted_action_names = {a.name for a in domain.actions}
     domain.lifted_action_names = lifted_action_names
     g_formulas = create_grounded_fluents(domain, problem)
     g_operators = create_grounded_operators(domain, problem)
-    g_operators, action_intention_f = create_itn_action_preds(g_operators, domain._agents, problem)
+    g_operators, action_intention_f = create_itn_action_preds(g_operators, domain._agents, problem, anc_effs)
     g_formulas.update(action_intention_f)
     grounded_domain = pddl_core.Domain(
         name=domain.name,

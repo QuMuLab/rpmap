@@ -1,7 +1,7 @@
 import pddl as pddl
 import pddl.core
-from .domain import atomic_formula_term, terminal_predicate
-from .anc_eff import modl, MODL
+from .domain import terminal_predicate
+from .anc_eff import modl, MODL, atomic_formula_term
 from ..utils import *
 from pddl.formatter import (
     print_constants,
