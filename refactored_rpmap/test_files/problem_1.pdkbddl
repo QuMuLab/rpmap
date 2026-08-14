@@ -21,9 +21,8 @@
         ;; (at bob l2)
 
         ;; [bel, alice](secret alice)
-        ;; [bel, bob](secret bob)
+        [bel, bob](secret bob)
 
-        [itn, alice](move bob l1 l2)
 
         (forall (?ag - agent)
             [bel, ?ag][des, ?ag](secret ?ag)

@@ -51,7 +51,6 @@ def ground_formula(formula: Sequence, assignment, domain, problem):
                 fl = Predicate(fo.name, *terms)
                 fl.negated = fo.negated
                 grounded_formulas.add(fl)
-                # grounded_formulas.add(get_always_known_assigned(fl, domain))
         elif isinstance(fo, MODL):
             # need to set the base predicate of the MODL to the grounded predicate
             grounded_predicate = list(ground_formula([fo._get_predicate()], assignment, domain, problem))[0]

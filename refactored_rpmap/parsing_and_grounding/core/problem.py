@@ -1,6 +1,6 @@
 import pddl as pddl
 import pddl.core
-from .domain import terminal_predicate
+from .domain import terminal_predicate, get_constants
 from .anc_eff import modl, MODL, atomic_formula_term
 from ..utils import *
 from pddl.formatter import (
@@ -115,16 +115,10 @@ def is_literal_modified(formula: Formula) -> bool:
     )
 
 def problem__constant(self, args):
-    """
-    Process the 'constant' rule.
+    return get_constants(self, args)
 
-    NOTE: This is taken (verbatim) from pddl.parser.problem.ProblemTransformer.constant.
-    The purpose of this function is to rename that transformer function such that it doesn't
-    overlap with the domain "constant" transformer function (since all the transformer
-    functions are being combined under one Transformer). Note that the domain constant transformer
-    also ensures that any constant defined is defined under the domain 'constants.'
-    """
-    return Constant(args[0])
+def problem__gd(self, args):
+    return self._domain_transformer.gd(args)
 
 # ----- GRAMMAR CONSTRUCTION -----
 
@@ -161,7 +155,7 @@ def construct_problem_grammar():
     )
     replace_in_grammar(
         "init_el:               literal_name",
-        "init_el:               gd_name"
+        "init_el:               init_f"
     )
     inject_problem_grammar("problem__constant", "NAME", problem__constant)
     inject_problem_grammar("terminal_predicate_constant_problem", "LPAR [EXC] predicate problem__constant* RPAR", terminal_predicate)
@@ -171,12 +165,19 @@ def construct_problem_grammar():
     inject_problem_grammar("depth", "LPAR DEPTH NUMBER RPAR", depth_transformer)
     inject_problem_grammar("task", "LPAR TASK require_task_key RPAR", task_transformer)
     inject_problem_grammar("init_type", "LPAR INIT_TYPE COMPLETE RPAR", init_type_transformer)
-    inject_problem_grammar("plan", "LPAR PLAN gd_name* RPAR", plan_transformer)
-    inject_problem_grammar("goal", "LPAR GOAL gd RPAR", goal_transformer)
+    inject_problem_grammar("plan", "LPAR PLAN init_f* RPAR", plan_transformer)
+    inject_problem_grammar("goal", "LPAR GOAL problem__gd RPAR", goal_transformer)
 
-    inject_problem_grammar("gd_name", "atomic_formula_name | LPAR AND gd_name* RPAR | problem_forall", basic_tokens_transformer)
+    inject_problem_grammar("init_f", "atomic_formula_name | LPAR AND init_f* RPAR | problem_forall", basic_tokens_transformer)
     inject_problem_grammar("problem_forall", "LPAR FORALL LPAR typed_list_variable RPAR problem_effect RPAR", problem_forall)
-    inject_problem_grammar("problem_effect", "LPAR AND atomic_formula_term* RPAR | atomic_formula_term", return_option)
+    inject_problem_grammar("problem_effect", "LPAR AND problem__atomic_formula_term* RPAR | problem__atomic_formula_term", return_option)
+    
+    inject_problem_grammar("problem__atomic_formula_term", "[EXC] modl* problem__terminal_predicate", atomic_formula_term)
+    inject_problem_grammar("problem__terminal_predicate", "LPAR [EXC] predicate problem__const_or_var_term* RPAR", terminal_predicate)
+    inject_problem_grammar("problem__const_or_var_term", "problem__constant | var", return_option)
+    inject_problem_grammar("problem__gd", "problem__atomic_formula_term | LPAR OR problem__gd* RPAR | LPAR NOT problem__gd RPAR | LPAR AND problem__gd* RPAR | \
+                           LPAR IMPLY problem__gd problem__gd RPAR | LPAR EXISTS LPAR typed_list_variable RPAR problem__gd RPAR | LPAR FORALL LPAR typed_list_variable RPAR problem__gd RPAR |\
+                            LPAR binary_comp f_exp f_exp RPAR", problem__gd)
 
 
     pddl.core.Problem.orig_init = pddl.core.Problem.__init__

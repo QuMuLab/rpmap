@@ -2,7 +2,9 @@ from __future__ import annotations
 from enum import Enum
 from lark.visitors import Transformer, Token
 from pddl.core import Predicate
-from pddl.logic.terms import Variable
+from pddl.logic.terms import Variable, Constant
+from pddl.parser.domain import DomainTransformer
+from pddl.parser.problem import ProblemTransformer
 from copy import deepcopy
 from ..utils import return_option
 
@@ -142,6 +144,30 @@ class AncEffs:
 
 # ----- TRANSFORMER FUNCTIONS -----
 
+def atomic_formula_term(self, args):
+    negate_modalities = True if args[0] else False
+    modls_no_neg = args[1:]
+    for i in range(len(modls_no_neg) - 1, - 1, - 1):
+        if isinstance(modls_no_neg[i], Predicate):
+            continue
+        modls_no_neg[i] = modls_no_neg[i](modls_no_neg[i + 1])
+    modl = modls_no_neg[0]
+    return NOT_MODL()(modl) if negate_modalities else modl
+
+def get_constants(transformer_class, args):
+    if isinstance(transformer_class, DomainTransformer):
+        constants = transformer_class._constants_by_name | transformer_class._agents_objects
+    elif isinstance(transformer_class, ProblemTransformer):
+        constants = transformer_class._objects_by_name | transformer_class._domain_transformer._constants_by_name | transformer_class._domain_transformer._agents_objects
+    elif isinstance(transformer_class, AncEffTransformer):
+        constants = transformer_class._domain_transformer._constants_by_name | transformer_class._domain_transformer._agents_objects
+    else:
+        raise ValueError(f"Unknown transformer received: {transformer_class}")
+    obj = args[0].value
+    if obj not in constants:
+        raise ValueError(f"Constant object {obj} not defined.")
+    return constants[obj]
+
 def var(self, args):
     return Variable(args[1].value)
 
@@ -160,16 +186,6 @@ def modl(self, args):
         if term_name in [m.name for m in modl_type]:
             return MODL(modl_type[term_name], Agent(args[3].name, True if isinstance(args[3], Variable) else False))
     raise ValueError(f"MODL Type {term_name} is not specified in any of the MODLType categories in 'anc_eff.py.'")
-
-def atomic_formula_term(self, args):
-    negate_modalities = True if args[0] else False
-    modls_no_neg = args[1:]
-    for i in range(len(modls_no_neg) - 1, - 1, - 1):
-        if isinstance(modls_no_neg[i], Predicate):
-            continue
-        modls_no_neg[i] = modls_no_neg[i](modls_no_neg[i + 1])
-    modl = modls_no_neg[0]
-    return NOT_MODL()(modl) if negate_modalities else modl
 
 def terminal_helper(args, name):
     pred = RMLPredicate(name)

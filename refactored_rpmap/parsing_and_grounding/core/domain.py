@@ -14,15 +14,17 @@ from pddl.helpers.base import _typed_parameters
 from pddl.logic.predicates import Predicate
 from pddl.logic.terms import Variable, Constant
 from pddl.parser import domain, GRAMMAR_FILE
+from pddl.parser.domain import DomainTransformer
+from pddl.parser.problem import ProblemTransformer
 from pddl._validation import Types, TypeChecker
 from textwrap import indent
-from .anc_eff import MODL, atomic_formula_term
+from .anc_eff import MODL, atomic_formula_term, get_constants
 
 # ----- TRANSFORMER FUNCTIONS -----
 
 def constant(self, args):
-    return Constant(args[0].value)
-
+    return get_constants(self, args)
+    
 def action_transformer(self, args):
     """Adapted from the pddl.parser.domain.DomainTransformer.action_def method."""
     action_name = args[2]
@@ -48,6 +50,7 @@ def agents_transformer(self, args):
     """Transformer for agents."""
     # assign the agents
     self._agents = set(args[1:-1])
+    self._agents_objects = {a: Constant(a) for a in self._agents}
     return {"agents": self._agents}
 
 def check_pred_name(pred_name):
