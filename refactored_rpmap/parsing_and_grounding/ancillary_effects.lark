@@ -46,7 +46,7 @@ modl_term: BELIEF | DESIRE | INTENTION | DISDAIN | LOVE
 
 modl: LSQB modl_term COMMA const_or_var_term RSQB | LESSER_OP modl_term COMMA const_or_var_term GREATER_OP
 
-rml_options: var | list_comp_r_var | list_comp_r_agents | list_comp_rml_var | list_comp_rml_agents | atomic_formula_term_rml | gd
+rml_options: list_comp_r_var | list_comp_r_agents | list_comp_rml_var | list_comp_rml_agents | atomic_formula_term_rml | effect
 
 terminal_rml: [LSQB] LPAR [EXC] RML_NAME RPAR [RSQB]
 
