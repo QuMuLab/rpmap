@@ -118,7 +118,7 @@ def new_predicate_str_rmls(self):
         terms = f"{'_'.join(map(str, self.terms))})" 
         p_str = f"{p_str}_{terms}"
     if self.negated:
-        p_str = f"(not ({p_str})" if self.always_known else f"(not_{p_str}"
+        p_str = f"(not_{p_str}"
     else:
         p_str = f"({p_str}"
     return p_str   
