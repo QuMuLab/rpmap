@@ -50,21 +50,27 @@ def agents_transformer(self, args):
     self._agents = set(args[1:-1])
     return {"agents": self._agents}
 
+def check_pred_name(pred_name):
+    if pred_name in ["rml", "r"]:
+        raise ValueError(f"Cannot use the predicate name '{pred_name}'; it is reserved for ancillary effects.")
+
 def atomic_formula_skeleton(self, args):   
     """Adapted from the pddl.parser.domain.DomainTransformer.atomic_formula_skeleton method."""
-    predicate_name = args[2] # get name of the predicate
+    pred_name = args[2] # get name of the predicate
+    check_pred_name(pred_name)
     # have an "always known"
     ak = True if args[0] else False
     # remove "always known" so variables are in the correct position
     args = args[1:]
     variables = self._formula_skeleton(args)
-    p = Predicate(predicate_name, *variables)
+    p = Predicate(pred_name, *variables)
     p.always_known = True if ak else False
     return p
 
 def terminal_predicate(self, args):
     domain_preds = self._predicates_by_name if hasattr(self, "_predicates_by_name") else self._domain_transformer._predicates_by_name
     pred_name = args[2].value
+    check_pred_name(pred_name)
     if pred_name not in domain_preds:
         raise ValueError(f"Predicate {pred_name} not defined in the domain.")
     terms = args[3:-1]
@@ -75,7 +81,7 @@ def terminal_predicate(self, args):
     if args[1]:
         pred.negated = True
     if pred.negated and pred.always_known:
-        raise ValueError("Cannot apply a `!` to a predicate that is always known.")
+        raise ValueError("Cannot apply a '!' to a predicate that is always known.")
     return pred
 
 def dollar_term_transformer(self, args):

@@ -82,7 +82,7 @@ def ground_formula(formula: Sequence, assignment, domain, problem):
                 grounded_formulas.update(ground_formula([o], assignment, domain, problem))
         elif isinstance(fo, Not):
             if not isinstance(fo.argument, MODL) and not isinstance(fo.argument, Predicate):
-                raise ValueError(f"`Not` was applied to {type(fo.argument)}. `Not` can only be applied to a MODL or Predicate.")
+                raise ValueError(f"'Not' was applied to {type(fo.argument)}. 'Not' can only be applied to a MODL or Predicate.")
             grounded_formulas.add(Not(list(ground_formula([fo.argument], assignment, domain, problem))[0]))
         elif isinstance(fo, When):
             cond = ground_formula([fo.condition], assignment, domain, problem)
