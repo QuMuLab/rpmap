@@ -113,11 +113,14 @@ def create_grounded_operators(domain, problem):
     operators = set()
     for a in domain.actions:
         vars = set(a.parameters)
-        var_names = [v.name for v in vars]
         if a.derive_condition and not isinstance(a.derive_condition, str):
-            for term in a.derive_condition.terms:
-                if term.name not in var_names:
-                    vars.add(term)
+            is_modl = isinstance(a.derive_condition, MODL)
+            # get predicate terms
+            dc_pred = a.derive_condition._get_predicate() if is_modl else a.derive_condition
+            vars.update(dc_pred.terms)
+            if is_modl:
+                if a.derive_condition.agent.var:
+                    vars.add(Variable(a.derive_condition.agent.name, type_tags=["agent"]))
         var_names = [v.name for v in vars]
         val_generator = create_valuations(domain._agents, problem.objects, vars)
         for valuation in val_generator:

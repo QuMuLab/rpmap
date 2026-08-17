@@ -18,7 +18,7 @@ from pddl.parser.domain import DomainTransformer
 from pddl.parser.problem import ProblemTransformer
 from pddl._validation import Types, TypeChecker
 from textwrap import indent
-from .anc_eff import MODL, atomic_formula_term, get_constants
+from .anc_eff import MODL, atomic_formula_term, get_constants, modl
 
 # ----- TRANSFORMER FUNCTIONS -----
 
@@ -88,14 +88,10 @@ def terminal_predicate(self, args):
     return pred
 
 def dollar_term_transformer(self, args):
-    return Variable(f"{args[1].value}")
+    return Variable(f"dlr_{args[1].value}")
 
-def derived_conditions_transformer(self, args):
-    if len(args) == 1: # result is ALWAYS or NEVER
-        return args[0].value
-    else: # result is a complex derived condition
-        args = [args[0]] + [None] + args[1:]
-        return terminal_predicate(self, args)
+def return_token_val(self, args):
+    return args.value
 
 # ----- STRING AND PRINT FUNCTIONS -----
 
@@ -242,10 +238,13 @@ def construct_domain_grammar():
     inject_domain_grammar("atomic_formula_skeleton", "[AK] LPAR NAME typed_list_variable RPAR", atomic_formula_skeleton)
     inject_domain_grammar("dollar_term", "DLR NAME DLR", dollar_term_transformer)
     inject_domain_grammar("DLR", "\"$\"", basic_token_transformer)
-    inject_domain_grammar("derived_term", "var | dollar_term", return_option)
-    inject_domain_grammar("ALWAYS", "\"always\"", basic_token_transformer)
-    inject_domain_grammar("NEVER", "\"never\"", basic_token_transformer)
-    inject_domain_grammar("derived_conditions", "ALWAYS | NEVER | LPAR predicate derived_term* RPAR", derived_conditions_transformer)
+    inject_domain_grammar("derived_term", "const_or_var_term | dollar_term", return_option)
+    inject_domain_grammar("ALWAYS", "\"always\"", return_token_val)
+    inject_domain_grammar("NEVER", "\"never\"", return_token_val)
+    inject_domain_grammar("derived_modl", "LSQB modl_term COMMA derived_term RSQB | LESSER_OP modl_term COMMA derived_term GREATER_OP", modl)
+    inject_domain_grammar("derived_terminal_predicate", "LPAR [EXC] predicate derived_term* RPAR", terminal_predicate)
+    inject_domain_grammar("derived_atomic_formula_term", "[EXC] derived_modl* derived_terminal_predicate", atomic_formula_term)
+    inject_domain_grammar("derived_conditions", "ALWAYS | NEVER | derived_atomic_formula_term", return_option)
     inject_domain_grammar("DERIVE_CONDITION", "\":derive-condition\"", basic_tokens_transformer)
     replace_in_grammar(
         "action_def:        LPAR ACTION NAME PARAMETERS action_parameters action_body_def RPAR",
