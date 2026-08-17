@@ -2,7 +2,7 @@ from refactored_rpmap.parsing_and_grounding.core.anc_eff import *
 from refactored_rpmap.parsing_and_grounding.core.domain import modify_predicate_class
 import unittest
 
-class AncillaryEffectConstructionTesting(unittest.TestCase):
+class ModalityConstructionTesting(unittest.TestCase):
     def get_vars(self):
         modify_predicate_class()
         agent1 = Agent("alice", False)

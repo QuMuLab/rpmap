@@ -1,5 +1,5 @@
 {include:domain.pdkbddl}
-{include:ancillary_effects.pdkbddl}
+{include:default.pdkbddl}
 
 (define (problem depth_2_agents_2)
 

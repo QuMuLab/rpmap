@@ -35,8 +35,9 @@ def read_pdkbddl_file(fname):
                 found = True
 
         for index in reversed(include_indices):
-            new_file = os.path.join(os.path.split(fname)[0], lines[index].split(':')[1][:-1])
-            lines = lines[:index] + read_pdkbddl_file(new_file) + lines[index+1:]
+            import_name = lines[index].split(':')[1][:-1]
+            file_path = os.path.join(os.path.split(fname)[0], import_name) if "domain" in import_name else os.path.join("ancillary_effect_imports", import_name)
+            lines = lines[:index] + read_pdkbddl_file(file_path) + lines[index+1:]
 
     # Strip out the comments and empty lines
     lines = [x for x in lines if x != '']
