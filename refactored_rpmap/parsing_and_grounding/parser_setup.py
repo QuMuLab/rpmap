@@ -7,6 +7,7 @@ from pddl.parser.domain import DomainTransformer
 from pddl.parser.problem import ProblemTransformer
 from pddl.parser import GRAMMAR_FILE
 import pddl
+import warnings
 
 
 def read_pdkbddl_file(fname):
@@ -89,6 +90,12 @@ def merge_transformers_modified(base_transformer=None, **transformers_to_merge):
         base_transformer = Transformer()
     for _, transformer in transformers_to_merge.items():
         for method_name in dir(transformer):
+            if method_name == "types_hierarchy":
+                try:
+                    method = getattr(transformer, method_name)
+                except RuntimeError as e:
+                    warnings.warn("The pddl library has not yet made types hierarchy available for use.")
+                    continue
             method = getattr(transformer, method_name)
             if not callable(method):
                 continue

@@ -196,6 +196,7 @@ def construct_problem_grammar():
     delattr(problem.ProblemTransformer, "gd")
     delattr(problem.ProblemTransformer, "constant")
     delattr(problem.ProblemTransformer, "requirements")
+    delattr(problem.ProblemTransformer, "num_literal")
     delattr(pddl.logic.base, "is_literal")
     pddl.logic.base.is_literal = is_literal_modified
     pddl.core.is_literal = is_literal_modified
