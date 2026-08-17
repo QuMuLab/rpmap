@@ -20,21 +20,21 @@ def check_intention_error(modl: MODL, domain):
             raise ValueError("Cannot intend a predicate; you can only intend an action.")
 
 def set_modl_deepest_child(modl, new_child, assignment = None):
-        modls = []
-        current = deepcopy(modl)
-        while isinstance(current, MODL):
-            current_no_child = deepcopy(current)
-            current_no_child.child = None
-            if assignment:
-                current_no_child.agent = Agent(assignment[current_no_child.agent.name], False)
-            modls.append(current_no_child)
-            current = deepcopy(current.child)
-        modls.append(new_child)
-        for i in range(len(modls) - 1, - 1, - 1):
-            if isinstance(modls[i], Predicate):
-                continue
-            modls[i] = modls[i](modls[i + 1])
-        return modls[0]
+    modls = []
+    current = deepcopy(modl)
+    while isinstance(current, MODL):
+        current_no_child = deepcopy(current)
+        current_no_child.child = None
+        if assignment:
+            current_no_child.agent = Agent(assignment[current_no_child.agent.name], False)
+        modls.append(current_no_child)
+        current = deepcopy(current.child)
+    modls.append(new_child)
+    for i in range(len(modls) - 1, - 1, - 1):
+        if isinstance(modls[i], Predicate):
+            continue
+        modls[i] = modls[i](modls[i + 1])
+    return modls[0]
 
 def ground_formula(formula: Sequence, assignment, domain, problem):
     grounded_formulas = set()

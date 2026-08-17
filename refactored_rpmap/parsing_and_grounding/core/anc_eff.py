@@ -184,7 +184,12 @@ def modl(self, args):
         term_name = "P" + term_name
     for modl_type in possible_classes:
         if term_name in [m.name for m in modl_type]:
-            return MODL(modl_type[term_name], Agent(args[3].name, True if isinstance(args[3], Variable) else False))
+            if isinstance(args[3], Constant):
+                if args[3].name not in self._domain_transformer._agents:
+                    raise ValueError(f"Unknown agent {args[3].name} referenced.")
+                return MODL(modl_type[term_name], Agent(args[3].name, False))
+            else:
+                return MODL(modl_type[term_name], Agent(args[3].name, True))
     raise ValueError(f"MODL Type {term_name} is not specified in any of the MODLType categories in 'anc_eff.py.'")
 
 def terminal_helper(args, name):
