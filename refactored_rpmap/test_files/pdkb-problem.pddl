@@ -3,13 +3,13 @@
 	(:requirements :disjunctive-preconditions :typing)
 	(:objects l1 l2 - loc)
 	(:init 
+		(BEL_bob_secret_bob)
 		(BEL_alice_DES_alice_secret_alice)
 		(BEL_bob_DES_bob_secret_bob)
-		(BEL_bob_secret_bob)
 	)
 	(:goal 
-		(ITN_bob_move_alice_l1_l2)
-		(ITN_alice_move_alice_l1_l2)
 		(not (connected_l1_l2))
+		(ITN_alice_move_alice_l1_l2)
+		(ITN_bob_move_alice_l1_l2)
 	)
 )

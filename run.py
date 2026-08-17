@@ -6,10 +6,7 @@ from refactored_rpmap.parsing_and_grounding.utils import write
 from pddl.parser import GRAMMAR_FILE
 import os
 
-def test_parse():
-    # grab the PDDL
-    pddl_str = "\n".join(read_pdkbddl_file(os.path.join("refactored_rpmap", "test_files", "problem_1.pdkbddl")))
-
+def create_updated_grammar_file():
     # read the original grammar file
     original_path = os.path.join("refactored_rpmap", "parsing_and_grounding", "grammar.lark")
     with open(original_path, "r") as f:
@@ -29,9 +26,19 @@ def test_parse():
     # read the lark file
     with open(GRAMMAR_FILE, "r") as f:
         grammar = f.read()
-    # set up the parser with the lark and parse the PDDL
+    return grammar
+
+def parse(grammar, pdkbddl_str):
     parser = AncEffDomProbParser(grammar)
-    result = parser(pddl_str)
+    return parser(pdkbddl_str)
+
+def get_parsing_result(pdkbddl_str):
+    grammar = create_updated_grammar_file()
+    return parse(grammar, pdkbddl_str)
+
+def test_parse(pdkbddl_str):
+    result = get_parsing_result(pdkbddl_str)
+
     anc_effs, grounded_domain, grounded_problem = (result[1][0], *ground(result[1][0], result[0], result[2]))
     base_path = os.path.join("refactored_rpmap", "test_files")
     grounded_dom_path = os.path.join(base_path, "pdkb-domain.pddl")
@@ -40,4 +47,4 @@ def test_parse():
     write(grounded_prob_path, str(grounded_problem))
 
 if __name__ == "__main__":
-    test_parse()
+    test_parse("\n".join(read_pdkbddl_file(os.path.join("refactored_rpmap", "test_files", "problem_1.pdkbddl"))))

@@ -129,8 +129,33 @@ def inject_problem_grammar(label, rule, function, grammar_file=GRAMMAR_FILE):
     write_no_duplicate(new_rule, grammar_file)
     setattr(problem.ProblemTransformer, label, function)
 
+def modify_problem_classes():
+    pddl.core.Problem.orig_init = pddl.core.Problem.__init__
+    pddl.core.Problem.__init__ = new_init_problem
+    pddl.core.Problem.__str__ = new_problem_str
+    pddl.logic.base.is_literal = is_literal_modified
+    pddl.core.is_literal = is_literal_modified
+
+def modify_problem_classes_and_transformer():
+    modify_problem_classes()
+    delattr(problem.ProblemTransformer, "literal_name")
+    # delete the start attribute (a new start rule will be made)
+    delattr(problem.ProblemTransformer, "start")
+    # delete the other attributes overlapping with the domain,
+    # as we are combining the transformers into one Transformer
+    delattr(problem.ProblemTransformer, "atomic_formula_term")
+    delattr(problem.ProblemTransformer, "typed_list_name")
+    delattr(problem.ProblemTransformer, "f_exp")
+    delattr(problem.ProblemTransformer, "f_head")
+    delattr(problem.ProblemTransformer, "gd")
+    delattr(problem.ProblemTransformer, "constant")
+    delattr(problem.ProblemTransformer, "requirements")
+    delattr(problem.ProblemTransformer, "num_literal")
+    delattr(pddl.logic.base, "is_literal")
+
 def construct_problem_grammar():
     """Construct the entire problem grammar."""
+    modify_problem_classes_and_transformer()
     replace_in_grammar(
         "LPAR DEFINE problem_def problem_domain [requirements] [objects] init goal [metric_spec] RPAR",
         "LPAR DEFINE problem_def problem_domain [objects] projection depth task init_type init goal [metric_spec] [plan] RPAR"
@@ -178,25 +203,3 @@ def construct_problem_grammar():
     inject_problem_grammar("problem__gd", "problem__atomic_formula_term | LPAR OR problem__gd* RPAR | LPAR NOT problem__gd RPAR | LPAR AND problem__gd* RPAR | \
                            LPAR IMPLY problem__gd problem__gd RPAR | LPAR EXISTS LPAR typed_list_variable RPAR problem__gd RPAR | LPAR FORALL LPAR typed_list_variable RPAR problem__gd RPAR |\
                             LPAR binary_comp f_exp f_exp RPAR", problem__gd)
-
-
-    pddl.core.Problem.orig_init = pddl.core.Problem.__init__
-    pddl.core.Problem.__init__ = new_init_problem
-    pddl.core.Problem.__str__ = new_problem_str
-
-    delattr(problem.ProblemTransformer, "literal_name")
-    # delete the start attribute (a new start rule will be made)
-    delattr(problem.ProblemTransformer, "start")
-    # delete the other attributes overlapping with the domain,
-    # as we are combining the transformers into one Transformer
-    delattr(problem.ProblemTransformer, "atomic_formula_term")
-    delattr(problem.ProblemTransformer, "typed_list_name")
-    delattr(problem.ProblemTransformer, "f_exp")
-    delattr(problem.ProblemTransformer, "f_head")
-    delattr(problem.ProblemTransformer, "gd")
-    delattr(problem.ProblemTransformer, "constant")
-    delattr(problem.ProblemTransformer, "requirements")
-    delattr(problem.ProblemTransformer, "num_literal")
-    delattr(pddl.logic.base, "is_literal")
-    pddl.logic.base.is_literal = is_literal_modified
-    pddl.core.is_literal = is_literal_modified

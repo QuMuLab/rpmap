@@ -118,7 +118,7 @@ class AncEffDomProbParser:
     """Domain and/or problem PDDL domain parser class.
     Taken from the fond-utils library"""
 
-    def __init__(self, grammar, import_paths=GRAMMAR_FILE):
+    def __init__(self, grammar):
         """Initialize."""
         # monkey patch the ProblemTransformer to include a direct reference to the DomainTransformer used
         pddl.parser.problem.ProblemTransformer.__init__ = new_problem_transformer_init
@@ -130,9 +130,7 @@ class AncEffDomProbParser:
             problem=ProblemTransformer(domain),
         )
         # need to use earley; lalr will not be able to recognise files with just problems (no left)
-        self._parser = Lark(
-            grammar, parser="earley", import_paths=[import_paths]
-        )
+        self._parser = Lark(grammar, parser="earley")
 
     def __call__(self, text):
         """Call the object as a function

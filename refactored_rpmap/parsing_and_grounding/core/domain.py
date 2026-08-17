@@ -221,7 +221,7 @@ def inject_domain_grammar(label, rule, function, grammar_file=GRAMMAR_FILE):
     write_no_duplicate(new_rule, grammar_file)
     setattr(domain.DomainTransformer, label, function)
 
-def modify_predicate_class():
+def modify_domain_classes():
     pddl.logic.predicates.Predicate.__str__ = new_predicate_str_rmls_str
     pddl.logic.predicates.Predicate.__repr__ = new_predicate_str_rmls_repr
     pddl.logic.predicates.Predicate.__eq__ = new_predicate_eq
@@ -230,13 +230,25 @@ def modify_predicate_class():
     pddl.logic.predicates.Predicate.negated = False
     pddl.logic.predicates.Predicate._negate = negate_predicate
     pddl.logic.predicates.Predicate._get_predicate = lambda self: deepcopy(self)
+    pddl.action.Action.__str__ = new_action_str
+    pddl.action.Action.derive_condition = None
+    pddl.core.Domain.orig_init = pddl.core.Domain.__init__
+    pddl.core.Domain.__init__ = new_init_domain
+    pddl.core.Domain.__str__ = new_domain_str
+    pddl.core.Domain.grounded_print = False
+    pddl.core.Action.grounded_print = False
+
+def modify_domain_classes_and_transformer():
+    modify_domain_classes()
+    # delete the start attribute (a new start rule will be made)
+    delattr(domain.DomainTransformer, "start")
+    delattr(domain.DomainTransformer, "constant")
 
 # to build the domain grammar via Python magic
 def construct_domain_grammar():
     """Construct the entire domain grammar."""
-    modify_predicate_class()
-    pddl.action.Action.__str__ = new_action_str
-    pddl.action.Action.derive_condition = None
+    modify_domain_classes_and_transformer()
+    
     inject_domain_grammar("agents", "LPAR \":agents\" agent+ RPAR", agents_transformer)
     inject_domain_grammar("agent", "/[a-zA-Z_][a-zA-Z0-9_]*/", agent_transformer)
     replace_in_grammar(
@@ -270,14 +282,5 @@ def construct_domain_grammar():
     )
     inject_domain_grammar("terminal_predicate", "LPAR [EXC] predicate const_or_var_term* RPAR", terminal_predicate)
     inject_domain_grammar("atomic_formula_term", "[EXC] modl* terminal_predicate", atomic_formula_term)
-    pddl.core.Domain.orig_init = pddl.core.Domain.__init__
-    pddl.core.Domain.__init__ = new_init_domain
-    pddl.core.Domain.__str__ = new_domain_str
-    pddl.core.Domain.grounded_print = False
-    pddl.core.Action.grounded_print = False
-    # delete the start attribute (a new start rule will be made)
-    delattr(domain.DomainTransformer, "start")
-    delattr(domain.DomainTransformer, "constant")
     inject_domain_grammar("const_or_var_term", "constant | var", return_option)
     inject_domain_grammar("constant", "NAME", constant)
-

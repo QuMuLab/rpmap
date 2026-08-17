@@ -1,10 +1,10 @@
 from refactored_rpmap.parsing_and_grounding.core.anc_eff import *
-from refactored_rpmap.parsing_and_grounding.core.domain import modify_predicate_class
+from run import create_updated_grammar_file
 import unittest
 
 class ModalityConstructionTesting(unittest.TestCase):
     def get_vars(self):
-        modify_predicate_class()
+        create_updated_grammar_file()
         agent1 = Agent("alice", False)
         agent2 = Agent("bob", False)
         agent3 = Agent("cindy", False)
