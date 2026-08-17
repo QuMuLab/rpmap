@@ -60,7 +60,7 @@ def ground_formula(formula: Sequence, assignment, domain, problem):
             grounded_formulas.add(grounded_modl)
         elif isinstance(fo, ForallCondition):
             vars = {v for v in fo.variables}
-            val_generator = create_valuations(domain._agents, problem.objects, vars)
+            val_generator = create_valuations(domain._agents.keys(), domain.gathered_constants, vars)
             for valuation in val_generator:
                 var_names = [v.name for v in vars]
                 for var_name, val in zip(var_names, valuation):
@@ -69,7 +69,7 @@ def ground_formula(formula: Sequence, assignment, domain, problem):
             assignment = {}
         elif isinstance(fo, Forall):
             var_names = [v.name for v in fo.variables]
-            val_generator = create_valuations(domain._agents, problem.objects, fo.variables)
+            val_generator = create_valuations(domain._agents.keys(), domain.gathered_constants, fo.variables)
             for valuation in val_generator:
                 # need to add onto the existing assignment so we retain knowledge of outer variables
                 for var_name, val in zip(var_names, valuation):
@@ -101,7 +101,7 @@ def ground_formula(formula: Sequence, assignment, domain, problem):
 def create_grounded_fluents(domain, problem):
     formulas = set()
     for p in domain.predicates:
-        val_generator = create_valuations(domain._agents, problem.objects, p.terms)
+        val_generator = create_valuations(domain._agents.keys(), domain.gathered_constants, p.terms)
         vars = p.terms if isinstance(p, Predicate) else p._get_predicate().terms
         var_names = [v.name for v in vars]
         for valuation in val_generator:
@@ -122,7 +122,7 @@ def create_grounded_operators(domain, problem):
                 if a.derive_condition.agent.var:
                     vars.add(Variable(a.derive_condition.agent.name, type_tags=["agent"]))
         var_names = [v.name for v in vars]
-        val_generator = create_valuations(domain._agents, problem.objects, vars)
+        val_generator = create_valuations(domain._agents.keys(), domain.gathered_constants, vars)
         for valuation in val_generator:
             assignment = {var_name: val for var_name, val in zip(var_names, valuation)}
             op_name_suffix = "_".join([assignment[var.name] for var in a.parameters])
@@ -205,11 +205,14 @@ def create_itn_action_preds(operators, agents, problem, anc_effs):
     return set(operators), action_intention_f
 
 def ground(anc_effs, domain, problem):
+    constants = set(domain.constants) | set(problem.objects) | set(domain._agents.values())
+    domain.gathered_constants = constants
     lifted_action_names = {a.name for a in domain.actions}
     domain.lifted_action_names = lifted_action_names
+
     g_formulas = create_grounded_fluents(domain, problem)
     g_operators = create_grounded_operators(domain, problem)
-    g_operators, action_intention_f = create_itn_action_preds(g_operators, domain._agents, problem, anc_effs)
+    g_operators, action_intention_f = create_itn_action_preds(g_operators, domain._agents.keys(), problem, anc_effs)
     g_formulas.update(action_intention_f)
     grounded_domain = pddl_core.Domain(
         name=domain.name,
@@ -222,6 +225,8 @@ def ground(anc_effs, domain, problem):
         actions=g_operators,
         agents=domain._agents
     )
+
+    grounded_domain.gathered_constants = constants
     grounded_domain.lifted_action_names = lifted_action_names
     g_init = ground_formula(problem.init, {}, grounded_domain, problem)
     g_goal = ground_formula(problem.goal, {}, grounded_domain, problem)

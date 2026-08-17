@@ -49,8 +49,7 @@ def agent_transformer(self, args):
 def agents_transformer(self, args):
     """Transformer for agents."""
     # assign the agents
-    self._agents = set(args[1:-1])
-    self._agents_objects = {a: Constant(a) for a in self._agents}
+    self._agents = {a: Constant(a) for a in set(args[1:-1])}
     return {"agents": self._agents}
 
 def check_pred_name(pred_name):
@@ -135,7 +134,7 @@ def new_domain_str(self):
     body = ""
     body += sort_and_print_collection("(:requirements ", self.requirements, ")\n")
     if not self.grounded_print:
-        body += f"(:agents {' '.join(sorted(self._agents)) if self._agents else ''})\n"
+        body += f"(:agents {' '.join(sorted(self._agents.keys())) if self._agents.keys() else ''})\n"
     self._types = Types(self.types, self._requirements)
     types_str = print_types_or_functions_with_parents("(:types", self.types, ")\n")
     types_str = types_str.replace(" - object", "")  # remove the default object type

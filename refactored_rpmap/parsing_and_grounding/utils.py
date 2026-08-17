@@ -19,10 +19,7 @@ NL_AND_3_TABS = "\n" + "\t" * 3
 def create_valuations(agents, objects, variables: Sequence[Variable]):
     assignment = {}
     for var in variables:
-        if type(var) is Variable:
-            assignment[var.name] = list(agents) if var.type_tags == frozenset({"agent"}) else [o.name for o in objects if o.type_tags == var.type_tags]
-        else:
-            assignment[var.name] = list(agents)
+        assignment[var.name] = [o.name for o in objects if o.type_tags == var.type_tags]
     return itertools.product(*assignment.values())
 
 # ----- PRINT AND FILE WRITE FUNCTIONS -----

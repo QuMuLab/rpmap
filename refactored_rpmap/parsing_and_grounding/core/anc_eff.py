@@ -156,11 +156,11 @@ def atomic_formula_term(self, args):
 
 def get_constants(transformer_class, args):
     if isinstance(transformer_class, DomainTransformer):
-        constants = transformer_class._constants_by_name | transformer_class._agents_objects
+        constants = transformer_class._constants_by_name | transformer_class._agents
     elif isinstance(transformer_class, ProblemTransformer):
-        constants = transformer_class._objects_by_name | transformer_class._domain_transformer._constants_by_name | transformer_class._domain_transformer._agents_objects
+        constants = transformer_class._objects_by_name | transformer_class._domain_transformer._constants_by_name | transformer_class._domain_transformer._agents
     elif isinstance(transformer_class, AncEffTransformer):
-        constants = transformer_class._domain_transformer._constants_by_name | transformer_class._domain_transformer._agents_objects
+        constants = transformer_class._domain_transformer._constants_by_name | transformer_class._domain_transformer._agents
     else:
         raise ValueError(f"Unknown transformer received: {transformer_class}")
     obj = args[0].value
