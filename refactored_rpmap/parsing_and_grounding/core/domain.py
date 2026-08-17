@@ -113,7 +113,7 @@ def new_action_str(self):
     operator_str += ")"
     return operator_str
 
-def new_predicate_str_rmls(self):
+def new_predicate_str_rmls_str(self):
     """New predicate string adapted from the pddl.logic.Predicate.__str__ method."""
     p_str = f"{self.name}"
     if self.arity == 0:
@@ -123,6 +123,20 @@ def new_predicate_str_rmls(self):
         p_str = f"{p_str}_{terms}"
     if self.negated:
         p_str = f"(not_{p_str}"
+    else:
+        p_str = f"({p_str}"
+    return p_str   
+
+def new_predicate_str_rmls_repr(self):
+    """New predicate string adapted from the pddl.logic.Predicate.__str__ method."""
+    p_str = f"{self.name}"
+    if self.arity == 0:
+        p_str += f")"
+    else:
+        terms = f"{'_'.join(map(str, self.terms))})" 
+        p_str = f"{p_str}_{terms}"
+    if self.negated:
+        p_str = f"(!{p_str}"
     else:
         p_str = f"({p_str}"
     return p_str   
@@ -208,8 +222,8 @@ def inject_domain_grammar(label, rule, function, grammar_file=GRAMMAR_FILE):
     setattr(domain.DomainTransformer, label, function)
 
 def modify_predicate_class():
-    pddl.logic.predicates.Predicate.__str__ = new_predicate_str_rmls
-    pddl.logic.predicates.Predicate.__repr__ = new_predicate_str_rmls
+    pddl.logic.predicates.Predicate.__str__ = new_predicate_str_rmls_str
+    pddl.logic.predicates.Predicate.__repr__ = new_predicate_str_rmls_repr
     pddl.logic.predicates.Predicate.__eq__ = new_predicate_eq
     pddl.logic.predicates.Predicate.__hash__ = new_predicate_hash
     pddl.logic.predicates.Predicate.always_known = False
