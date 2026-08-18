@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 from .utils import create_valuations
-from .core.anc_eff import ActionMODLType, PossibleActionMODLType, NOT_MODL, Agent, RMLPredicate, ListCompVar, ListCompAgents
+from .core.anc_eff import ActionMODLType, PossibleActionMODLType, NOT_MODL, Agent, RMLPredicate, ListCompVar, ListCompAgents, RML, Nesting
 from copy import deepcopy
 from pddl.action import Action
 from pddl.logic.base import And, Not, ForallCondition
@@ -10,31 +10,31 @@ from pddl.logic.predicates import Predicate
 import pddl.core as pddl_core
 
 
-def check_intention_error(modl: MODL, domain):
+def check_intention_error(rml: RML, domain):
     action_names = [a.name for a in domain.actions]
-    current = deepcopy(modl)
-    while isinstance(current.child, MODL):
+    current = deepcopy(rml)
+    while isinstance(current.child, RML):
         current = deepcopy(current.child)
     if isinstance(current.mod_type, ActionMODLType) or isinstance(current.mod_type, PossibleActionMODLType):
         if current.child.name not in action_names:
             raise ValueError("Cannot intend a predicate; you can only intend an action.")
 
-def set_modl_deepest_child(modl, new_child, assignment = None):
-    modls = []
-    current = deepcopy(modl)
-    while isinstance(current, MODL):
+def set_rml_deepest_child(rml: RML, new_child, assignment = None):
+    nestings = []
+    current = deepcopy(rml)
+    while isinstance(current, RML):
         current_no_child = deepcopy(current)
         current_no_child.child = None
         if assignment:
             current_no_child.agent = Agent(assignment[current_no_child.agent.name], False)
-        modls.append(current_no_child)
+        nestings.append(Nesting(current_no_child.mod_type, current_no_child.agent))
         current = deepcopy(current.child)
-    modls.append(new_child)
-    for i in range(len(modls) - 1, - 1, - 1):
-        if isinstance(modls[i], Predicate):
+    nestings.append(new_child)
+    for i in range(len(nestings) - 1, - 1, - 1):
+        if isinstance(nestings[i], Predicate):
             continue
-        modls[i] = modls[i](modls[i + 1])
-    return modls[0]
+        nestings[i] = nestings[i](nestings[i + 1])
+    return nestings[0]
 
 def ground_formula(formula: Sequence, assignment, domain, problem):
     grounded_formulas = set()
@@ -51,13 +51,13 @@ def ground_formula(formula: Sequence, assignment, domain, problem):
                 fl = Predicate(fo.name, *terms)
                 fl.negated = fo.negated
                 grounded_formulas.add(fl)
-        elif isinstance(fo, MODL):
-            # need to set the base predicate of the MODL to the grounded predicate
+        elif isinstance(fo, RML):
+            # need to set the base predicate of the RML to the grounded predicate
             grounded_predicate = list(ground_formula([fo._get_predicate()], assignment, domain, problem))[0]
-            grounded_modl = set_modl_deepest_child(fo, grounded_predicate, assignment)
+            grounded_rml = set_rml_deepest_child(fo, grounded_predicate, assignment)
             # need to ground the agents in the MODLs as well
-            check_intention_error(grounded_modl, domain)
-            grounded_formulas.add(grounded_modl)
+            check_intention_error(grounded_rml, domain)
+            grounded_formulas.add(grounded_rml)
         elif isinstance(fo, ForallCondition):
             vars = {v for v in fo.variables}
             val_generator = create_valuations(domain._agents.keys(), domain.gathered_constants, vars)
@@ -80,8 +80,8 @@ def ground_formula(formula: Sequence, assignment, domain, problem):
             for o in fo.operands:
                 grounded_formulas.update(ground_formula([o], assignment, domain, problem))
         elif isinstance(fo, Not):
-            if not isinstance(fo.argument, MODL) and not isinstance(fo.argument, Predicate):
-                raise ValueError(f"'Not' was applied to {type(fo.argument)}. 'Not' can only be applied to a MODL or Predicate.")
+            if not isinstance(fo.argument, RML) and not isinstance(fo.argument, Predicate):
+                raise ValueError(f"'Not' was applied to {type(fo.argument)}. 'Not' can only be applied to an RML or Predicate.")
             grounded_formulas.add(Not(list(ground_formula([fo.argument], assignment, domain, problem))[0]))
         elif isinstance(fo, When):
             cond = ground_formula([fo.condition], assignment, domain, problem)
@@ -114,11 +114,11 @@ def create_grounded_operators(domain, problem):
     for a in domain.actions:
         vars = set(a.parameters)
         if a.derive_condition and not isinstance(a.derive_condition, str):
-            is_modl = isinstance(a.derive_condition, MODL)
+            is_rml = isinstance(a.derive_condition, RML)
             # get predicate terms
-            dc_pred = a.derive_condition._get_predicate() if is_modl else a.derive_condition
+            dc_pred = a.derive_condition._get_predicate() if is_rml else a.derive_condition
             vars.update(dc_pred.terms)
-            if is_modl:
+            if is_rml:
                 if a.derive_condition.agent.var:
                     vars.add(Variable(a.derive_condition.agent.name, type_tags=["agent"]))
         var_names = [v.name for v in vars]
@@ -155,7 +155,7 @@ def gather_itn_preds(formula):
     for fo in formula:
         if isinstance(fo, Predicate):
             pass
-        elif isinstance(fo, MODL):
+        elif isinstance(fo, RML):
             if isinstance(fo.mod_type, ActionMODLType) or isinstance(fo.mod_type, PossibleActionMODLType):
                 pred = fo._get_predicate()
                 if not isinstance(pred, RMLPredicate):
@@ -198,7 +198,7 @@ def create_itn_action_preds(operators, agents, problem, anc_effs):
         if o_name in itn_preds_strs:
             action_iaps = []
             for ag in agents:
-                iap = NOT_MODL()(MODL(PossibleActionMODLType.PITN, Agent(ag, False))(Predicate(operators[i].name)))
+                iap = NOT_MODL()(RML(PossibleActionMODLType.PITN, Agent(ag, False), Predicate(operators[i].name)))
                 action_iaps.append(iap)
             operators[i].effect._operands.extend(action_iaps)
             action_intention_f.update(action_iaps)

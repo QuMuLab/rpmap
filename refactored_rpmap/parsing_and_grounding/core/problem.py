@@ -1,17 +1,14 @@
 import pddl as pddl
 import pddl.core
 from .domain import terminal_predicate, get_constants
-from .anc_eff import modl, atomic_formula_term
+from .anc_eff import modl, atomic_formula_term, RML
 from ..utils import *
 from pddl.formatter import (
     print_constants,
     remove_empty_lines,
     sort_and_print_collection,
 )
-from pddl.helpers.base import assert_
-from pddl.logic.terms import Constant
 from pddl.logic.base import Formula, Atomic, Not, And
-from pddl.logic.terms import Constant
 from pddl.logic.effects import Forall
 from pddl.parser import problem, GRAMMAR_FILE
 from textwrap import indent
@@ -38,7 +35,7 @@ def init_type_transformer(self, args):
     return ("init_type", args) 
 
 def plan_transformer(self, args):
-    """Transformer for the problem plan."""
+#     """Transformer for the problem plan."""
     return ("plan", frozenset(args[2:-1])) 
 
 def task_transformer(self, args):
@@ -108,7 +105,7 @@ def is_literal_modified(formula: Formula) -> bool:
             and False not in [is_literal_modified(o) for o in formula._operands])
         or (isinstance(formula, Not)
             and isinstance(formula.argument, Atomic))
-        or (isinstance(formula, MODL)
+        or (isinstance(formula, RML)
             and isinstance(formula._get_predicate(), Atomic))
         or (isinstance(formula, Forall)
             and is_literal_modified(formula.effect))
@@ -158,7 +155,7 @@ def construct_problem_grammar():
     modify_problem_classes_and_transformer()
     replace_in_grammar(
         "LPAR DEFINE problem_def problem_domain [requirements] [objects] init goal [metric_spec] RPAR",
-        "LPAR DEFINE problem_def problem_domain [objects] projection depth task init_type init goal [metric_spec] [plan] RPAR"
+        "LPAR DEFINE problem_def problem_domain [objects] projection depth task init_type init goal [metric_spec] [plan_def] RPAR"
     )
     # inject the basic problem tokens
     inject_problem_grammar("PROJECTION", "\":projection\"", basic_token_transformer)
@@ -190,7 +187,7 @@ def construct_problem_grammar():
     inject_problem_grammar("depth", "LPAR DEPTH NUMBER RPAR", depth_transformer)
     inject_problem_grammar("task", "LPAR TASK require_task_key RPAR", task_transformer)
     inject_problem_grammar("init_type", "LPAR INIT_TYPE COMPLETE RPAR", init_type_transformer)
-    inject_problem_grammar("plan", "LPAR PLAN init_f* RPAR", plan_transformer)
+    inject_problem_grammar("plan_def", "LPAR PLAN init_f* RPAR", plan_transformer)
     inject_problem_grammar("goal", "LPAR GOAL problem__gd RPAR", goal_transformer)
 
     inject_problem_grammar("init_f", "atomic_formula_name | LPAR AND init_f* RPAR | problem_forall", basic_tokens_transformer)

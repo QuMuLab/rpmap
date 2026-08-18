@@ -108,14 +108,13 @@ class RML(GeneralRML):
 
     def _negate(self):
         if self.mod_type in GenericMODLType:
-            new_base = RML(list(PossibleGenericMODLType)[list(GenericMODLType).index(self.mod_type)], self.agent, self.child)
+            return RML(list(PossibleGenericMODLType)[list(GenericMODLType).index(self.mod_type)], self.agent, self.child._negate())
         elif self.mod_type in PossibleGenericMODLType:
-            new_base = RML(list(GenericMODLType)[list(PossibleGenericMODLType).index(self.mod_type)], self.agent, self.child)
+            return RML(list(GenericMODLType)[list(PossibleGenericMODLType).index(self.mod_type)], self.agent, self.child._negate())
         elif self.mod_type in ActionMODLType:
-            new_base = RML(list(PossibleActionMODLType)[list(ActionMODLType).index(self.mod_type)], self.agent, self.child)
+            return RML(list(PossibleActionMODLType)[list(ActionMODLType).index(self.mod_type)], self.agent, self.child._negate())
         else:
-            new_base = RML(list(ActionMODLType)[list(PossibleActionMODLType).index(self.mod_type)], self.agent, self.child)
-        return new_base(self.child._negate())
+            return RML(list(ActionMODLType)[list(PossibleActionMODLType).index(self.mod_type)], self.agent, self.child._negate())
 
 class NOT_MODL:
     def __init__(self):

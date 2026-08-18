@@ -18,7 +18,7 @@ from pddl.parser.domain import DomainTransformer
 from pddl.parser.problem import ProblemTransformer
 from pddl._validation import Types, TypeChecker
 from textwrap import indent
-from .anc_eff import atomic_formula_term, get_constants, modl
+from .anc_eff import atomic_formula_term, get_constants, modl, RML
 
 # ----- TRANSFORMER FUNCTIONS -----
 
@@ -187,9 +187,9 @@ def new_init_domain(self, *args, **kwargs):
     self.orig_init(*args, **kwargs)
 
 @TypeChecker.check_type.register
-def _(self, modl: MODL) -> None:
-    """Check types annotations of a MODL."""
-    self.check_type(modl._get_predicate())
+def _(self, rml: RML) -> None:
+    """Check types annotations of an RML."""
+    self.check_type(rml._get_predicate())
 
 def new_predicate_eq(self, other):
     """New predicate equality check that takes into account the new always_known, modl, and negated terms."""
