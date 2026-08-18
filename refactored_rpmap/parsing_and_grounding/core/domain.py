@@ -18,7 +18,7 @@ from pddl.parser.domain import DomainTransformer
 from pddl.parser.problem import ProblemTransformer
 from pddl._validation import Types, TypeChecker
 from textwrap import indent
-from .anc_eff import MODL, atomic_formula_term, get_constants, modl
+from .anc_eff import atomic_formula_term, get_constants, modl
 
 # ----- TRANSFORMER FUNCTIONS -----
 

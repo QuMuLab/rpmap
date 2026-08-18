@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 from .utils import create_valuations
-from .core.anc_eff import ActionMODLType, PossibleActionMODLType, MODL, NOT_MODL, Agent, RMLPredicate, ListCompVar, ListCompAgents
+from .core.anc_eff import ActionMODLType, PossibleActionMODLType, NOT_MODL, Agent, RMLPredicate, ListCompVar, ListCompAgents
 from copy import deepcopy
 from pddl.action import Action
 from pddl.logic.base import And, Not, ForallCondition

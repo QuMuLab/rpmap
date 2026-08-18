@@ -2,10 +2,7 @@ import itertools
 import re
 from typing import Sequence
 from lark.lexer import Token
-from pddl.custom_types import namelike, _check_not_a_keyword, name
-from pddl.helpers.base import RegexConstrainedString
-from pddl.logic.predicates import Predicate, _check_terms_consistency
-from pddl.logic.terms import Term, Variable
+from pddl.logic.terms import Variable
 from pddl.parser import GRAMMAR_FILE
 
 

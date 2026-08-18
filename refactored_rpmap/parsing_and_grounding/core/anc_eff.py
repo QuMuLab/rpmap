@@ -44,55 +44,78 @@ class Agent:
     def __repr__(self):
         return f"?{self.name}" if self.var else f"{self.name}"
 
-class MODL:
+class GeneralRML:
     def __init__(self, mod_type: GenericMODLType | PossibleGenericMODLType | ActionMODLType | PossibleActionMODLType, agent: Agent):
         self.mod_type = mod_type
         self.agent = agent
-        self.child = MODL | NOT_MODL | Predicate
+        self.child: GeneralRML | Predicate = None
+
+    def __str__(self):
+        child = f"_{str(self.child)[1:-1]}" if self.child else ""
+        return f"({self.mod_type.name}_{self.agent}{child})"
+
+    def __repr__(self):
+        child = repr(self.child) if self.child else ""
+        return f"[{self.mod_type.name}, {self.agent}]{child}" if self.mod_type in GenericMODLType or self.mod_type in ActionMODLType else f"<{self.mod_type.name[1:]}, {self.agent}>{child}"
+
+class Nesting(GeneralRML):
+    def __init__(self, mod_type: GenericMODLType | PossibleGenericMODLType | ActionMODLType | PossibleActionMODLType, agent: Agent):
+        super().__init__(mod_type, agent)
+        self.child: Nesting | RML | Predicate
 
     def __call__(self, arg):
-        if isinstance(arg, MODL) or isinstance(arg, NOT_MODL) or isinstance(arg, Predicate):
-            if (self.mod_type in ActionMODLType or self.mod_type in PossibleActionMODLType) and not isinstance(arg, Predicate):
-                raise ValueError("Cannot apply an Action MODL to another MODL.")
+        if isinstance(arg, Nesting):
             new_base = deepcopy(self)
             new_base.child = deepcopy(arg)
             return new_base
+        elif isinstance(arg, RML) or isinstance(arg, Predicate):
+            return RML(self.mod_type, self.agent, deepcopy(arg))
         else:
-            raise TypeError("Expecting another MODL or a Predicate.")
-            
-    def __str__(self):
-        return f"({self.mod_type.name}_{self.agent}_{str(self.child)[1:-1]})"
+            raise ValueError(f"A Nesting can only be applied to another Nesting or an RML, not {type(arg)}.")
 
-    def __repr__(self):
-        return f"[{self.mod_type.name}, {self.agent}]{repr(self.child)}" if self.mod_type in GenericMODLType or self.mod_type in ActionMODLType else f"<{self.mod_type.name[1:]}, {self.agent}>{repr(self.child)}"
-    
     def _negate(self):
         if self.mod_type in GenericMODLType:
-            new_base = self.__class__(list(PossibleGenericMODLType)[list(GenericMODLType).index(self.mod_type)], self.agent)
+            new_base = Nesting(list(PossibleGenericMODLType)[list(GenericMODLType).index(self.mod_type)], self.agent)
         elif self.mod_type in PossibleGenericMODLType:
-            new_base = self.__class__(list(GenericMODLType)[list(PossibleGenericMODLType).index(self.mod_type)], self.agent)
+            new_base = Nesting(list(GenericMODLType)[list(PossibleGenericMODLType).index(self.mod_type)], self.agent)
         elif self.mod_type in ActionMODLType:
-            new_base = self.__class__(list(PossibleActionMODLType)[list(ActionMODLType).index(self.mod_type)], self.agent)
+            new_base = Nesting(list(PossibleActionMODLType)[list(ActionMODLType).index(self.mod_type)], self.agent)
         else:
-            new_base = self.__class__(list(ActionMODLType)[list(PossibleActionMODLType).index(self.mod_type)], self.agent)
+            new_base = Nesting(list(ActionMODLType)[list(PossibleActionMODLType).index(self.mod_type)], self.agent)
         if self.child:
             return new_base(self.child._negate())
         return new_base
 
-    def _get_predicate(self):
+class RML(GeneralRML):
+    def __init__(self, mod_type: GenericMODLType | PossibleGenericMODLType | ActionMODLType | PossibleActionMODLType, agent: Agent, child: RML | Predicate):
+        super().__init__(mod_type, agent)
+        self.child = child
         self._check_terminal()
+
+    def _get_predicate(self):
         current = deepcopy(self)
-        while isinstance(current.child, MODL):
+        while isinstance(current.child, RML):
             current = deepcopy(current.child)
         return deepcopy(current.child)
 
     def _check_terminal(self):
-        # check that the MODL is "terminal" (ends in a Predicate)
+        # check that the RML is "terminal" (ends in a Predicate)
         current = deepcopy(self)
-        while isinstance(current.child, MODL):
+        while isinstance(current.child, RML):
             current = deepcopy(current.child)
         if not isinstance(current.child, Predicate):
-            raise ValueError("MODL does not terminate with a Predicate.")
+            raise ValueError("RML does not terminate with a Predicate.")
+
+    def _negate(self):
+        if self.mod_type in GenericMODLType:
+            new_base = RML(list(PossibleGenericMODLType)[list(GenericMODLType).index(self.mod_type)], self.agent, self.child)
+        elif self.mod_type in PossibleGenericMODLType:
+            new_base = RML(list(GenericMODLType)[list(PossibleGenericMODLType).index(self.mod_type)], self.agent, self.child)
+        elif self.mod_type in ActionMODLType:
+            new_base = RML(list(PossibleActionMODLType)[list(ActionMODLType).index(self.mod_type)], self.agent, self.child)
+        else:
+            new_base = RML(list(ActionMODLType)[list(PossibleActionMODLType).index(self.mod_type)], self.agent, self.child)
+        return new_base(self.child._negate())
 
 class NOT_MODL:
     def __init__(self):
@@ -107,12 +130,12 @@ class RMLPredicate(Predicate):
         self.nest = False
 
 class ListCompVar:
-    def __init__(self, term: RMLPredicate | MODL, var: Variable):
+    def __init__(self, term: RMLPredicate | RML, var: Variable):
         self.term = term
         self.var = Variable
 
 class ListCompAgents:
-    def __init__(self, term: RMLPredicate | MODL):
+    def __init__(self, term: RMLPredicate | RML):
         self.term = term
 
 class AncEffPart:
@@ -187,9 +210,9 @@ def modl(self, args):
             if isinstance(args[3], Constant):
                 if args[3].name not in self._domain_transformer._agents:
                     raise ValueError(f"Unknown agent {args[3].name} referenced.")
-                return MODL(modl_type[term_name], Agent(args[3].name, False))
+                return Nesting(modl_type[term_name], Agent(args[3].name, False))
             else:
-                return MODL(modl_type[term_name], Agent(args[3].name, True))
+                return Nesting(modl_type[term_name], Agent(args[3].name, True))
     raise ValueError(f"MODL Type {term_name} is not specified in any of the MODLType categories in 'anc_eff.py.'")
 
 def terminal_helper(args, name):
@@ -269,3 +292,22 @@ class AncEffTransformer(Transformer):
         setattr(AncEffTransformer, "anceff", anceff)
         setattr(AncEffTransformer, "anceffs", anceffs)
         setattr(AncEffTransformer, "all_anceffs", return_all)
+
+# if __name__ == "__main__":
+#     bel = Nesting(GenericMODLType.BEL, Agent("alice", var=False))
+#     des = Nesting(GenericMODLType.DES, Agent("bob", var=False))
+#     pred = Predicate("secret")
+
+#     nesting = bel(des)
+#     rml = bel(des(pred))
+#     nested_2 = nesting(rml)
+#     negated = NOT_MODL()(nesting)
+#     negated_2 = NOT_MODL()(rml)
+
+#     print(nesting, type(nesting))
+#     print(rml, type(rml))
+#     print(nested_2, type(nested_2))
+#     print(nested_2._get_predicate(), type(nested_2._get_predicate()))
+
+#     print(negated, type(negated))
+#     print(negated_2, type(negated_2))
