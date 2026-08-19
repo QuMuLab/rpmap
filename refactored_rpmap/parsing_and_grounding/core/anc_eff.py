@@ -59,6 +59,17 @@ class GeneralRML:
         child = repr(self.child) if self.child else ""
         return f"[{self.mod_type.name}, {self.agent}]{child}" if self.mod_type in GenericMODLType or self.mod_type in ActionMODLType else f"<{self.mod_type.name[1:]}, {self.agent}>{child}"
 
+    def __eq__(self, other):
+        return (
+            isinstance(other, self.__class__)
+            and self.mod_type == other.mod_type
+            and self.agent == other.agent
+            and self.child == other.child
+        )
+
+    def __hash__(self):
+        return hash((self.__class__, self.mod_type, self.agent, self.child))
+
 class Nesting(GeneralRML):
     def __init__(self, mod_type: GenericMODLType | PossibleGenericMODLType | ActionMODLType | PossibleActionMODLType, agent: Agent):
         super().__init__(mod_type, agent)
