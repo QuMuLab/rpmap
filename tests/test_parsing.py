@@ -1,3 +1,6 @@
+from lark.exceptions import VisitError
+from lark.exceptions import UnexpectedCharacters
+from pddl.exceptions import PDDLValidationError
 from pddl.logic.predicates import Predicate
 from pddl.logic.terms import Variable
 from pddl.parser import GRAMMAR_FILE
@@ -57,8 +60,42 @@ class TestParsing:
     def get_parsed_domain(self):
         return parse(self.grammar, self.domain_str)[0]
 
-    def test_predicate(self):
-        self.insert_predicate("(whisper ?a1 ?a2 - agent)")
+    def predicate_test_helper(self, pred_str: str, pred_obj: Predicate):
+        self.insert_predicate(pred_str)
         domain = self.get_parsed_domain()
-        assert Predicate("whisper", *[Variable("a1", ["agent"]), Variable("a2", ["agent"])]) in domain.predicates
-        
+        assert pred_obj in domain.predicates
+
+    def predicate_test_helper_error(self, pred_str: str, errors: list[Exception]):
+        with pytest.raises(errors[0]) as outer_e:
+            self.insert_predicate(pred_str)
+            self.get_parsed_domain()
+        for e in errors[1:]:
+            assert isinstance(outer_e.value.orig_exc, e)
+
+    def test_predicate_not_always_known(self):
+        self.predicate_test_helper("(whisper ?a1 ?a2 - agent ?l - loc)", Predicate("whisper", *[Variable("a1", ["agent"]), Variable("a2", ["agent"]), Variable("l", ["loc"])]))
+        self.predicate_test_helper("(whisper2)", Predicate("whisper2"))
+
+    def test_predicate_always_known(self):
+        pred = Predicate("whisper", *[Variable("a1", ["agent"]), Variable("a2", ["agent"]), Variable("l", ["loc"])])
+        pred.always_known = True
+        self.predicate_test_helper("{AK}(whisper ?a1 ?a2 - agent ?l - loc)", pred)
+
+    def test_predicate_unknown_type(self):
+        self.predicate_test_helper_error("{AK}(whisper ?a1 ?a2 - agent ?v - volume)", [VisitError, PDDLValidationError])
+
+    def test_predicate_illegal_name(self):
+        self.predicate_test_helper_error("{AK}(rml ?a1 ?a2 - agent ?l - loc)", [VisitError, PDDLValidationError])
+        self.predicate_test_helper_error("{AK}(r ?a1 ?a2 - agent ?l - loc)", [VisitError, PDDLValidationError])
+        self.predicate_test_helper_error("(rml ?a1 ?a2 - agent ?l - loc)", [VisitError, PDDLValidationError])
+        self.predicate_test_helper_error("(r ?a1 ?a2 - agent ?l - loc)", [VisitError, PDDLValidationError])
+
+    def test_predicate_illegal_syntax(self):
+        self.predicate_test_helper_error("{AK}sjfdklwefk", [UnexpectedCharacters])
+        self.predicate_test_helper_error("{AK}()", [UnexpectedCharacters])
+        self.predicate_test_helper_error("sjfdklwefk", [UnexpectedCharacters])
+        self.predicate_test_helper_error("()", [UnexpectedCharacters])
+
+    def test_predicate_types_missing(self):
+        domain = self.get_parsed_domain()
+        self.predicate_test_helper_error("(whisper ?a1 ?a2)", [UnexpectedCharacters])

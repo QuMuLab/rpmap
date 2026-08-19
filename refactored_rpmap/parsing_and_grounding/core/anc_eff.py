@@ -2,6 +2,7 @@ from __future__ import annotations
 from enum import Enum
 from lark.visitors import Transformer, Token
 from pddl.core import Predicate
+from pddl.exceptions import PDDLValidationError
 from pddl.logic.terms import Variable, Constant
 from pddl.parser.domain import DomainTransformer
 from pddl.parser.problem import ProblemTransformer
@@ -71,7 +72,7 @@ class Nesting(GeneralRML):
         elif isinstance(arg, RML) or isinstance(arg, Predicate):
             return RML(self.mod_type, self.agent, deepcopy(arg))
         else:
-            raise ValueError(f"A Nesting can only be applied to another Nesting or an RML, not {type(arg)}.")
+            raise PDDLValidationError(f"A Nesting can only be applied to another Nesting or an RML, not {type(arg)}.")
 
     def _negate(self):
         if self.mod_type in GenericMODLType:
@@ -104,7 +105,7 @@ class RML(GeneralRML):
         while isinstance(current.child, RML):
             current = deepcopy(current.child)
         if not isinstance(current.child, Predicate):
-            raise ValueError("RML does not terminate with a Predicate.")
+            raise PDDLValidationError("RML does not terminate with a Predicate.")
 
     def _negate(self):
         if self.mod_type in GenericMODLType:
@@ -184,10 +185,10 @@ def get_constants(transformer_class, args):
     elif isinstance(transformer_class, AncEffTransformer):
         constants = transformer_class._domain_transformer._constants_by_name | transformer_class._domain_transformer._agents
     else:
-        raise ValueError(f"Unknown transformer received: {transformer_class}")
+        raise PDDLValidationError(f"Unknown transformer received: {transformer_class}")
     obj = args[0].value
     if obj not in constants:
-        raise ValueError(f"Constant object {obj} not defined.")
+        raise PDDLValidationError(f"Constant object {obj} not defined.")
     return constants[obj]
 
 def var(self, args):
@@ -208,11 +209,11 @@ def modl(self, args):
         if term_name in [m.name for m in modl_type]:
             if isinstance(args[3], Constant):
                 if args[3].name not in self._domain_transformer._agents:
-                    raise ValueError(f"Unknown agent {args[3].name} referenced.")
+                    raise PDDLValidationError(f"Unknown agent {args[3].name} referenced.")
                 return Nesting(modl_type[term_name], Agent(args[3].name, False))
             else:
                 return Nesting(modl_type[term_name], Agent(args[3].name, True))
-    raise ValueError(f"MODL Type {term_name} is not specified in any of the MODLType categories in 'anc_eff.py.'")
+    raise PDDLValidationError(f"MODL Type {term_name} is not specified in any of the MODLType categories in 'anc_eff.py.'")
 
 def terminal_helper(args, name):
     pred = RMLPredicate(name)

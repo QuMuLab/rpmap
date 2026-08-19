@@ -3,6 +3,7 @@ from .utils import create_valuations
 from .core.anc_eff import ActionMODLType, PossibleActionMODLType, NOT_MODL, Agent, RMLPredicate, ListCompVar, ListCompAgents, RML, Nesting
 from copy import deepcopy
 from pddl.action import Action
+from pddl.exceptions import PDDLValidationError
 from pddl.logic.base import And, Not, ForallCondition
 from pddl.logic.effects import Forall, When
 from pddl.logic.terms import Constant, Variable
@@ -17,7 +18,7 @@ def check_intention_error(rml: RML, domain):
         current = deepcopy(current.child)
     if isinstance(current.mod_type, ActionMODLType) or isinstance(current.mod_type, PossibleActionMODLType):
         if current.child.name not in action_names:
-            raise ValueError("Cannot intend a predicate; you can only intend an action.")
+            raise PDDLValidationError("Cannot intend a predicate; you can only intend an action.")
 
 def set_rml_deepest_child(rml: RML, new_child, assignment = None):
     nestings = []
@@ -81,7 +82,7 @@ def ground_formula(formula: Sequence, assignment, domain, problem):
                 grounded_formulas.update(ground_formula([o], assignment, domain, problem))
         elif isinstance(fo, Not):
             if not isinstance(fo.argument, RML) and not isinstance(fo.argument, Predicate):
-                raise ValueError(f"'Not' was applied to {type(fo.argument)}. 'Not' can only be applied to an RML or Predicate.")
+                raise PDDLValidationError(f"'Not' was applied to {type(fo.argument)}. 'Not' can only be applied to an RML or Predicate.")
             grounded_formulas.add(Not(list(ground_formula([fo.argument], assignment, domain, problem))[0]))
         elif isinstance(fo, When):
             cond = ground_formula([fo.condition], assignment, domain, problem)

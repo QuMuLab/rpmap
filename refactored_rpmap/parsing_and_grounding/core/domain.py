@@ -1,4 +1,5 @@
 import pddl.core
+from pddl.exceptions import PDDLValidationError
 import pddl.logic
 from ..utils import *
 from copy import deepcopy
@@ -14,8 +15,6 @@ from pddl.helpers.base import _typed_parameters
 from pddl.logic.predicates import Predicate
 from pddl.logic.terms import Variable, Constant
 from pddl.parser import domain, GRAMMAR_FILE
-from pddl.parser.domain import DomainTransformer
-from pddl.parser.problem import ProblemTransformer
 from pddl._validation import Types, TypeChecker
 from textwrap import indent
 from .anc_eff import atomic_formula_term, get_constants, modl, RML
@@ -43,7 +42,7 @@ def action_transformer(self, args):
 def agent_transformer(self, args):
     """Transformer for a single agent."""
     if len(args) != 1:
-        raise ValueError(f"Invalid agent definition: {args}")
+        raise PDDLValidationError(f"Invalid agent definition: {args}")
     return args[0].value
 
 def agents_transformer(self, args):
@@ -54,7 +53,7 @@ def agents_transformer(self, args):
 
 def check_pred_name(pred_name):
     if pred_name in ["rml", "r"]:
-        raise ValueError(f"Cannot use the predicate name '{pred_name}'; it is reserved for ancillary effects.")
+        raise PDDLValidationError(f"Cannot use the predicate name '{pred_name}'; it is reserved for ancillary effects.")
 
 def atomic_formula_skeleton(self, args):   
     """Adapted from the pddl.parser.domain.DomainTransformer.atomic_formula_skeleton method."""
@@ -74,7 +73,7 @@ def terminal_predicate(self, args):
     pred_name = args[2].value
     check_pred_name(pred_name)
     if pred_name not in domain_preds:
-        raise ValueError(f"Predicate {pred_name} not defined in the domain.")
+        raise PDDLValidationError(f"Predicate {pred_name} not defined in the domain.")
     terms = args[3:-1]
     for i in range(len(terms)):
         terms[i]._type_tags = domain_preds[pred_name].terms[i].type_tags
@@ -83,7 +82,7 @@ def terminal_predicate(self, args):
     if args[1]:
         pred.negated = True
     if pred.negated and pred.always_known:
-        raise ValueError("Cannot apply a '!' to a predicate that is always known.")
+        raise PDDLValidationError("Cannot apply a '!' to a predicate that is always known.")
     return pred
 
 def dollar_term_transformer(self, args):
