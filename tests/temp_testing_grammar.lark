@@ -74,7 +74,9 @@ constant: NAME
 ?multi_op: TIMES
          | PLUS
 
-f_exp:      NUMBER
+num_literal: NUMBER
+
+f_exp:      num_literal
       |     LPAR binary_op f_exp f_exp RPAR
       |     LPAR multi_op f_exp f_exp+ RPAR
       |     LPAR MINUS f_exp RPAR
@@ -102,7 +104,7 @@ type_def:          LPAR EITHER primitive_type+ RPAR
 
 
 // PDDL PROBLEM
-problem:           LPAR DEFINE problem_def problem_domain [objects] projection depth task init_type init goal [metric_spec] [plan] RPAR
+problem:           LPAR DEFINE problem_def problem_domain [objects] projection depth task init_type init goal [metric_spec] [plan_def] RPAR
 problem_def:       LPAR PROBLEM NAME RPAR
 problem_domain:    LPAR DOMAIN_P NAME RPAR
 
@@ -111,7 +113,7 @@ objects:   LPAR OBJECTS typed_list_name RPAR
 
 init:                  LPAR INIT init_el* RPAR
 init_el:               init_f
-       |               LPAR EQUAL_OP basic_function_term NUMBER RPAR
+       |               LPAR EQUAL_OP basic_function_term num_literal RPAR
 
 literal_name:          atomic_formula_name
             |          LPAR NOT atomic_formula_name RPAR
@@ -139,6 +141,11 @@ PROBLEM: "problem"
 OBJECTS: ":objects"
 INIT: ":init"
 GOAL: ":goal"
+
+
+// PDDL PLAN
+plan:  ground_action*
+ground_action: LPAR predicate NAME* RPAR
 
 
 
@@ -268,7 +275,7 @@ AGENTS: "agents"
 POS: "?pos"
 NEG: "?neg"
 
-start: constant
+start: [domain] [all_anceffs] [problem]
 
 cond_types: ADD | DEL | ADD_SOFT | DEL_SOFT | WILDCARD | DEL_WILDCARD
 
@@ -395,7 +402,7 @@ task: LPAR TASK require_task_key RPAR
 
 init_type: LPAR INIT_TYPE COMPLETE RPAR
 
-plan: LPAR PLAN init_f* RPAR
+plan_def: LPAR PLAN init_f* RPAR
 
 goal: LPAR GOAL problem__gd RPAR
 

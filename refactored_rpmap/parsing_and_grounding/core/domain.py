@@ -204,7 +204,7 @@ def new_predicate_eq(self, other):
         )
 
 def new_predicate_hash(self):
-    """New predicate hash that takes into account the new always_known, modl, and negated terms."""
+    """New predicate hash that takes into account the new always_known and negated terms."""
     return hash((self.name, self.arity, self.terms, self.always_known, self.negated))
 
 def negate_predicate(self):

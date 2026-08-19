@@ -1,0 +1,12 @@
+(define (domain grapevine)
+	(:agents alice bob cindy)
+    (:requirements :typing :disjunctive-preconditions)
+    (:types loc)
+    (:predicates
+        (secret ?agent - agent)
+        {AK}(at ?agent - agent ?l - loc)
+        {AK}(connected ?l1 ?l2 - loc)
+        {insert here}
+    )
+    {insert here}
+)
