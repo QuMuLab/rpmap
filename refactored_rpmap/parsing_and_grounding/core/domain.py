@@ -178,6 +178,12 @@ def new_domain_str(self):
     return result
 
 # ----- OTHER CLASS MODIFICATIONS -----
+def new_init_action(self, *args, **kwargs):
+    if "derive_condition" in kwargs:
+        self.derive_condition = kwargs["derive_condition"]
+        kwargs.pop("derive_condition")
+    self.orig_init(*args, **kwargs)
+
 def new_init_domain(self, *args, **kwargs):
     """New init function for the pddl.core.Domain that takes into account agents."""
     self._agents = kwargs["agents"]
@@ -229,6 +235,8 @@ def modify_domain_classes():
     pddl.logic.predicates.Predicate.negated = False
     pddl.logic.predicates.Predicate._negate = negate_predicate
     pddl.logic.predicates.Predicate._get_predicate = lambda self: deepcopy(self)
+    pddl.action.Action.orig_init = pddl.action.Action.__init__
+    pddl.action.Action.__init__ = new_init_action
     pddl.action.Action.__str__ = new_action_str
     pddl.action.Action.derive_condition = None
     pddl.core.Domain.orig_init = pddl.core.Domain.__init__
