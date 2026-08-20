@@ -8,7 +8,7 @@ from pddl.logic.terms import Variable, Constant
 from pddl.action import Action
 from pddl.parser.domain import Domain
 from pddl.parser import GRAMMAR_FILE
-from refactored_rpmap.parsing_and_grounding.core.anc_eff import RML, GenericMODLType, Agent
+from refactored_rpmap.parsing_and_grounding.core.anc_eff import RML, NOT_MODL, PossibleGenericMODLType, GenericMODLType, Agent
 from refactored_rpmap.parsing_and_grounding.parser_setup import read_pdkbddl_file
 from run import parse
 from copy import deepcopy
@@ -173,9 +173,13 @@ class TestParsing:
         with pytest.raises(errors[0]) as outer_e:
             if insert_type == PDDLSection.PREDICATE:
                 self.insert_predicate(new_data)
+                self.get_parsed_domain()
             elif insert_type == PDDLSection.ACTION:
                 self.insert_action(new_data)
-            self.get_parsed_domain()
+                self.get_parsed_domain()
+            elif insert_type == PDDLSection.INIT:
+                self.insert_init(new_data)
+                self.get_parsed_problem()
         for e in errors[1:]:
             assert isinstance(outer_e.value.orig_exc, e)
 
@@ -184,6 +188,9 @@ class TestParsing:
 
     def error_tester_actions(self, action_str: str, errors: list[Exception]):
         self.error_tester(PDDLSection.ACTION, action_str, errors)
+
+    def error_tester_init(self, init_str: str, errors: list[Exception]):
+        self.error_tester(PDDLSection.INIT, init_str, errors)
 
     # ----- TESTS -----
 
@@ -430,12 +437,125 @@ class TestParsing:
             action
         )
 
+    def test_action_negated_rml(self):
+        action = deepcopy(self.action_template)
+        action._effect = NOT_MODL()(action._effect.effect.effect)
+        self.valid_action_tester("""
+        (:action share
+            :derive-condition   (at $agent$ ?l)
+            :parameters         (?a ?as - agent ?l - loc)
+            :precondition       (and (at ?a ?l) [bel, ?a](secret ?as))
+            :effect             (and
+                                    ![bel, ?a2](secret ?as)
+                                )
+        )""",
+            action
+        )
+        self.valid_action_tester("""
+        (:action share
+            :derive-condition   (at $agent$ ?l)
+            :parameters         (?a ?as - agent ?l - loc)
+            :precondition       (and (at ?a ?l) [bel, ?a](secret ?as))
+            :effect             (and
+                                    <bel, ?a2>(!secret ?as)
+                                )
+        )""",
+            action
+        )
+
+    def test_action_negated_pred(self):
+        action = deepcopy(self.action_template)
+        action._effect = NOT_MODL()(action._effect.effect.effect._get_predicate())
+        self.valid_action_tester("""
+        (:action share
+            :derive-condition   (at $agent$ ?l)
+            :parameters         (?a ?as - agent ?l - loc)
+            :precondition       (and (at ?a ?l) [bel, ?a](secret ?as))
+            :effect             (and
+                                    (!secret ?as)
+                                )
+        )""",
+            action
+        )
+        action._effect = NOT_MODL()(action._effect)
+        self.valid_action_tester("""
+        (:action share
+            :derive-condition   (at $agent$ ?l)
+            :parameters         (?a ?as - agent ?l - loc)
+            :precondition       (and (at ?a ?l) [bel, ?a](secret ?as))
+            :effect             (and
+                                    (secret ?as)
+                                )
+        )""",
+            action
+        )
+        action._effect = Not(NOT_MODL()(action._effect))
+        self.valid_action_tester("""
+        (:action share
+            :derive-condition   (at $agent$ ?l)
+            :parameters         (?a ?as - agent ?l - loc)
+            :precondition       (and (at ?a ?l) [bel, ?a](secret ?as))
+            :effect             (and
+                                    (not (!secret ?as))
+                                )
+        )""",
+            action
+        )
+
+    def test_action_negate_always_known(self):
+        action = deepcopy(self.action_template)
+        at_p = Predicate("at", Variable("as", ["agent"]), Variable("l", ["loc"]))
+        at_p.always_known = True
+        action._effect = Not(at_p)
+        self.valid_action_tester("""
+        (:action share
+            :derive-condition   (at $agent$ ?l)
+            :parameters         (?a ?as - agent ?l - loc)
+            :precondition       (and (at ?a ?l) [bel, ?a](secret ?as))
+            :effect             (and
+                                    (not (at ?as ?l))
+                                )
+        )""",
+            action
+        )
+        # at_p.negated = True
+        # action._effect = at_p
+        self.error_tester_actions("""
+        (:action share
+            :derive-condition   (at $agent$ ?l)
+            :parameters         (?a ?as - agent ?l - loc)
+            :precondition       (and (at ?a ?l) [bel, ?a](secret ?as))
+            :effect             (and
+                                    (!at ?as ?l)
+                                )
+        )
+        """,
+        [VisitError, PDDLValidationError]
+        )
+
     #  PROBLEM PARSING
     def test_problem_init_predicate(self):
         self.valid_init_tester("(secret alice)", Predicate("secret", Constant("alice", "agent")))
 
     def test_problem_init_rml(self):
-        self.valid_init_tester("[bel, bob](secret alice)", RML(GenericMODLType.BEL, Agent(Constant("bob", "agent")), Predicate("secret", Constant("alice", "agent"))))
+        secret = Predicate("secret", Constant("alice", "agent"))
+        self.valid_init_tester("[bel, bob](secret alice)", RML(GenericMODLType.BEL, Agent(Constant("bob", "agent")), secret))
+        secret.negated = True
+        self.valid_init_tester("![bel, bob](secret alice)", RML(PossibleGenericMODLType.PBEL, Agent(Constant("bob", "agent")), secret))
 
     def test_problem_init_and_rml(self):
         self.valid_init_tester("(and [bel, bob](secret alice) (secret alice))", And(*[RML(GenericMODLType.BEL, Agent(Constant("bob", "agent")), Predicate("secret", Constant("alice", "agent"))), Predicate("secret", Constant("alice", "agent"))]))
+
+    def test_problem_init_forall(self):
+        self.valid_init_tester("(forall (?a - agent) [bel, ?a](secret ?a))", Forall(And(RML(GenericMODLType.BEL, Agent(Variable("a", ["agent"])), Predicate("secret", Variable("a", ["agent"])))), {Variable("a", ["agent"])}))
+
+    def test_exc_negate(self):
+        p = Predicate("secret", Constant("alice", "agent"))
+        p.negated = True
+        self.valid_init_tester("(!secret alice)", p)
+
+    def test_problem_init_no_not(self):
+        self.error_tester_init("(not (secret alice))", [UnexpectedCharacters])
+
+    def test_problem_init_negate_always_known(self):
+        self.error_tester_init("(!at alice l1)", [VisitError, PDDLValidationError])
