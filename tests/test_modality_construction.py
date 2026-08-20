@@ -39,6 +39,12 @@ class TestModalityConstruction:
             BEL(pred)(pred)
         with pytest.raises(TypeError):
             BEL(DES(pred))(pred)
+        with pytest.raises(PDDLValidationError):
+            RML(GenericMODLType.BEL, BEL.agent, None)
+        with pytest.raises(PDDLValidationError):
+            ITN(BEL)
+        with pytest.raises(PDDLValidationError):
+            ITN(BEL(pred))
 
     def test_basic_double_nesting(self):
         BEL, DES, ITN, _, _, _, _, pred = self.get_vars()
