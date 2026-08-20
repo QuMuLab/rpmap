@@ -1,4 +1,5 @@
 from refactored_rpmap.parsing_and_grounding.core.anc_eff import *
+import pytest
 
 
 class TestModalityConstruction:
@@ -21,6 +22,23 @@ class TestModalityConstruction:
         assert repr(BEL(pred)) == "[BEL, alice](secret)"
         assert repr(DES(pred)) == "[DES, bob](secret)"
         assert repr(ITN(pred)) == "[ITN, cindy](secret)"
+
+    def test_rml_vs_nesting_formation(self):
+        BEL, DES, ITN, PBEL, PDES, PITN, NOT, pred = self.get_vars()
+        assert isinstance(BEL, Nesting)
+        assert repr(BEL) == "[BEL, alice]"
+        assert isinstance(BEL(DES), Nesting)
+        assert repr(BEL(ITN)) == "[BEL, alice][ITN, cindy]"
+        assert isinstance(BEL(NOT(DES)), Nesting)
+        assert repr(BEL(NOT(DES))) == "[BEL, alice]<DES, bob>"
+        assert repr(NOT(BEL(DES))) == "<BEL, alice><DES, bob>"
+        assert repr(NOT(PDES(PITN))) == "[DES, bob][ITN, cindy]"
+        assert isinstance(BEL(pred), RML)
+        assert isinstance(BEL(DES(pred)), RML)
+        with pytest.raises(TypeError):
+            BEL(pred)(pred)
+        with pytest.raises(TypeError):
+            BEL(DES(pred))(pred)
 
     def test_basic_double_nesting(self):
         BEL, DES, ITN, _, _, _, _, pred = self.get_vars()

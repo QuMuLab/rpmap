@@ -2,7 +2,7 @@ from lark.exceptions import VisitError
 from lark.exceptions import UnexpectedCharacters
 from pddl.exceptions import PDDLValidationError
 from pddl.logic.predicates import Predicate
-from pddl.logic.base import And
+from pddl.logic.base import And, Or
 from pddl.logic.effects import When, Forall
 from pddl.logic.terms import Variable
 from pddl.action import Action
@@ -119,10 +119,6 @@ class TestParsing:
     def valid_action_tester(self, act_str: str, action_obj: Action):
         self.insert_action(act_str)
         domain = self.get_parsed_domain()
-        for a in domain.actions:
-            if a == action_obj:
-                print()
-            print()
         assert action_obj in domain.actions
 
     def error_tester(self, insert_type: PDDLSection, new_data: str, errors: list[Exception]):
@@ -137,6 +133,9 @@ class TestParsing:
 
     def error_tester_predicates(self, pred_str: str, errors: list[Exception]):
         self.error_tester(PDDLSection.PREDICATE, pred_str, errors)
+
+    def error_tester_actions(self, action_str: str, errors: list[Exception]):
+        self.error_tester(PDDLSection.ACTION, action_str, errors)
 
     # ----- TESTS -----
 
@@ -179,10 +178,9 @@ class TestParsing:
                                     (when (at ?a2 ?l)
                                         [bel, ?a2](secret ?as)))
                             )
+    )""",
+        self.action_template
     )
-        """,
-            self.action_template
-        )
 
     def test_template_action(self):
         self.valid_action_tester("""
@@ -195,10 +193,9 @@ class TestParsing:
                                         (when (at ?a2 ?l)
                                             [bel, ?a2](secret ?as)))
                                 )
+        )""",
+            self.action_template
         )
-            """,
-                self.action_template
-            )
 
     def test_derive_condition_always(self):
         action = deepcopy(self.action_template)
@@ -213,10 +210,9 @@ class TestParsing:
                                         (when (at ?a2 ?l)
                                             [bel, ?a2](secret ?as)))
                                 )
+        )""",
+            action
         )
-            """,
-                action
-            )
 
     def test_derive_condition_never(self):
         action = deepcopy(self.action_template)
@@ -231,25 +227,74 @@ class TestParsing:
                                         (when (at ?a2 ?l)
                                             [bel, ?a2](secret ?as)))
                                 )
+        )""",
+            action
         )
-            """,
-                action
-            )
 
     def test_derive_condition_modality(self):
-            action = deepcopy(self.action_template)
-            action.derive_condition = RML(GenericMODLType.BEL, Agent(""))
-            self.valid_action_tester("""
-            (:action share
-                :derive-condition   never
-                :parameters         (?a ?as - agent ?l - loc)
-                :precondition       (and (at ?a ?l) [bel, ?a](secret ?as))
-                :effect             (and
-                                        (forall (?a2 - agent)
-                                            (when (at ?a2 ?l)
-                                                [bel, ?a2](secret ?as)))
-                                    )
-            )
-                """,
-                    action
-                )
+        action = deepcopy(self.action_template)
+        dlr_agent = Variable("dlr_agent", ["agent"])
+        action.derive_condition = RML(GenericMODLType.BEL, Agent(dlr_agent), Predicate("at", *[dlr_agent, Variable("l", *["loc"])]))
+
+        self.valid_action_tester("""
+        (:action share
+            :derive-condition   [bel, $agent$](at $agent$ ?l)
+            :parameters         (?a ?as - agent ?l - loc)
+            :precondition       (and (at ?a ?l) [bel, ?a](secret ?as))
+            :effect             (and
+                                    (forall (?a2 - agent)
+                                        (when (at ?a2 ?l)
+                                            [bel, ?a2](secret ?as)))
+                                )
+        )""",
+            action
+        )
+
+    def test_action_empty_precondition(self):
+        action = deepcopy(self.action_template)
+        action._precondition = Or()
+        self.valid_action_tester("""
+        (:action share
+            :derive-condition   (at $agent$ ?l)
+            :parameters         (?a ?as - agent ?l - loc)
+            :precondition       ()
+            :effect             (and
+                                    (forall (?a2 - agent)
+                                        (when (at ?a2 ?l)
+                                            [bel, ?a2](secret ?as)))
+                                )
+        )""",
+            action
+        )
+
+    def test_action_or_precondition(self):
+        action = deepcopy(self.action_template)
+        or_ = Or()
+        or_._operands = self.action_template.precondition.operands
+        action._precondition = or_
+        self.valid_action_tester("""
+        (:action share
+            :derive-condition   (at $agent$ ?l)
+            :parameters         (?a ?as - agent ?l - loc)
+            :precondition       (or (at ?a ?l) [bel, ?a](secret ?as))
+            :effect             (and
+                                    (forall (?a2 - agent)
+                                        (when (at ?a2 ?l)
+                                            [bel, ?a2](secret ?as)))
+                                )
+        )""",
+            action
+        )
+
+    def test_action_empty_effect(self):
+        action = deepcopy(self.action_template)
+        action._effect = Or()
+        self.valid_action_tester("""
+        (:action share
+            :derive-condition   (at $agent$ ?l)
+            :parameters         (?a ?as - agent ?l - loc)
+            :precondition       (and (at ?a ?l) [bel, ?a](secret ?as))
+            :effect             ()
+        )""",
+            action
+        )
