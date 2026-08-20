@@ -1,6 +1,6 @@
 (define (domain grapevine)
 	(:agents alice bob cindy)
-    (:requirements :typing :disjunctive-preconditions)
+    (:requirements :typing :disjunctive-preconditions :existential-preconditions :universal-preconditions)
     (:types loc)
     (:predicates
         (secret ?agent - agent)

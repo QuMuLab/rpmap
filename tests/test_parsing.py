@@ -2,7 +2,7 @@ from lark.exceptions import VisitError
 from lark.exceptions import UnexpectedCharacters
 from pddl.exceptions import PDDLValidationError
 from pddl.logic.predicates import Predicate
-from pddl.logic.base import And, Or
+from pddl.logic.base import And, Or, Not, Imply, ExistsCondition, ForallCondition
 from pddl.logic.effects import When, Forall
 from pddl.logic.terms import Variable
 from pddl.action import Action
@@ -286,6 +286,74 @@ class TestParsing:
             action
         )
 
+    def test_action_negated_precondition(self):
+        action = deepcopy(self.action_template)
+        action._precondition = And(*[Not(p) for p in action._precondition._operands])
+        self.valid_action_tester("""
+        (:action share
+            :derive-condition   (at $agent$ ?l)
+            :parameters         (?a ?as - agent ?l - loc)
+            :precondition       (and (not (at ?a ?l)) (not [bel, ?a](secret ?as)))
+            :effect             (and
+                                    (forall (?a2 - agent)
+                                        (when (at ?a2 ?l)
+                                            [bel, ?a2](secret ?as)))
+                                )
+        )""",
+            action
+        )
+
+    def test_action_implied_precondition(self):
+        action = deepcopy(self.action_template)
+        action._precondition = And(Imply(*action._precondition._operands))
+        self.valid_action_tester("""
+        (:action share
+            :derive-condition   (at $agent$ ?l)
+            :parameters         (?a ?as - agent ?l - loc)
+            :precondition       (and (imply (at ?a ?l) [bel, ?a](secret ?as)))
+            :effect             (and
+                                    (forall (?a2 - agent)
+                                        (when (at ?a2 ?l)
+                                            [bel, ?a2](secret ?as)))
+                                )
+        )""",
+            action
+        )
+
+    def test_action_exists_precondition(self):
+        action = deepcopy(self.action_template)
+        action._precondition = And(*[ExistsCondition(action._precondition._operands[1], {Variable("a", ["agent"])})])
+        self.valid_action_tester("""
+        (:action share
+            :derive-condition   (at $agent$ ?l)
+            :parameters         (?a ?as - agent ?l - loc)
+            :precondition       (and (exists (?a - agent) [bel, ?a](secret ?as)))
+            :effect             (and
+                                    (forall (?a2 - agent)
+                                        (when (at ?a2 ?l)
+                                            [bel, ?a2](secret ?as)))
+                                )
+        )""",
+            action
+        )
+
+    def test_action_forall_precondition(self):
+        action = deepcopy(self.action_template)
+        action._precondition = And(*[ForallCondition(action._precondition._operands[1], {Variable("a", ["agent"])})])
+        self.valid_action_tester("""
+        (:action share
+            :derive-condition   (at $agent$ ?l)
+            :parameters         (?a ?as - agent ?l - loc)
+            :precondition       (and (forall (?a - agent) [bel, ?a](secret ?as)))
+            :effect             (and
+                                    (forall (?a2 - agent)
+                                        (when (at ?a2 ?l)
+                                            [bel, ?a2](secret ?as)))
+                                )
+        )""",
+            action
+        )
+
     def test_action_empty_effect(self):
         action = deepcopy(self.action_template)
         action._effect = Or()
@@ -295,6 +363,21 @@ class TestParsing:
             :parameters         (?a ?as - agent ?l - loc)
             :precondition       (and (at ?a ?l) [bel, ?a](secret ?as))
             :effect             ()
+        )""",
+            action
+        )
+
+    def test_action_negated_effect(self):
+        action = deepcopy(self.action_template)
+        action._effect = Not(action._effect.effect.effect)
+        self.valid_action_tester("""
+        (:action share
+            :derive-condition   (at $agent$ ?l)
+            :parameters         (?a ?as - agent ?l - loc)
+            :precondition       (and (at ?a ?l) [bel, ?a](secret ?as))
+            :effect             (and
+                                    (not [bel, ?a2](secret ?as))
+                                )
         )""",
             action
         )
