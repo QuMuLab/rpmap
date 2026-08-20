@@ -60,6 +60,17 @@ class TestParsing:
             )
         )
 
+    @pytest.fixture(scope="function", autouse=True)
+    def reset_data(self):
+        yield
+        # upon test completion, reset the domain template file
+        self.domain_data["predicate_insert"] = insert_str
+        self.domain_data["action_insert"] = insert_str
+        self.update_domain(self.domain_data)
+        self.problem_data["init_insert"] = insert_str
+        self.problem_data["goal_insert"] = insert_str
+        self.update_problem(self.problem_data)
+
     @pytest.fixture(scope="class", autouse=True)
     def setup(self, request):
         # retrieve the current grammar file
@@ -99,13 +110,7 @@ class TestParsing:
         request.cls.action_template = TestParsing.get_template_action()
 
         yield
-        # upon test completion, reset the domain template file
-        request.cls.domain_data["predicate_insert"] = insert_str
-        request.cls.domain_data["action_insert"] = insert_str
-        self.update_domain(request.cls.domain_data)
-        request.cls.problem_data["init_insert"] = insert_str
-        request.cls.problem_data["goal_insert"] = insert_str
-        self.update_problem(request.cls.problem_data)
+        self.reset_data()
 
     # ----- TEMPLATE FILE UPDATE FUNCTIONS -----
 
@@ -518,8 +523,6 @@ class TestParsing:
         )""",
             action
         )
-        # at_p.negated = True
-        # action._effect = at_p
         self.error_tester_actions("""
         (:action share
             :derive-condition   (at $agent$ ?l)
