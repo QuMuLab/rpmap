@@ -48,6 +48,9 @@ def problem_forall(self, args):
     variables = [Variable(var_name, tags) for var_name, tags in args[3]]
     return Forall(effect=args[-2], variables=variables)
 
+def problem__gd_and(self, args):
+    return self._domain_transformer.gd_and(args)
+
 # ----- STRING AND PRINT FUNCTIONS -----
 def pprint_pddl_collection(prefix, collection,):
     """Pretty print function to print a PDDL prefix and its collection."""
@@ -189,10 +192,12 @@ def construct_problem_grammar():
     inject_problem_grammar("init_type", "LPAR INIT_TYPE COMPLETE RPAR", init_type_transformer)
     inject_problem_grammar("plan_def", "LPAR PLAN init_f* RPAR", plan_transformer)
     inject_problem_grammar("goal", "LPAR GOAL problem__gd RPAR", goal_transformer)
+    inject_problem_grammar("and_init_f", "LPAR AND init_f* RPAR", problem__gd_and)
+    inject_problem_grammar("and_paft", "LPAR AND problem__atomic_formula_term* RPAR", problem__gd_and)
 
-    inject_problem_grammar("init_f", "atomic_formula_name | LPAR AND init_f* RPAR | problem_forall", basic_tokens_transformer)
+    inject_problem_grammar("init_f", "atomic_formula_name | and_init_f | problem_forall", return_option)
     inject_problem_grammar("problem_forall", "LPAR FORALL LPAR typed_list_variable RPAR problem_effect RPAR", problem_forall)
-    inject_problem_grammar("problem_effect", "LPAR AND problem__atomic_formula_term* RPAR | problem__atomic_formula_term", return_option)
+    inject_problem_grammar("problem_effect", "and_paft | problem__atomic_formula_term", return_option)
     
     inject_problem_grammar("problem__atomic_formula_term", "[EXC] modl* problem__terminal_predicate", atomic_formula_term)
     inject_problem_grammar("problem__terminal_predicate", "LPAR [EXC] predicate problem__const_or_var_term* RPAR", terminal_predicate)

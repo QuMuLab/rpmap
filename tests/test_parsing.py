@@ -431,5 +431,11 @@ class TestParsing:
         )
 
     #  PROBLEM PARSING
-    def test_problem(self):
+    def test_problem_init_predicate(self):
         self.valid_init_tester("(secret alice)", Predicate("secret", Constant("alice", "agent")))
+
+    def test_problem_init_rml(self):
+        self.valid_init_tester("[bel, bob](secret alice)", RML(GenericMODLType.BEL, Agent(Constant("bob", "agent")), Predicate("secret", Constant("alice", "agent"))))
+
+    def test_problem_init_and_rml(self):
+        self.valid_init_tester("(and [bel, bob](secret alice) (secret alice))", And(*[RML(GenericMODLType.BEL, Agent(Constant("bob", "agent")), Predicate("secret", Constant("alice", "agent"))), Predicate("secret", Constant("alice", "agent"))]))
