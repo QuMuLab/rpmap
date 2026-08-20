@@ -69,6 +69,12 @@ class GeneralRML:
     def __hash__(self):
         return hash((self.__class__, self.mod_type, self.agent, self.child))
 
+    def set_child(self, arg):
+        if arg:
+            if (self.mod_type in ActionMODLType or self.mod_type in PossibleActionMODLType) and not isinstance(arg, Predicate):
+                raise PDDLValidationError("Cannot apply an Action MODL to another MODL.")
+        self.child = arg
+
 class Nesting(GeneralRML):
     def __init__(self, mod_type: GenericMODLType | PossibleGenericMODLType | ActionMODLType | PossibleActionMODLType, agent: Agent):
         super().__init__(mod_type, agent)
@@ -77,7 +83,7 @@ class Nesting(GeneralRML):
     def __call__(self, arg):
         if isinstance(arg, Nesting):
             new_base = deepcopy(self)
-            new_base.child = deepcopy(arg)
+            new_base.set_child(deepcopy(arg))
             return new_base
         elif isinstance(arg, RML) or isinstance(arg, Predicate):
             return RML(self.mod_type, self.agent, deepcopy(arg))
@@ -100,7 +106,7 @@ class Nesting(GeneralRML):
 class RML(GeneralRML):
     def __init__(self, mod_type: GenericMODLType | PossibleGenericMODLType | ActionMODLType | PossibleActionMODLType, agent: Agent, child: RML | Predicate):
         super().__init__(mod_type, agent)
-        self.child = child
+        self.set_child(child)
         self._check_terminal()
 
     def _get_predicate(self):
