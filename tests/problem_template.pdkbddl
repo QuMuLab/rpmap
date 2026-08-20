@@ -1,3 +1,4 @@
+{include:domain_template.pdkbddl}
 (define (problem depth_2_agents_2)
     (:domain grapevine)
     (:objects l1 l2 - loc)
@@ -12,10 +13,10 @@
         (at bob l2)
         [b, alice](secret alice)
         [b, bob](secret bob)
-        {insert here}
+        ;; {insert here}
     )
     (:goal
-        {insert here}
+        ;; {insert here}
     )
     (:plan )
 )
