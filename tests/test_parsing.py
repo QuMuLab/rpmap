@@ -45,13 +45,13 @@ class TestParsing:
             parameters=[a_var, as_var, l_var],
             precondition=And(
                 at_pred_2, 
-                RML(GenericMODLType.BEL, Agent(a_var.name, True), secret)
+                RML(GenericMODLType.BEL, Agent(a_var), secret)
             ),
             effect=And(
                 Forall(
                     When(
                         And(at_pred_3),
-                        And(RML(GenericMODLType.BEL, Agent(a2_var.name, True), secret))
+                        And(RML(GenericMODLType.BEL, Agent(a2_var), secret))
                     ),
                     frozenset([a2_var])
                 )
@@ -183,3 +183,73 @@ class TestParsing:
         """,
             self.action_template
         )
+
+    def test_template_action(self):
+        self.valid_action_tester("""
+        (:action share
+            :derive-condition   (at $agent$ ?l)
+            :parameters         (?a ?as - agent ?l - loc)
+            :precondition       (and (at ?a ?l) [bel, ?a](secret ?as))
+            :effect             (and
+                                    (forall (?a2 - agent)
+                                        (when (at ?a2 ?l)
+                                            [bel, ?a2](secret ?as)))
+                                )
+        )
+            """,
+                self.action_template
+            )
+
+    def test_derive_condition_always(self):
+        action = deepcopy(self.action_template)
+        action.derive_condition = "always"
+        self.valid_action_tester("""
+        (:action share
+            :derive-condition   always
+            :parameters         (?a ?as - agent ?l - loc)
+            :precondition       (and (at ?a ?l) [bel, ?a](secret ?as))
+            :effect             (and
+                                    (forall (?a2 - agent)
+                                        (when (at ?a2 ?l)
+                                            [bel, ?a2](secret ?as)))
+                                )
+        )
+            """,
+                action
+            )
+
+    def test_derive_condition_never(self):
+        action = deepcopy(self.action_template)
+        action.derive_condition = "never"
+        self.valid_action_tester("""
+        (:action share
+            :derive-condition   never
+            :parameters         (?a ?as - agent ?l - loc)
+            :precondition       (and (at ?a ?l) [bel, ?a](secret ?as))
+            :effect             (and
+                                    (forall (?a2 - agent)
+                                        (when (at ?a2 ?l)
+                                            [bel, ?a2](secret ?as)))
+                                )
+        )
+            """,
+                action
+            )
+
+    def test_derive_condition_modality(self):
+            action = deepcopy(self.action_template)
+            action.derive_condition = RML(GenericMODLType.BEL, Agent(""))
+            self.valid_action_tester("""
+            (:action share
+                :derive-condition   never
+                :parameters         (?a ?as - agent ?l - loc)
+                :precondition       (and (at ?a ?l) [bel, ?a](secret ?as))
+                :effect             (and
+                                        (forall (?a2 - agent)
+                                            (when (at ?a2 ?l)
+                                                [bel, ?a2](secret ?as)))
+                                    )
+            )
+                """,
+                    action
+                )

@@ -3,7 +3,7 @@ from enum import Enum
 from lark.visitors import Transformer, Token
 from pddl.core import Predicate
 from pddl.exceptions import PDDLValidationError
-from pddl.logic.terms import Variable, Constant
+from pddl.logic.terms import Variable, Constant, Term
 from pddl.parser.domain import DomainTransformer
 from pddl.parser.problem import ProblemTransformer
 from copy import deepcopy
@@ -30,20 +30,19 @@ class PossibleActionMODLType(Enum):
     PITN = 1
 
 class Agent:
-    def __init__(self, name: str, var: bool):
-        self.name = name
-        self.var = var
+    def __init__(self, term: Term):
+        if term.type_tags != frozenset(["agent"]):
+            raise ValueError("The agent term must have `agent` as a type tag.")
+        self.term = term
 
     def __eq__(self, other):
-        if not isinstance(other, Agent):
-            return False
-        return self.name == other.name and self.var == other.var
+        return isinstance(other, Agent) and self.term == other.term
     
     def __hash__(self):
-        return hash((self.name, self.var))
+        return hash((Agent, self.term))
     
     def __repr__(self):
-        return f"?{self.name}" if self.var else f"{self.name}"
+        return str(self.term)
 
 class GeneralRML:
     def __init__(self, mod_type: GenericMODLType | PossibleGenericMODLType | ActionMODLType | PossibleActionMODLType, agent: Agent):
@@ -221,9 +220,11 @@ def modl(self, args):
             if isinstance(args[3], Constant):
                 if args[3].name not in self._domain_transformer._agents:
                     raise PDDLValidationError(f"Unknown agent {args[3].name} referenced.")
-                return Nesting(modl_type[term_name], Agent(args[3].name, False))
+                args[3]._type_tag = "agent"
+                return Nesting(modl_type[term_name], Agent(args[3]))
             else:
-                return Nesting(modl_type[term_name], Agent(args[3].name, True))
+                args[3]._type_tags = frozenset(["agent"])
+                return Nesting(modl_type[term_name], Agent(args[3]))
     raise PDDLValidationError(f"MODL Type {term_name} is not specified in any of the MODLType categories in 'anc_eff.py.'")
 
 def terminal_helper(args, name):

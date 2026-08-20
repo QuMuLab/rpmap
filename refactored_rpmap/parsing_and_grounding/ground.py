@@ -27,7 +27,7 @@ def set_rml_deepest_child(rml: RML, new_child, assignment = None):
         current_no_child = deepcopy(current)
         current_no_child.child = None
         if assignment:
-            current_no_child.agent = Agent(assignment[current_no_child.agent.name], False)
+            current_no_child.agent = Agent(Constant(assignment[current_no_child.agent.term.name], "agent"))
         nestings.append(Nesting(current_no_child.mod_type, current_no_child.agent))
         current = deepcopy(current.child)
     nestings.append(new_child)
@@ -120,7 +120,7 @@ def create_grounded_operators(domain, problem):
             dc_pred = a.derive_condition._get_predicate() if is_rml else a.derive_condition
             vars.update(dc_pred.terms)
             if is_rml:
-                if a.derive_condition.agent.var:
+                if isinstance(a.derive_condition.agent, Variable):
                     vars.add(Variable(a.derive_condition.agent.name, type_tags=["agent"]))
         var_names = [v.name for v in vars]
         val_generator = create_valuations(domain._agents.keys(), domain.gathered_constants, vars)
@@ -199,7 +199,7 @@ def create_itn_action_preds(operators, agents, problem, anc_effs):
         if o_name in itn_preds_strs:
             action_iaps = []
             for ag in agents:
-                iap = NOT_MODL()(RML(PossibleActionMODLType.PITN, Agent(ag, False), Predicate(operators[i].name)))
+                iap = NOT_MODL()(RML(PossibleActionMODLType.PITN, Agent(Constant(ag, "agent")), Predicate(operators[i].name)))
                 action_iaps.append(iap)
             operators[i].effect._operands.extend(action_iaps)
             action_intention_f.update(action_iaps)

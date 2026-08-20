@@ -3,9 +3,9 @@ from refactored_rpmap.parsing_and_grounding.core.anc_eff import *
 
 class TestModalityConstruction:
     def get_vars(self):
-        agent1 = Agent("alice", False)
-        agent2 = Agent("bob", False)
-        agent3 = Agent("cindy", False)
+        agent1 = Agent(Constant("alice", "agent"))
+        agent2 = Agent(Constant("bob", "agent"))
+        agent3 = Agent(Constant("cindy", "agent"))
         BEL = Nesting(GenericMODLType.BEL, agent1)
         DES = Nesting(GenericMODLType.DES, agent2)
         ITN = Nesting(ActionMODLType.ITN, agent3)
