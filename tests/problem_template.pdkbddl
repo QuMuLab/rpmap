@@ -11,12 +11,14 @@
         (connected l2 l1)
         (at alice l1)
         (at bob l2)
-        [b, alice](secret alice)
-        [b, bob](secret bob)
+        [bel, alice](secret alice)
+        [bel, bob](secret bob)
         ;; {insert here}
     )
     (:goal
-        ;; {insert here}
+        (and
+            ;; {insert here}
+        )
     )
     (:plan )
 )

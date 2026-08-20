@@ -2,12 +2,14 @@ from lark.exceptions import VisitError
 from lark.exceptions import UnexpectedCharacters
 from pddl.exceptions import PDDLValidationError
 from pddl.logic.predicates import Predicate
-from pddl.logic.base import And, Or, Not, Imply, ExistsCondition, ForallCondition
+from pddl.logic.base import And, Or, Not, Imply, ExistsCondition, ForallCondition, Formula
 from pddl.logic.effects import When, Forall
-from pddl.logic.terms import Variable
+from pddl.logic.terms import Variable, Constant
 from pddl.action import Action
+from pddl.parser.domain import Domain
 from pddl.parser import GRAMMAR_FILE
 from refactored_rpmap.parsing_and_grounding.core.anc_eff import RML, GenericMODLType, Agent
+from refactored_rpmap.parsing_and_grounding.parser_setup import read_pdkbddl_file
 from run import parse
 from copy import deepcopy
 from enum import Enum
@@ -63,13 +65,16 @@ class TestParsing:
         # retrieve the current grammar file
         with open(GRAMMAR_FILE, "r") as f:
             request.cls.grammar = f.read()
-        # get the domain template file
+        # get the template files
         domain_path = os.path.join(*os.getcwd().split() + ["tests", "domain_template.pdkbddl"])
         with open(domain_path, "r") as f:
             domain = f.read()
+        problem_path = os.path.join(*os.getcwd().split() + ["tests", "problem_template.pdkbddl"])
+        with open(problem_path, "r") as f:
+            problem = f.read()
         # create a dictionary that indicates the appropriate places to insert into the domain
-        # note that two `{insert here}` are specified at the locations for predicate and action insertion in the `domain_template.pdkbddl` file
-        insert_str = "{insert here}"
+        # note that two `{insert here}` comments are specified at the locations for predicate and action insertion in the `domain_template.pdkbddl` file
+        insert_str = ";; {insert here}"
         domain = domain.split(insert_str)
         request.cls.domain_path = domain_path
         request.cls.domain_data = {
@@ -79,6 +84,17 @@ class TestParsing:
             "action_insert": "",
             "action_end": domain[2],
         }
+        # do the same for the problem
+        problem = problem.split(insert_str)
+        request.cls.problem_path = problem_path
+        request.cls.problem_data = {
+            "header": problem[0],
+            "init_insert": "",
+            "header_end": problem[1],
+            "goal_insert": "",
+            "goal_end": problem[2],
+        }
+
         # set template action
         request.cls.action_template = TestParsing.get_template_action()
 
@@ -87,29 +103,51 @@ class TestParsing:
         request.cls.domain_data["predicate_insert"] = insert_str
         request.cls.domain_data["action_insert"] = insert_str
         self.update_domain(request.cls.domain_data)
+        request.cls.problem_data["init_insert"] = insert_str
+        request.cls.problem_data["goal_insert"] = insert_str
+        self.update_problem(request.cls.problem_data)
 
     # ----- TEMPLATE FILE UPDATE FUNCTIONS -----
 
-    def update_domain(self, new_domain_data):
+    def update_domain(self, new_domain_data: dict[str, str]):
         self.domain_str = "".join(new_domain_data.values())
         with open(self.domain_path, "w") as f:
             f.write(self.domain_str)
 
-    def insert_data(self, data_place: str, data: str):
+    def update_problem(self, new_problem_data: dict[str, str]):
+        self.problem_str = "".join(new_problem_data.values())
+        with open(self.problem_path, "w") as f:
+            f.write(self.problem_str)
+
+    def insert_domain_data(self, data_place: str, data: str):
         data_copy = deepcopy(self.domain_data)
         data_copy[data_place] = data
         self.update_domain(data_copy)
 
+    def insert_problem_data(self, data_place: str, data: str):
+        data_copy = deepcopy(self.problem_data)
+        data_copy[data_place] = data
+        self.update_problem(data_copy)
+
     def insert_predicate(self, pred_str: str):
-        self.insert_data("predicate_insert", pred_str)
+        self.insert_domain_data("predicate_insert", pred_str)
 
     def insert_action(self, action_str: str):
-        self.insert_data("action_insert", action_str)
+        self.insert_domain_data("action_insert", action_str)
+
+    def insert_init(self, init_str: str):
+        self.insert_problem_data("init_insert", init_str)
+
+    def insert_goal(self, goal_str: str):
+        self.insert_problem_data("goal_insert", goal_str)
 
     # ----- TESTING HELPER FUNCTIONS -----
 
     def get_parsed_domain(self):
         return parse(self.grammar, self.domain_str)[0]
+
+    def get_parsed_problem(self):
+        return parse(self.grammar, "\n".join(read_pdkbddl_file(self.problem_path)))[2]
 
     def valid_predicate_tester(self, pred_str: str, pred_obj: Predicate):
         self.insert_predicate(pred_str)
@@ -120,6 +158,16 @@ class TestParsing:
         self.insert_action(act_str)
         domain = self.get_parsed_domain()
         assert action_obj in domain.actions
+
+    def valid_init_tester(self, init_str: str, init_obj: Formula):
+        self.insert_init(init_str)
+        problem = self.get_parsed_problem()
+        assert init_obj in problem.init
+
+    def valid_goal_tester(self, goal_str: str, goal_obj: Formula):
+        self.insert_goal(goal_str)
+        problem = self.get_parsed_problem()
+        assert goal_obj in problem.goal
 
     def error_tester(self, insert_type: PDDLSection, new_data: str, errors: list[Exception]):
         with pytest.raises(errors[0]) as outer_e:
@@ -381,3 +429,7 @@ class TestParsing:
         )""",
             action
         )
+
+    #  PROBLEM PARSING
+    def test_problem(self):
+        self.valid_init_tester("(secret alice)", Predicate("secret", Constant("alice", "agent")))
