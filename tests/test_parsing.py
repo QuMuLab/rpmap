@@ -60,15 +60,15 @@ class TestParsing:
             )
         )
 
-    @pytest.fixture(scope="function", autouse=True)
+    @pytest.fixture(autouse=True)
     def reset_data(self):
         yield
         # upon test completion, reset the domain template file
-        self.domain_data["predicate_insert"] = insert_str
-        self.domain_data["action_insert"] = insert_str
+        self.domain_data["predicate_insert"] = self.insert_str
+        self.domain_data["action_insert"] = self.insert_str
         self.update_domain(self.domain_data)
-        self.problem_data["init_insert"] = insert_str
-        self.problem_data["goal_insert"] = insert_str
+        self.problem_data["init_insert"] = self.insert_str
+        self.problem_data["goal_insert"] = self.insert_str
         self.update_problem(self.problem_data)
 
     @pytest.fixture(scope="class", autouse=True)
@@ -85,8 +85,8 @@ class TestParsing:
             problem = f.read()
         # create a dictionary that indicates the appropriate places to insert into the domain
         # note that two `{insert here}` comments are specified at the locations for predicate and action insertion in the `domain_template.pdkbddl` file
-        insert_str = ";; {insert here}"
-        domain = domain.split(insert_str)
+        request.cls.insert_str = ";; {insert here}"
+        domain = domain.split(request.cls.insert_str)
         request.cls.domain_path = domain_path
         request.cls.domain_data = {
             "header": domain[0],
@@ -96,7 +96,7 @@ class TestParsing:
             "action_end": domain[2],
         }
         # do the same for the problem
-        problem = problem.split(insert_str)
+        problem = problem.split(request.cls.insert_str)
         request.cls.problem_path = problem_path
         request.cls.problem_data = {
             "header": problem[0],
@@ -185,6 +185,9 @@ class TestParsing:
             elif insert_type == PDDLSection.INIT:
                 self.insert_init(new_data)
                 self.get_parsed_problem()
+            elif insert_type == PDDLSection.GOAL:
+                self.insert_goal(new_data)
+                self.get_parsed_problem()
         for e in errors[1:]:
             assert isinstance(outer_e.value.orig_exc, e)
 
@@ -196,6 +199,9 @@ class TestParsing:
 
     def error_tester_init(self, init_str: str, errors: list[Exception]):
         self.error_tester(PDDLSection.INIT, init_str, errors)
+
+    def error_tester_goal(self, goal_str: str, errors: list[Exception]):
+        self.error_tester(PDDLSection.GOAL, goal_str, errors)
 
     # ----- TESTS -----
 
@@ -536,7 +542,7 @@ class TestParsing:
         [VisitError, PDDLValidationError]
         )
 
-    #  PROBLEM PARSING
+    #  INITIAL STATE PARSING
     def test_problem_init_predicate(self):
         self.valid_init_tester("(secret alice)", Predicate("secret", Constant("alice", "agent")))
 
@@ -562,3 +568,42 @@ class TestParsing:
 
     def test_problem_init_negate_always_known(self):
         self.error_tester_init("(!at alice l1)", [VisitError, PDDLValidationError])
+
+    # GOAL STATE PARSING
+
+    def test_problem_goal_predicate(self):
+        self.valid_goal_tester("(secret alice)", Predicate("secret", Constant("alice", "agent")))
+
+    def test_problem_goal_rml(self):
+        secret = Predicate("secret", Constant("alice", "agent"))
+        self.valid_goal_tester("[bel, bob](secret alice)", RML(GenericMODLType.BEL, Agent(Constant("bob", "agent")), secret))
+        secret.negated = True
+        self.valid_goal_tester("![bel, bob](secret alice)", RML(PossibleGenericMODLType.PBEL, Agent(Constant("bob", "agent")), secret))
+
+    def test_problem_goal_or_rml(self):
+        secret = Predicate("secret", Constant("alice", "agent"))
+        self.valid_goal_tester("(or (secret alice) [bel, bob](secret alice))", Or(secret,  RML(GenericMODLType.BEL, Agent(Constant("bob", "agent")), secret)))
+
+    def test_problem_goal_not_rml(self):
+        self.valid_goal_tester("(not (secret alice))", Not(Predicate("secret", Constant("alice", "agent"))))
+
+    def test_problem_goal_and_rml(self):
+        self.valid_goal_tester("(and (secret alice))", And(Predicate("secret", Constant("alice", "agent"))))
+
+    def test_problem_goal_imply(self):
+        secret_a = Predicate("secret", Constant("alice", "agent"))
+        secret_b = Predicate("secret", Constant("bob", "agent"))
+        self.valid_goal_tester("(imply (secret alice) (secret bob))", Imply(secret_a, secret_b))
+
+    def test_problem_goal_exists(self):
+        var_a = Variable("a", ["agent"])
+        self.valid_goal_tester("(exists (?a - agent) (secret ?a))", ExistsCondition(Predicate("secret", var_a), {var_a}))
+
+    def test_problem_goal_forall(self):
+        var_a = Variable("a", ["agent"])
+        self.valid_goal_tester("(forall (?a - agent) (secret ?a))", ForallCondition(Predicate("secret", var_a), {var_a}))
+
+    def test_problem_goal_negate_always_known(self):
+        self.error_tester_goal("(!at alice l1)", [VisitError, PDDLValidationError])
+
+    

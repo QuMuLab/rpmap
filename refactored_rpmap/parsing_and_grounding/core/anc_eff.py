@@ -31,7 +31,7 @@ class PossibleActionMODLType(Enum):
 
 class Agent:
     def __init__(self, term: Term):
-        if term.type_tags != frozenset(["agent"]):
+        if (isinstance(term, Constant) and term.type_tag != "agent") or (isinstance(term, Variable) and term.type_tags != frozenset(["agent"])):
             raise ValueError("The agent term must have `agent` as a type tag.")
         self.term = term
 
@@ -226,7 +226,7 @@ def modl(self, args):
             if isinstance(args[3], Constant):
                 if args[3].name not in self._domain_transformer._agents:
                     raise PDDLValidationError(f"Unknown agent {args[3].name} referenced.")
-                args[3]._type_tag = "agent"
+                args[3] = Constant(args[3].name, "agent")
                 return Nesting(modl_type[term_name], Agent(args[3]))
             else:
                 args[3]._type_tags = frozenset(["agent"])
