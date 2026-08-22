@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 from .utils import create_valuations
-from .core.anc_eff import ActionMODLType, PossibleActionMODLType, NOT_MODL, Agent, RMLPredicate, ListCompVar, ListCompAgents, RML, Nesting
+from .core.anc_eff import ActionMODLType, PossibleActionMODLType, NOT_MODL, Agent, RMLPredicate, ListCompVar, ListCompAgents, RML, Nesting, AncEffRMLModifier
 from copy import deepcopy
 from pddl.action import Action
 from pddl.exceptions import PDDLValidationError
@@ -173,7 +173,10 @@ def gather_itn_preds(formula):
         elif isinstance(fo, When):
             itn_preds.update(gather_itn_preds([fo.condition]))
             itn_preds.update(gather_itn_preds([fo.effect]))
+        elif isinstance(fo, AncEffRMLModifier):
+            continue
         else:
+            print()
             raise NotImplementedError("Unknown formula type: " + str(type(fo)))
     return itn_preds
 

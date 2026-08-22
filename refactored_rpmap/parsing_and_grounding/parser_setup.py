@@ -10,7 +10,7 @@ import pddl
 import warnings
 
 
-def read_pdkbddl_file(fname):
+def read_pdkbddl_file(fname, read_from_default=True):
     """Adapted from the pdkb.problems.read_pdkbddl_file function
     and the pdkb.test.utils.read_file function.
     
@@ -37,7 +37,7 @@ def read_pdkbddl_file(fname):
 
         for index in reversed(include_indices):
             import_name = lines[index].split(':')[1][:-1]
-            file_path = os.path.join(os.path.split(fname)[0], import_name) if "domain" in import_name else os.path.join("ancillary_effect_imports", import_name)
+            file_path = os.path.join("ancillary_effect_imports", import_name) if "ae" in import_name and read_from_default else os.path.join(os.path.split(fname)[0], import_name)
             lines = lines[:index] + read_pdkbddl_file(file_path) + lines[index+1:]
 
     # Strip out the comments and empty lines

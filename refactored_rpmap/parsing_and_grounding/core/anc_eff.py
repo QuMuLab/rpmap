@@ -140,6 +140,12 @@ class NOT_MODL:
     def __call__(self, arg):
         return arg._negate()
 
+    def __eq__(self, other):
+        return isinstance(other, NOT_MODL)
+
+    def __hash__(self):
+        return hash(NOT_MODL)
+
 class RMLPredicate(Predicate):
     def __init__(self, name):
         super().__init__(name)
@@ -150,32 +156,83 @@ class ListCompVar:
         self.term = term
         self.var = Variable
 
+    def __eq__(self, other):
+        return isinstance(other, ListCompVar) and self.term == other.term and self.var == other.var
+
+    def __hash__(self):
+        return hash((ListCompVar, self.term, self.var))
+
 class ListCompAgents:
     def __init__(self, term: RMLPredicate | RML):
         self.term = term
 
+    def __eq__(self, other):
+        return isinstance(other, ListCompAgents) and self.term == other.term
+
+    def __hash__(self):
+        return hash((ListCompVar, self.term))
+
+
+class AncEffRMLModifier:
+    def __init__(self, nestings: list[Nesting], pred: RMLPredicate):
+        self.nestings = nestings
+        self.pred = pred
+
+    def __eq__(self, other):
+        return isinstance(other, AncEffRMLModifier) and self.nestings == other.nestings and self.pred == other.pred
+
+    def __hash__(self):
+        return hash((self.nestings, self.pred))
+
 class AncEffPart:
-    def __init__(self, poscond, negcond, rml: list, type: str):
+    def __init__(self, poscond: list, negcond: list, rml: list[RML | Nesting | Predicate], anceff_type: str):
         self.poscond = poscond
         self.negcond = negcond
         self.rml = rml
-        self.type = type
+        self.anceff_type = anceff_type
+    
+    def __eq__(self, other):
+        return (isinstance(other, self.__class__) and
+            self.poscond == other.poscond and
+            self.negcond == other.negcond and
+            self.rml == other.rml and
+            self.anceff_type == other.anceff_type)
+    
+    def __hash__(self):
+        return hash((self.poscond, self.negcond, self.rml, self.anceff_type))
 
 class Consequent(AncEffPart):
-    def __init__(self, poscond, negcond, rml, type):
-        super().__init__(poscond, negcond, rml, type)
+    def __init__(self, poscond: list, negcond: list, rml: list[RML | Nesting | Predicate], anceff_type: str):
+        super().__init__(poscond, negcond, rml, anceff_type)
 
 class Antecedent(AncEffPart):
-    def __init__(self, awareness, rml, type):
-        super().__init__(Variable("pos"), Variable("neg"), rml, type)
+    def __init__(self, awareness: bool, rml: list[RML | AncEffRMLModifier | Predicate], anceff_type: str):
+        super().__init__([Variable("pos")], [Variable("neg")], rml, anceff_type)
         self.awareness = awareness
 
+    def __eq__(self, other):
+        return super().__eq__(other) and self.awareness == other.awareness
+
+    def __hash__(self):
+        return hash((self.poscond, self.negcond, self.rml, self.anceff_type, self.awareness))
+
 class AncEff:
-    def __init__(self, name, parameters, antecedent, consequent):
+    def __init__(self, name: str, parameters: list[Variable], antecedent: Antecedent, consequent: Consequent):
         self.name = name
         self.parameters = parameters
         self.antecedent = antecedent
         self.consequent = consequent
+
+    def __eq__(self, other):
+        return (isinstance(other, AncEff) and 
+                other.name == self.name and
+                other.parameters == self.parameters and
+                other.antecedent == self.antecedent and
+                other.consequent == self.consequent
+        )
+    
+    def __hash__(self):
+        return hash((self.name, self.parameters, self.antecedent, self.consequent))
 
 class AncEffs:
     def __init__(self, anceffs):
@@ -192,6 +249,11 @@ def atomic_formula_term(self, args):
         modls_no_neg[i] = modls_no_neg[i](modls_no_neg[i + 1])
     modl = modls_no_neg[0]
     return NOT_MODL()(modl) if negate_modalities else modl
+
+def atomic_formula_term_rml_r(self, args):
+    nestings = [NOT_MODL()] if args[0] else []
+    nestings.extend(args[1:-1])
+    return AncEffRMLModifier(nestings, args[-1])
 
 def get_constants(transformer_class, args):
     if isinstance(transformer_class, DomainTransformer):
@@ -259,6 +321,7 @@ def anceff(self, args):
     return AncEff(args[2].value, args[3], args[4], args[5])
 
 def antecedent(self, args):
+    args[4] = args[4].children[1].value == 'true' if args[4] else False
     return Antecedent(args[4], args[5], args[6])
 
 def consequent(self, args):
@@ -271,10 +334,19 @@ def list_comp_agents(self, args):
     return ListCompAgents(args[1])
 
 def plural(self, args):
-    return [a for a in args[1:] if a != Token("PLUS", "+")]
+    return [a for a in args if a != Token("PLUS", "+")]
+
+def rml_plural(self, args):
+    return self.pos_or_neg_cond(args[1:])
 
 def cond_type_def(self, args):
     return args[1].children[0].value
+
+def anceff_params(self, args):
+    return args[1]
+
+def pos_or_neg_var(self, args):
+    return Variable(args)
 
 # ----- ANCILLARY EFFECT TRANSFORMER -----
 
@@ -290,12 +362,13 @@ class AncEffTransformer(Transformer):
         return children
 
     def set_up_transformers(self):
-        setattr(AncEffTransformer, "atomic_formula_term_rml", atomic_formula_term)
+        setattr(AncEffTransformer, "atomic_formula_term_rml", atomic_formula_term_rml_r)
         setattr(AncEffTransformer, "terminal_rml", terminal_rml)
         setattr(AncEffTransformer, "terminal_r", terminal_r)
         setattr(AncEffTransformer, "modl", modl)
         setattr(AncEffTransformer, "var", var)
-        setattr(AncEffTransformer, "atomic_formula_term_list_comp_r", atomic_formula_term)
+        setattr(AncEffTransformer, "anceff_params", anceff_params)
+        setattr(AncEffTransformer, "atomic_formula_term_list_comp_r", atomic_formula_term_rml_r)
         setattr(AncEffTransformer, "list_comp_r_var", list_comp_var)
         setattr(AncEffTransformer, "list_comp_rml_var", list_comp_var)
         setattr(AncEffTransformer, "list_comp_r_agents", list_comp_agents)
@@ -303,29 +376,12 @@ class AncEffTransformer(Transformer):
         setattr(AncEffTransformer, "antecedent", antecedent)
         setattr(AncEffTransformer, "consequent", consequent)
         setattr(AncEffTransformer, "rml_options", return_option)
-        setattr(AncEffTransformer, "rml_def", plural)
+        setattr(AncEffTransformer, "rml_def", rml_plural)
         setattr(AncEffTransformer, "cond_type_def", cond_type_def)
         setattr(AncEffTransformer, "pos_or_neg_cond_options", return_option)
         setattr(AncEffTransformer, "pos_or_neg_cond", plural)
+        setattr(AncEffTransformer, "pos_var", pos_or_neg_var)
+        setattr(AncEffTransformer, "neg_var", pos_or_neg_var)
         setattr(AncEffTransformer, "anceff", anceff)
         setattr(AncEffTransformer, "anceffs", anceffs)
         setattr(AncEffTransformer, "all_anceffs", return_all)
-
-# if __name__ == "__main__":
-#     bel = Nesting(GenericMODLType.BEL, Agent("alice", var=False))
-#     des = Nesting(GenericMODLType.DES, Agent("bob", var=False))
-#     pred = Predicate("secret")
-
-#     nesting = bel(des)
-#     rml = bel(des(pred))
-#     nested_2 = nesting(rml)
-#     negated = NOT_MODL()(nesting)
-#     negated_2 = NOT_MODL()(rml)
-
-#     print(nesting, type(nesting))
-#     print(rml, type(rml))
-#     print(nested_2, type(nested_2))
-#     print(nested_2._get_predicate(), type(nested_2._get_predicate()))
-
-#     print(negated, type(negated))
-#     print(negated_2, type(negated_2))

@@ -8,7 +8,7 @@ from pddl.logic.terms import Variable, Constant
 from pddl.action import Action
 from pddl.parser.domain import Domain
 from pddl.parser import GRAMMAR_FILE
-from refactored_rpmap.parsing_and_grounding.core.anc_eff import RML, NOT_MODL, PossibleGenericMODLType, GenericMODLType, Agent
+from refactored_rpmap.parsing_and_grounding.core.anc_eff import *
 from refactored_rpmap.parsing_and_grounding.parser_setup import read_pdkbddl_file
 from run import parse
 from copy import deepcopy
@@ -60,6 +60,19 @@ class TestParsing:
             )
         )
 
+    @staticmethod
+    def get_template_anceff():
+        # create a generic AncEff object to test, based on negation-removal
+        pos_var = Variable("pos")
+        neg_var = Variable("neg")
+        rml_pred = RMLPredicate("rml")
+        return AncEff(
+            name="negation-removal",
+            parameters=None,
+            antecedent=Antecedent(False, [AncEffRMLModifier([], RMLPredicate("rml"))], "add-soft"),
+            consequent=Consequent([Variable("pos")], [Variable("neg")], [AncEffRMLModifier([NOT_MODL()], RMLPredicate("rml"))], "del")
+        )
+
     @pytest.fixture(autouse=True)
     def reset_data(self):
         yield
@@ -67,9 +80,12 @@ class TestParsing:
         self.domain_data["predicate_insert"] = self.insert_str
         self.domain_data["action_insert"] = self.insert_str
         self.update_domain(self.domain_data)
+        self.problem_data["import_insert"] = self.insert_str
         self.problem_data["init_insert"] = self.insert_str
         self.problem_data["goal_insert"] = self.insert_str
         self.update_problem(self.problem_data)
+        self.anceff_data["anceff_insert"] = self.insert_str
+        self.update_anceff(self.anceff_data)
 
     @pytest.fixture(scope="class", autouse=True)
     def setup(self, request):
@@ -83,6 +99,9 @@ class TestParsing:
         problem_path = os.path.join(*os.getcwd().split() + ["tests", "problem_template.pdkbddl"])
         with open(problem_path, "r") as f:
             problem = f.read()
+        anceff_path = os.path.join(*os.getcwd().split() + ["tests", "anceff_template.pdkbddl"])
+        with open(anceff_path, "r") as f:
+            anceff = f.read()
         # create a dictionary that indicates the appropriate places to insert into the domain
         # note that two `{insert here}` comments are specified at the locations for predicate and action insertion in the `domain_template.pdkbddl` file
         request.cls.insert_str = ";; {insert here}"
@@ -95,22 +114,28 @@ class TestParsing:
             "action_insert": "",
             "action_end": domain[2],
         }
-        # do the same for the problem
+        # do the same for the problem and ancillary effect templates
         problem = problem.split(request.cls.insert_str)
         request.cls.problem_path = problem_path
         request.cls.problem_data = {
-            "header": problem[0],
+            "include_domain": problem[0],
+            "import_insert": "",
+            "header": problem[1],
             "init_insert": "",
-            "header_end": problem[1],
+            "header_end": problem[2],
             "goal_insert": "",
-            "goal_end": problem[2],
+            "goal_end": problem[3],
         }
-
-        # set template action
+        anceff = anceff.split(request.cls.insert_str)
+        request.cls.anceff_path = anceff_path
+        request.cls.anceff_data = {
+            "header": anceff[0],
+            "anceff_insert": "",
+            "header_end": anceff[1],
+        }
+        # set template action and ancillary effect
         request.cls.action_template = TestParsing.get_template_action()
-
-        yield
-        self.reset_data()
+        request.cls.anceff_template = TestParsing.get_template_anceff()
 
     # ----- TEMPLATE FILE UPDATE FUNCTIONS -----
 
@@ -124,6 +149,11 @@ class TestParsing:
         with open(self.problem_path, "w") as f:
             f.write(self.problem_str)
 
+    def update_anceff(self, new_anceff_data: dict[str, str]):
+        self.anceff_str = "".join(new_anceff_data.values())
+        with open(self.anceff_path, "w") as f:
+            f.write(self.anceff_str)
+
     def insert_domain_data(self, data_place: str, data: str):
         data_copy = deepcopy(self.domain_data)
         data_copy[data_place] = data
@@ -133,6 +163,11 @@ class TestParsing:
         data_copy = deepcopy(self.problem_data)
         data_copy[data_place] = data
         self.update_problem(data_copy)
+
+    def insert_anceff_data(self, data_place: str, data: str):
+        data_copy = deepcopy(self.anceff_data)
+        data_copy[data_place] = data
+        self.update_anceff(data_copy)
 
     def insert_predicate(self, pred_str: str):
         self.insert_domain_data("predicate_insert", pred_str)
@@ -146,6 +181,9 @@ class TestParsing:
     def insert_goal(self, goal_str: str):
         self.insert_problem_data("goal_insert", goal_str)
 
+    def insert_anceff(self, anceff_str: str):
+        self.insert_anceff_data("anceff_insert", anceff_str)
+
     # ----- TESTING HELPER FUNCTIONS -----
 
     def get_parsed_domain(self):
@@ -153,6 +191,10 @@ class TestParsing:
 
     def get_parsed_problem(self):
         return parse(self.grammar, "\n".join(read_pdkbddl_file(self.problem_path)))[2]
+
+    def get_parsed_anceff(self):
+        self.insert_problem_data("import_insert", "{include:anceff_template.pdkbddl}")
+        return parse(self.grammar, "\n".join(read_pdkbddl_file(self.problem_path)))[1]
 
     def valid_predicate_tester(self, pred_str: str, pred_obj: Predicate):
         self.insert_predicate(pred_str)
@@ -173,6 +215,11 @@ class TestParsing:
         self.insert_goal(goal_str)
         problem = self.get_parsed_problem()
         assert goal_obj in problem.goal
+
+    def valid_anceff_tester(self, anceff_str: str, anceff_obj: AncEff):
+        self.insert_anceff(anceff_str)
+        anc_effs = self.get_parsed_anceff()
+        assert anceff_obj in anc_effs[0].anceffs
 
     def error_tester(self, insert_type: PDDLSection, new_data: str, errors: list[Exception]):
         with pytest.raises(errors[0]) as outer_e:
@@ -202,6 +249,9 @@ class TestParsing:
 
     def error_tester_goal(self, goal_str: str, errors: list[Exception]):
         self.error_tester(PDDLSection.GOAL, goal_str, errors)
+
+    def error_tester_anceff(self, anceff_str: str, errors: list[Exception]):
+        self.error_tester(PDDLSection.ANC_EFF, anceff_str, errors)
 
     # ----- TESTS -----
 
@@ -606,4 +656,21 @@ class TestParsing:
     def test_problem_goal_negate_always_known(self):
         self.error_tester_goal("(!at alice l1)", [VisitError, PDDLValidationError])
 
+    # ANCILLARY EFFECT PARSING
+    def test_basic_anceff(self):
+        self.valid_anceff_tester("""
+    (:anceff negation-removal
+        :antecedent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml (rml)
+            :type add-soft
+        )
+        :consequent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml !(rml)
+            :type del
+        )
+    )""", self.get_template_anceff())
     
