@@ -146,15 +146,35 @@ class NOT_MODL:
     def __hash__(self):
         return hash(NOT_MODL)
 
-class RMLPredicate(Predicate):
-    def __init__(self, name):
-        super().__init__(name)
-        self.nest = False
+# class RMLPredicate(Predicate):
+#     def __init__(self, name):
+#         super().__init__(name)
+#         self.nest = False
+
+class RMLOrPredTerm:
+    def __init__(self):
+        pass
+
+class RMLTerm(RMLOrPredTerm):
+    def __repr__(self):
+        return "{rml}"
+
+class PredTerm(RMLOrPredTerm):
+    def __repr__(self):
+        return "{pred}"
+
+class NestedRMLTerm(RMLTerm):
+    def __repr__(self):
+        return "[{rml}]"
+
+class NestedPredTerm(PredTerm):
+    def __repr__(self):
+        return "[{pred}]"
 
 class ListCompVar:
-    def __init__(self, term: RMLPredicate | RML, var: Variable):
+    def __init__(self, term: RMLOrPredTerm | RML, var: Variable):
         self.term = term
-        self.var = Variable
+        self.var = var
 
     def __eq__(self, other):
         return isinstance(other, ListCompVar) and self.term == other.term and self.var == other.var
@@ -163,7 +183,7 @@ class ListCompVar:
         return hash((ListCompVar, self.term, self.var))
 
 class ListCompAgents:
-    def __init__(self, term: RMLPredicate | RML):
+    def __init__(self, term: RMLOrPredTerm | RML):
         self.term = term
 
     def __eq__(self, other):
@@ -174,15 +194,15 @@ class ListCompAgents:
 
 
 class AncEffRMLModifier:
-    def __init__(self, nestings: list[Nesting], pred: RMLPredicate):
+    def __init__(self, nestings: list[Nesting], rml_or_pred_term: RMLOrPredTerm):
         self.nestings = nestings
-        self.pred = pred
+        self.term = rml_or_pred_term
 
     def __eq__(self, other):
-        return isinstance(other, AncEffRMLModifier) and self.nestings == other.nestings and self.pred == other.pred
+        return isinstance(other, AncEffRMLModifier) and self.nestings == other.nestings and self.term == other.term
 
     def __hash__(self):
-        return hash((self.nestings, self.pred))
+        return hash((self.nestings, self.term))
 
 class AncEffPart:
     def __init__(self, poscond: list, negcond: list, rml: list[RML | Nesting | Predicate], anceff_type: str):
@@ -295,21 +315,35 @@ def modl(self, args):
                 return Nesting(modl_type[term_name], Agent(args[3]))
     raise PDDLValidationError(f"MODL Type {term_name} is not specified in any of the MODLType categories in 'anc_eff.py.'")
 
-def terminal_helper(args, name):
-    pred = RMLPredicate(name)
-    # nesting is present
-    if args[0]:
-        pred.nest = True
-    # negation is present
-    if args[2]:
-        pred.negated = True
-    return pred
+def rml_term(self, args):
+    return RMLTerm()
 
-def terminal_rml(self, args):
-    return terminal_helper(args, "rml")
+def pred_term(self, args):
+    return PredTerm()
 
-def terminal_r(self, args):
-    return terminal_helper(args, "r")
+def rml_or_pred_nested(self, args):
+    if isinstance(args[1], RMLTerm):
+        return NestedRMLTerm()
+    elif isinstance(args[1], PredTerm):
+        return NestedPredTerm()
+    else:
+        raise ValueError(f"Unknown term type {type(args[0])}.")
+
+# def terminal_helper(args, name):
+#     pred = RMLPredicate(name)
+#     # nesting is present
+#     if args[0]:
+#         pred.nest = True
+#     # negation is present
+#     if args[2]:
+#         pred.negated = True
+#     return pred
+
+# def terminal_rml(self, args):
+#     return terminal_helper(args, "rml")
+
+# def terminal_r(self, args):
+#     return terminal_helper(args, "r")
 
 def return_all(self, args):
     return args
@@ -346,7 +380,7 @@ def anceff_params(self, args):
     return args[1]
 
 def pos_or_neg_var(self, args):
-    return Variable(args)
+    return Variable(args.value[1:])
 
 # ----- ANCILLARY EFFECT TRANSFORMER -----
 
@@ -363,12 +397,16 @@ class AncEffTransformer(Transformer):
 
     def set_up_transformers(self):
         setattr(AncEffTransformer, "atomic_formula_term_rml", atomic_formula_term_rml_r)
-        setattr(AncEffTransformer, "terminal_rml", terminal_rml)
-        setattr(AncEffTransformer, "terminal_r", terminal_r)
+        setattr(AncEffTransformer, "rml_term", rml_term)
+        setattr(AncEffTransformer, "pred_term", pred_term)
+        setattr(AncEffTransformer, "terminal_rml_or_pred", return_option)
+        setattr(AncEffTransformer, "terminal_rml_nested", rml_or_pred_nested)
+        setattr(AncEffTransformer, "terminal_pred_nested", rml_or_pred_nested)
+        # setattr(AncEffTransformer, "terminal_r", terminal_r)
         setattr(AncEffTransformer, "modl", modl)
         setattr(AncEffTransformer, "var", var)
         setattr(AncEffTransformer, "anceff_params", anceff_params)
-        setattr(AncEffTransformer, "atomic_formula_term_list_comp_r", atomic_formula_term_rml_r)
+        # setattr(AncEffTransformer, "atomic_formula_term_list_comp_r", atomic_formula_term_rml_r)
         setattr(AncEffTransformer, "list_comp_r_var", list_comp_var)
         setattr(AncEffTransformer, "list_comp_rml_var", list_comp_var)
         setattr(AncEffTransformer, "list_comp_r_agents", list_comp_agents)
@@ -380,8 +418,9 @@ class AncEffTransformer(Transformer):
         setattr(AncEffTransformer, "cond_type_def", cond_type_def)
         setattr(AncEffTransformer, "pos_or_neg_cond_options", return_option)
         setattr(AncEffTransformer, "pos_or_neg_cond", plural)
-        setattr(AncEffTransformer, "pos_var", pos_or_neg_var)
-        setattr(AncEffTransformer, "neg_var", pos_or_neg_var)
+        setattr(AncEffTransformer, "pos_or_neg_term", return_option)
+        setattr(AncEffTransformer, "POS", pos_or_neg_var)
+        setattr(AncEffTransformer, "NEG", pos_or_neg_var)
         setattr(AncEffTransformer, "anceff", anceff)
         setattr(AncEffTransformer, "anceffs", anceffs)
         setattr(AncEffTransformer, "all_anceffs", return_all)

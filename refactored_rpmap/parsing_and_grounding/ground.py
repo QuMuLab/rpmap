@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 from .utils import create_valuations
-from .core.anc_eff import ActionMODLType, PossibleActionMODLType, NOT_MODL, Agent, RMLPredicate, ListCompVar, ListCompAgents, RML, Nesting, AncEffRMLModifier
+from .core.anc_eff import ActionMODLType, PossibleActionMODLType, NOT_MODL, Agent, RMLOrPredTerm, ListCompVar, ListCompAgents, RML, Nesting, AncEffRMLModifier
 from copy import deepcopy
 from pddl.action import Action
 from pddl.exceptions import PDDLValidationError
@@ -159,7 +159,7 @@ def gather_itn_preds(formula):
         elif isinstance(fo, RML):
             if isinstance(fo.mod_type, ActionMODLType) or isinstance(fo.mod_type, PossibleActionMODLType):
                 pred = fo._get_predicate()
-                if not isinstance(pred, RMLPredicate):
+                if not isinstance(pred, RMLOrPredTerm):
                     itn_preds.add(pred)
         elif isinstance(fo, ForallCondition):
             itn_preds.update(gather_itn_preds([fo.condition]))

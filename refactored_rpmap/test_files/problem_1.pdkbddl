@@ -1,5 +1,5 @@
 {include:domain.pdkbddl}
-{include:ae_default.pdkbddl}
+{include:ae_default_revised.pdkbddl}
 
 (define (problem depth_2_agents_2)
 
