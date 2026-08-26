@@ -105,22 +105,6 @@ class Nesting(GeneralRML):
             return new_base(self.child._negate())
         return new_base
 
-    def _get_as_list(self):
-        modl_list = []
-        if isinstance(self, Predicate):
-            modl_list.append(deepcopy(self))
-        elif isinstance(self, Nesting) or isinstance(self, RML):
-            if not self.child:
-                modl_list.append(deepcopy(self))
-            else:
-                base = deepcopy(self)
-                base.child = None
-                modl_list.append(base)
-                modl_list.extend(deepcopy(self.child._get_as_list()))
-        else:
-            raise ValueError(f"Unknown type {type(self)}.")
-        return modl_list
-
 class RML(GeneralRML):
     def __init__(self, mod_type: GenericMODLType | PossibleGenericMODLType | ActionMODLType | PossibleActionMODLType, agent: Agent, child: RML | Predicate):
         super().__init__(mod_type, agent)
@@ -161,6 +145,9 @@ class BLANK_MODL:
     def __hash__(self):
         return hash(NOT_MODL)
 
+    def __repr__(self):
+        return "BLANK_MODL"
+
 class NOT_MODL:
     def __init__(self):
         pass
@@ -177,9 +164,18 @@ class NOT_MODL:
     def __hash__(self):
         return hash(NOT_MODL)
 
+    def __repr__(self):
+        return "NOT_MODL"
+
 class RMLOrPredTerm:
     def __init__(self):
         pass
+
+    def __eq__(self, other):
+        return isinstance(other, self.__class__)
+
+    def __hash__(self):
+        return hash(self.__class__)
 
 class RMLTerm(RMLOrPredTerm):
     def __repr__(self):
@@ -189,13 +185,35 @@ class PredTerm(RMLOrPredTerm):
     def __repr__(self):
         return "{pred}"
 
-class NestedRMLTerm(RMLTerm):
-    def __repr__(self):
-        return "[{rml}]"
+class RMLorPredTermNegated(RMLOrPredTerm):
+    def __init__(self):
+        pass
 
-class NestedPredTerm(PredTerm):
+class RMLTermNegated(RMLTerm):
     def __repr__(self):
-        return "[{pred}]"
+        return "!{rml}"
+
+class PredTermNegated(PredTerm):
+    def __repr__(self):
+        return "!{pred}"
+
+class NestedRMLorPredTerm(RMLOrPredTerm):
+    def __init__(self, child: RMLTerm | RMLTermNegated | PredTerm | PredTermNegated):
+        self.child = child
+
+    def __repr__(self):
+        return f"[{self.child}]"
+
+    def __eq__(self, other):
+        return isinstance(other, self.__class__) and self.child == other.child
+
+class NestedRMLTerm(NestedRMLorPredTerm):
+    def __init__(self, child: RMLTerm | RMLTermNegated):
+        super().__init__(child)
+
+class NestedPredTerm(NestedRMLorPredTerm):
+    def __init__(self, child: PredTerm | PredTermNegated):
+        super().__init__(child)
 
 class ListCompVar:
     def __init__(self, term: RMLOrPredTerm | RML, var: Variable):
@@ -226,12 +244,31 @@ class SeparatedRMLTerm:
             raise PDDLValidationError("Any negation in a `SeparatedRMLTerm` should be separated into `nestings`.")
         self.term = rml_or_pred_term
 
+    @staticmethod
+    def _get_as_list(term: Predicate | Nesting | RML | NOT_MODL):
+        modl_list = []
+        if isinstance(term, NOT_MODL) or isinstance(term, BLANK_MODL):
+            pass
+        elif isinstance(term, Predicate):
+            modl_list.append(deepcopy(term))
+        elif isinstance(term, Nesting) or isinstance(term, RML):
+            if not term.child:
+                modl_list.append(deepcopy(term))
+            else:
+                base = deepcopy(term)
+                base.child = None
+                modl_list.append(base)
+                modl_list.extend(deepcopy(SeparatedRMLTerm._get_as_list(term.child)))
+        else:
+            raise ValueError(f"Unknown type {type(term)}.")
+        return modl_list
+
     def normal_form(self, nestings):
         if nestings and len(nestings) >= 2:
             not_count = len([n for n in nestings if isinstance(n, NOT_MODL)])
             for i in range(len(nestings) - 2, - 1, - 1):
                 nestings[i] = nestings[i](nestings[i + 1])
-            nestings = nestings[0]._get_as_list()
+            nestings = SeparatedRMLTerm._get_as_list(nestings[0])
             if not_count % 2 != 0:
                 nestings.append(NOT_MODL()) 
         return nestings
@@ -241,6 +278,9 @@ class SeparatedRMLTerm:
 
     def __hash__(self):
         return hash((tuple(self.nestings), self.term))
+
+    def __repr__(self):
+        return f"{self.nestings} >> {self.term}"
 
 class AncEffPart:
     def __init__(self, poscond: list, negcond: list, rml: list[RML | Nesting | Predicate], anceff_type: str):
@@ -357,22 +397,27 @@ def modl(self, args):
     raise PDDLValidationError(f"MODL Type {term_name} is not specified in any of the MODLType categories in 'anc_eff.py.'")
 
 def rml_term(self, args):
+    if args[0] is not None:
+        return RMLTermNegated()
     return RMLTerm()
 
 def pred_term(self, args):
+    if args[0] is not None:
+        return PredTermNegated()
     return PredTerm()
 
 def rml_or_pred_nested(self, args):
+    negated = args[0] is not None
     if isinstance(args[2], RMLTerm):
-        term = NestedRMLTerm()
+        if negated:
+            return SeparatedRMLTerm([NOT_MODL()], NestedRMLTerm(args[2]))
+        return NestedRMLTerm(args[2])
     elif isinstance(args[2], PredTerm):
-        term = NestedPredTerm()
+        if negated:
+            return SeparatedRMLTerm([NOT_MODL()], NestedPredTerm(args[2]))
+        return NestedPredTerm(args[2])
     else:
-        raise ValueError(f"Unknown term type {type(args[2])}.")
-    if args[0] is not None:
-        return SeparatedRMLTerm([NOT_MODL()], term)
-    else:
-        return SeparatedRMLTerm(list(), term)
+        raise ValueError(f"Unknown type {type(args[2])}.")
 
 def return_all(self, args):
     return args
@@ -428,6 +473,7 @@ class AncEffTransformer(Transformer):
         setattr(AncEffTransformer, "atomic_formula_term_rml", atomic_formula_term)
         setattr(AncEffTransformer, "rml_term", rml_term)
         setattr(AncEffTransformer, "pred_term", pred_term)
+        setattr(AncEffTransformer, "rml_or_pred_term", return_option)
         setattr(AncEffTransformer, "terminal_rml_or_pred", return_option)
         setattr(AncEffTransformer, "terminal_rml_nested", rml_or_pred_nested)
         setattr(AncEffTransformer, "terminal_pred_nested", rml_or_pred_nested)
@@ -441,7 +487,9 @@ class AncEffTransformer(Transformer):
         setattr(AncEffTransformer, "antecedent", antecedent)
         setattr(AncEffTransformer, "consequent", consequent)
         setattr(AncEffTransformer, "rml_options", return_option)
-        setattr(AncEffTransformer, "rml_def", rml_plural)
+        setattr(AncEffTransformer, "atomic_formula_term_antecedent", atomic_formula_term)
+        setattr(AncEffTransformer, "rml_cons_def", rml_plural)
+        setattr(AncEffTransformer, "rml_ant_def", rml_plural)
         setattr(AncEffTransformer, "cond_type_def", cond_type_def)
         setattr(AncEffTransformer, "pos_or_neg_cond_options", return_option)
         setattr(AncEffTransformer, "pos_or_neg_cond", plural)

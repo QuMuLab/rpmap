@@ -43,17 +43,17 @@ class TestParsing:
         at_pred_3.always_known = True
         return Action(
             "share",
-            derive_condition=at_pred_1,
+            derive_condition=SeparatedRMLTerm(list(), at_pred_1),
             parameters=[a_var, as_var, l_var],
             precondition=And(
-                at_pred_2, 
-                RML(GenericMODLType.BEL, Agent(a_var), secret)
+                SeparatedRMLTerm(list(), at_pred_2), 
+                SeparatedRMLTerm([Nesting(GenericMODLType.BEL, Agent(a_var))], secret)
             ),
             effect=And(
                 Forall(
                     When(
-                        And(at_pred_3),
-                        And(RML(GenericMODLType.BEL, Agent(a2_var), secret))
+                        And(SeparatedRMLTerm(list(), at_pred_3)),
+                        And(SeparatedRMLTerm([Nesting(GenericMODLType.BEL, Agent(a2_var))], secret))
                     ),
                     frozenset([a2_var])
                 )
@@ -65,12 +65,13 @@ class TestParsing:
         # create a generic AncEff object to test, based on negation-removal
         pos_var = Variable("pos")
         neg_var = Variable("neg")
-        rml_pred = RMLPredicate("rml")
+        rml_term = RMLTerm()
+        nested_rml_term = NestedRMLTerm(rml_term)
         return AncEff(
             name="negation-removal",
             parameters=None,
-            antecedent=Antecedent(False, [SeparatedRMLTerm([], RMLPredicate("rml"))], "add-soft"),
-            consequent=Consequent([Variable("pos")], [Variable("neg")], [SeparatedRMLTerm([NOT_MODL()], RMLPredicate("rml"))], "del")
+            antecedent=Antecedent(False, [SeparatedRMLTerm([], rml_term)], "add"),
+            consequent=Consequent([Variable("pos")], [Variable("neg")], [SeparatedRMLTerm([NOT_MODL()], nested_rml_term)], "del")
         )
 
     @pytest.fixture(autouse=True)
@@ -500,7 +501,7 @@ class TestParsing:
 
     def test_action_negated_rml(self):
         action = deepcopy(self.action_template)
-        action._effect = NOT_MODL()(action._effect.effect.effect)
+        action._effect = SeparatedRMLTerm([NOT_MODL()] + action._effect.effect.effect.nestings, action._effect.effect.effect.term)
         self.valid_action_tester("""
         (:action share
             :derive-condition   (at $agent$ ?l)
@@ -526,7 +527,7 @@ class TestParsing:
 
     def test_action_negated_pred(self):
         action = deepcopy(self.action_template)
-        action._effect = NOT_MODL()(action._effect.effect.effect._get_predicate())
+        action._effect = SeparatedRMLTerm([NOT_MODL()], action._effect.effect.effect.term)
         self.valid_action_tester("""
         (:action share
             :derive-condition   (at $agent$ ?l)
@@ -538,7 +539,7 @@ class TestParsing:
         )""",
             action
         )
-        action._effect = NOT_MODL()(action._effect)
+        action._effect = SeparatedRMLTerm([NOT_MODL(), NOT_MODL()], action._effect.term)
         self.valid_action_tester("""
         (:action share
             :derive-condition   (at $agent$ ?l)
@@ -550,7 +551,7 @@ class TestParsing:
         )""",
             action
         )
-        action._effect = Not(NOT_MODL()(action._effect))
+        action._effect = Not(SeparatedRMLTerm([NOT_MODL()], action._effect.term))
         self.valid_action_tester("""
         (:action share
             :derive-condition   (at $agent$ ?l)
@@ -567,7 +568,7 @@ class TestParsing:
         action = deepcopy(self.action_template)
         at_p = Predicate("at", Variable("as", ["agent"]), Variable("l", ["loc"]))
         at_p.always_known = True
-        action._effect = Not(at_p)
+        action._effect = Not(SeparatedRMLTerm(list(), at_p))
         self.valid_action_tester("""
         (:action share
             :derive-condition   (at $agent$ ?l)
@@ -594,23 +595,21 @@ class TestParsing:
 
     #  INITIAL STATE PARSING
     def test_problem_init_predicate(self):
-        self.valid_init_tester("(secret alice)", Predicate("secret", Constant("alice", "agent")))
+        self.valid_init_tester("(secret alice)", SeparatedRMLTerm(list(), Predicate("secret", Constant("alice", "agent"))))
 
     def test_problem_init_rml(self):
         secret = Predicate("secret", Constant("alice", "agent"))
-        self.valid_init_tester("[bel, bob](secret alice)", RML(GenericMODLType.BEL, Agent(Constant("bob", "agent")), secret))
-        secret.negated = True
-        self.valid_init_tester("![bel, bob](secret alice)", RML(PossibleGenericMODLType.PBEL, Agent(Constant("bob", "agent")), secret))
+        self.valid_init_tester("[bel, bob](secret alice)", SeparatedRMLTerm([Nesting(GenericMODLType.BEL, Agent(Constant("bob", "agent")))], secret))
+        self.valid_init_tester("![bel, bob](!secret alice)", SeparatedRMLTerm([Nesting(PossibleGenericMODLType.PBEL, Agent(Constant("bob", "agent")))], secret))
 
     def test_problem_init_and_rml(self):
-        self.valid_init_tester("(and [bel, bob](secret alice) (secret alice))", And(*[RML(GenericMODLType.BEL, Agent(Constant("bob", "agent")), Predicate("secret", Constant("alice", "agent"))), Predicate("secret", Constant("alice", "agent"))]))
+        self.valid_init_tester("(and [bel, bob](secret alice) (secret alice))", And(*[SeparatedRMLTerm([Nesting(GenericMODLType.BEL, Agent(Constant("bob", "agent")))], Predicate("secret", Constant("alice", "agent"))), SeparatedRMLTerm(list(), Predicate("secret", Constant("alice", "agent")))]))
 
     def test_problem_init_forall(self):
-        self.valid_init_tester("(forall (?a - agent) [bel, ?a](secret ?a))", Forall(And(RML(GenericMODLType.BEL, Agent(Variable("a", ["agent"])), Predicate("secret", Variable("a", ["agent"])))), {Variable("a", ["agent"])}))
+        self.valid_init_tester("(forall (?a - agent) [bel, ?a](secret ?a))", Forall(And(SeparatedRMLTerm([Nesting(GenericMODLType.BEL, Agent(Variable("a", ["agent"])))], Predicate("secret", Variable("a", ["agent"])))), {Variable("a", ["agent"])}))
 
     def test_exc_negate(self):
-        p = Predicate("secret", Constant("alice", "agent"))
-        p.negated = True
+        p = SeparatedRMLTerm([NOT_MODL()], Predicate("secret", Constant("alice", "agent")))
         self.valid_init_tester("(!secret alice)", p)
 
     def test_problem_init_no_not(self):
@@ -622,36 +621,35 @@ class TestParsing:
     # GOAL STATE PARSING
 
     def test_problem_goal_predicate(self):
-        self.valid_goal_tester("(secret alice)", Predicate("secret", Constant("alice", "agent")))
+        self.valid_goal_tester("(secret alice)", SeparatedRMLTerm(list(), Predicate("secret", Constant("alice", "agent"))))
 
     def test_problem_goal_rml(self):
         secret = Predicate("secret", Constant("alice", "agent"))
-        self.valid_goal_tester("[bel, bob](secret alice)", RML(GenericMODLType.BEL, Agent(Constant("bob", "agent")), secret))
-        secret.negated = True
-        self.valid_goal_tester("![bel, bob](secret alice)", RML(PossibleGenericMODLType.PBEL, Agent(Constant("bob", "agent")), secret))
+        self.valid_goal_tester("[bel, bob](secret alice)", SeparatedRMLTerm([Nesting(GenericMODLType.BEL, Agent(Constant("bob", "agent")))], secret))
+        self.valid_goal_tester("![bel, bob](secret alice)", SeparatedRMLTerm([NOT_MODL(), Nesting(GenericMODLType.BEL, Agent(Constant("bob", "agent")))], secret))
 
     def test_problem_goal_or_rml(self):
         secret = Predicate("secret", Constant("alice", "agent"))
-        self.valid_goal_tester("(or (secret alice) [bel, bob](secret alice))", Or(secret,  RML(GenericMODLType.BEL, Agent(Constant("bob", "agent")), secret)))
+        self.valid_goal_tester("(or (secret alice) [bel, bob](secret alice))", Or(SeparatedRMLTerm(list(), secret), SeparatedRMLTerm([Nesting(GenericMODLType.BEL, Agent(Constant("bob", "agent")))], secret)))
 
     def test_problem_goal_not_rml(self):
-        self.valid_goal_tester("(not (secret alice))", Not(Predicate("secret", Constant("alice", "agent"))))
+        self.valid_goal_tester("(not (secret alice))", Not(SeparatedRMLTerm(list(), Predicate("secret", Constant("alice", "agent")))))
 
     def test_problem_goal_and_rml(self):
-        self.valid_goal_tester("(and (secret alice))", And(Predicate("secret", Constant("alice", "agent"))))
+        self.valid_goal_tester("(and (secret alice))", And(SeparatedRMLTerm(list(), Predicate("secret", Constant("alice", "agent")))))
 
     def test_problem_goal_imply(self):
         secret_a = Predicate("secret", Constant("alice", "agent"))
         secret_b = Predicate("secret", Constant("bob", "agent"))
-        self.valid_goal_tester("(imply (secret alice) (secret bob))", Imply(secret_a, secret_b))
+        self.valid_goal_tester("(imply (secret alice) (secret bob))", Imply(SeparatedRMLTerm(list(), secret_a), SeparatedRMLTerm(list(), secret_b)))
 
     def test_problem_goal_exists(self):
         var_a = Variable("a", ["agent"])
-        self.valid_goal_tester("(exists (?a - agent) (secret ?a))", ExistsCondition(Predicate("secret", var_a), {var_a}))
+        self.valid_goal_tester("(exists (?a - agent) (secret ?a))", ExistsCondition(SeparatedRMLTerm(list(), Predicate("secret", var_a)), {var_a}))
 
     def test_problem_goal_forall(self):
         var_a = Variable("a", ["agent"])
-        self.valid_goal_tester("(forall (?a - agent) (secret ?a))", ForallCondition(Predicate("secret", var_a), {var_a}))
+        self.valid_goal_tester("(forall (?a - agent) (secret ?a))", ForallCondition(SeparatedRMLTerm(list(), Predicate("secret", var_a)), {var_a}))
 
     def test_problem_goal_negate_always_known(self):
         self.error_tester_goal("(!at alice l1)", [VisitError, PDDLValidationError])
@@ -663,13 +661,13 @@ class TestParsing:
         :antecedent (
             :poscond ?pos
             :negcond ?neg
-            :rml (rml)
-            :type add-soft
+            :rml {rml}
+            :type add
         )
         :consequent (
             :poscond ?pos
             :negcond ?neg
-            :rml !(rml)
+            :rml ![{rml}]
             :type del
         )
     )""", self.get_template_anceff())
