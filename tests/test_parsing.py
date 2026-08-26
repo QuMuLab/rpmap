@@ -69,8 +69,8 @@ class TestParsing:
         return AncEff(
             name="negation-removal",
             parameters=None,
-            antecedent=Antecedent(False, [AncEffRMLModifier([], RMLPredicate("rml"))], "add-soft"),
-            consequent=Consequent([Variable("pos")], [Variable("neg")], [AncEffRMLModifier([NOT_MODL()], RMLPredicate("rml"))], "del")
+            antecedent=Antecedent(False, [SeparatedRMLTerm([], RMLPredicate("rml"))], "add-soft"),
+            consequent=Consequent([Variable("pos")], [Variable("neg")], [SeparatedRMLTerm([NOT_MODL()], RMLPredicate("rml"))], "del")
         )
 
     @pytest.fixture(autouse=True)

@@ -81,12 +81,14 @@ class Nesting(GeneralRML):
         self.child: Nesting | RML | Predicate
 
     def __call__(self, arg):
-        if isinstance(arg, Nesting):
+        if isinstance(arg, Nesting) or isinstance(arg, NOT_MODL):
             new_base = deepcopy(self)
             new_base.set_child(deepcopy(arg))
             return new_base
         elif isinstance(arg, RML) or isinstance(arg, Predicate):
             return RML(self.mod_type, self.agent, deepcopy(arg))
+        elif isinstance(arg, BLANK_MODL):
+            return deepcopy(self)
         else:
             raise PDDLValidationError(f"A Nesting can only be applied to another Nesting or an RML, not {type(arg)}.")
 
@@ -102,6 +104,22 @@ class Nesting(GeneralRML):
         if self.child:
             return new_base(self.child._negate())
         return new_base
+
+    def _get_as_list(self):
+        modl_list = []
+        if isinstance(self, Predicate):
+            modl_list.append(deepcopy(self))
+        elif isinstance(self, Nesting) or isinstance(self, RML):
+            if not self.child:
+                modl_list.append(deepcopy(self))
+            else:
+                base = deepcopy(self)
+                base.child = None
+                modl_list.append(base)
+                modl_list.extend(deepcopy(self.child._get_as_list()))
+        else:
+            raise ValueError(f"Unknown type {type(self)}.")
+        return modl_list
 
 class RML(GeneralRML):
     def __init__(self, mod_type: GenericMODLType | PossibleGenericMODLType | ActionMODLType | PossibleActionMODLType, agent: Agent, child: RML | Predicate):
@@ -133,9 +151,22 @@ class RML(GeneralRML):
         else:
             return RML(list(ActionMODLType)[list(PossibleActionMODLType).index(self.mod_type)], self.agent, self.child._negate())
 
+class BLANK_MODL:
+    def __init__(self):
+        pass
+
+    def __eq__(self, other):
+        return isinstance(other, NOT_MODL)
+
+    def __hash__(self):
+        return hash(NOT_MODL)
+
 class NOT_MODL:
     def __init__(self):
         pass
+
+    def _negate(self):
+        return BLANK_MODL()
 
     def __call__(self, arg):
         return arg._negate()
@@ -145,11 +176,6 @@ class NOT_MODL:
 
     def __hash__(self):
         return hash(NOT_MODL)
-
-# class RMLPredicate(Predicate):
-#     def __init__(self, name):
-#         super().__init__(name)
-#         self.nest = False
 
 class RMLOrPredTerm:
     def __init__(self):
@@ -193,16 +219,28 @@ class ListCompAgents:
         return hash((ListCompVar, self.term))
 
 
-class AncEffRMLModifier:
-    def __init__(self, nestings: list[Nesting], rml_or_pred_term: RMLOrPredTerm):
-        self.nestings = nestings
+class SeparatedRMLTerm:
+    def __init__(self, nestings: list[Nesting | NOT_MODL], rml_or_pred_term: RMLOrPredTerm | Predicate):
+        self.nestings = self.normal_form(nestings)
+        if isinstance(rml_or_pred_term, Predicate) and rml_or_pred_term.negated:
+            raise PDDLValidationError("Any negation in a `SeparatedRMLTerm` should be separated into `nestings`.")
         self.term = rml_or_pred_term
 
+    def normal_form(self, nestings):
+        if nestings and len(nestings) >= 2:
+            not_count = len([n for n in nestings if isinstance(n, NOT_MODL)])
+            for i in range(len(nestings) - 2, - 1, - 1):
+                nestings[i] = nestings[i](nestings[i + 1])
+            nestings = nestings[0]._get_as_list()
+            if not_count % 2 != 0:
+                nestings.append(NOT_MODL()) 
+        return nestings
+
     def __eq__(self, other):
-        return isinstance(other, AncEffRMLModifier) and self.nestings == other.nestings and self.term == other.term
+        return isinstance(other, SeparatedRMLTerm) and self.nestings == other.nestings and self.term == other.term
 
     def __hash__(self):
-        return hash((self.nestings, self.term))
+        return hash((tuple(self.nestings), self.term))
 
 class AncEffPart:
     def __init__(self, poscond: list, negcond: list, rml: list[RML | Nesting | Predicate], anceff_type: str):
@@ -226,7 +264,7 @@ class Consequent(AncEffPart):
         super().__init__(poscond, negcond, rml, anceff_type)
 
 class Antecedent(AncEffPart):
-    def __init__(self, awareness: bool, rml: list[RML | AncEffRMLModifier | Predicate], anceff_type: str):
+    def __init__(self, awareness: bool, rml: list[RML | SeparatedRMLTerm | Predicate], anceff_type: str):
         super().__init__([Variable("pos")], [Variable("neg")], rml, anceff_type)
         self.awareness = awareness
 
@@ -261,19 +299,21 @@ class AncEffs:
 # ----- TRANSFORMER FUNCTIONS -----
 
 def atomic_formula_term(self, args):
-    negate_modalities = True if args[0] else False
-    modls_no_neg = args[1:]
-    for i in range(len(modls_no_neg) - 1, - 1, - 1):
-        if isinstance(modls_no_neg[i], Predicate):
-            continue
-        modls_no_neg[i] = modls_no_neg[i](modls_no_neg[i + 1])
-    modl = modls_no_neg[0]
-    return NOT_MODL()(modl) if negate_modalities else modl
-
-def atomic_formula_term_rml_r(self, args):
-    nestings = [NOT_MODL()] if args[0] else []
-    nestings.extend(args[1:-1])
-    return AncEffRMLModifier(nestings, args[-1])
+    all_nestings = []
+    term = None
+    for a in args[:-1]:
+        if isinstance(a, list):
+            all_nestings.extend(a)
+        else:
+            raise ValueError(f"Unknown type {type(a)}.")
+    if isinstance(args[-1], SeparatedRMLTerm):
+        all_nestings.extend(args[-1].nestings)
+        term = args[-1].term
+    elif isinstance(args[-1], RMLOrPredTerm):
+        term = args[-1]
+    else:
+        raise ValueError(f"Unknown type {type(args[-1])}.")
+    return SeparatedRMLTerm(all_nestings, term)
 
 def get_constants(transformer_class, args):
     if isinstance(transformer_class, DomainTransformer):
@@ -295,24 +335,25 @@ def var(self, args):
 def modl(self, args):
     # hard modality
     hard_modality = True
-    if args[0].type == "LSQB":
+    if args[1].type == "LSQB":
         possible_classes = [GenericMODLType, ActionMODLType]
     else:
         hard_modality = False
         possible_classes = [PossibleGenericMODLType, PossibleActionMODLType]
-    term_name = args[1].children[0].upper()
+    term_name = args[2].children[0].upper()
     if not hard_modality:
         term_name = "P" + term_name
     for modl_type in possible_classes:
         if term_name in [m.name for m in modl_type]:
-            if isinstance(args[3], Constant):
-                if args[3].name not in self._domain_transformer._agents:
-                    raise PDDLValidationError(f"Unknown agent {args[3].name} referenced.")
-                args[3] = Constant(args[3].name, "agent")
-                return Nesting(modl_type[term_name], Agent(args[3]))
+            if isinstance(args[4], Constant):
+                if args[4].name not in self._domain_transformer._agents:
+                    raise PDDLValidationError(f"Unknown agent {args[4].name} referenced.")
+                args[4] = Constant(args[4].name, "agent")
             else:
-                args[3]._type_tags = frozenset(["agent"])
-                return Nesting(modl_type[term_name], Agent(args[3]))
+                args[4]._type_tags = frozenset(["agent"])
+            modl = [NOT_MODL()] if args[0] else []
+            modl.append(Nesting(modl_type[term_name], Agent(args[4])))
+            return modl
     raise PDDLValidationError(f"MODL Type {term_name} is not specified in any of the MODLType categories in 'anc_eff.py.'")
 
 def rml_term(self, args):
@@ -322,28 +363,16 @@ def pred_term(self, args):
     return PredTerm()
 
 def rml_or_pred_nested(self, args):
-    if isinstance(args[1], RMLTerm):
-        return NestedRMLTerm()
-    elif isinstance(args[1], PredTerm):
-        return NestedPredTerm()
+    if isinstance(args[2], RMLTerm):
+        term = NestedRMLTerm()
+    elif isinstance(args[2], PredTerm):
+        term = NestedPredTerm()
     else:
-        raise ValueError(f"Unknown term type {type(args[0])}.")
-
-# def terminal_helper(args, name):
-#     pred = RMLPredicate(name)
-#     # nesting is present
-#     if args[0]:
-#         pred.nest = True
-#     # negation is present
-#     if args[2]:
-#         pred.negated = True
-#     return pred
-
-# def terminal_rml(self, args):
-#     return terminal_helper(args, "rml")
-
-# def terminal_r(self, args):
-#     return terminal_helper(args, "r")
+        raise ValueError(f"Unknown term type {type(args[2])}.")
+    if args[0] is not None:
+        return SeparatedRMLTerm([NOT_MODL()], term)
+    else:
+        return SeparatedRMLTerm(list(), term)
 
 def return_all(self, args):
     return args
@@ -396,17 +425,15 @@ class AncEffTransformer(Transformer):
         return children
 
     def set_up_transformers(self):
-        setattr(AncEffTransformer, "atomic_formula_term_rml", atomic_formula_term_rml_r)
+        setattr(AncEffTransformer, "atomic_formula_term_rml", atomic_formula_term)
         setattr(AncEffTransformer, "rml_term", rml_term)
         setattr(AncEffTransformer, "pred_term", pred_term)
         setattr(AncEffTransformer, "terminal_rml_or_pred", return_option)
         setattr(AncEffTransformer, "terminal_rml_nested", rml_or_pred_nested)
         setattr(AncEffTransformer, "terminal_pred_nested", rml_or_pred_nested)
-        # setattr(AncEffTransformer, "terminal_r", terminal_r)
         setattr(AncEffTransformer, "modl", modl)
         setattr(AncEffTransformer, "var", var)
         setattr(AncEffTransformer, "anceff_params", anceff_params)
-        # setattr(AncEffTransformer, "atomic_formula_term_list_comp_r", atomic_formula_term_rml_r)
         setattr(AncEffTransformer, "list_comp_r_var", list_comp_var)
         setattr(AncEffTransformer, "list_comp_rml_var", list_comp_var)
         setattr(AncEffTransformer, "list_comp_r_agents", list_comp_agents)

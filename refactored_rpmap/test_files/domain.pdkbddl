@@ -11,7 +11,7 @@
     (:action move
         :derive-condition   always
         :parameters         (?a - agent ?l1 ?l2 - loc)
-        :precondition       (and (at ?a ?l1) (connected ?l1 ?l2))
+        :precondition       (and (at ?a ?l1) (connected ?l1 ?l2) ![bel, ?a]![des, ?a](!secret ?a))
         :effect             (and (at ?a ?l2) (not (at ?a ?l1)))
     )
 

@@ -17,7 +17,7 @@ from pddl.logic.terms import Variable, Constant
 from pddl.parser import domain, GRAMMAR_FILE
 from pddl._validation import Types, TypeChecker
 from textwrap import indent
-from .anc_eff import atomic_formula_term, get_constants, modl, RML
+from .anc_eff import atomic_formula_term, get_constants, modl, RML, SeparatedRMLTerm, NOT_MODL
 
 # ----- TRANSFORMER FUNCTIONS -----
 
@@ -60,7 +60,7 @@ def atomic_formula_skeleton(self, args):
     pred_name = args[2] # get name of the predicate
     check_pred_name(pred_name)
     # have an "always known"
-    ak = True if args[0] else False
+    ak = True if args[0] is not None else False
     # remove "always known" so variables are in the correct position
     args = args[1:]
     variables = self._formula_skeleton(args)
@@ -79,11 +79,10 @@ def terminal_predicate(self, args):
         terms[i]._type_tags = domain_preds[pred_name].terms[i].type_tags
     pred = Predicate(pred_name, *terms)
     pred.always_known = domain_preds[pred_name].always_known
-    if args[1]:
-        pred.negated = True
-    if pred.negated and pred.always_known:
+    negated = True if args[1] is not None else False
+    if negated and pred.always_known:
         raise PDDLValidationError("Cannot apply a '!' to a predicate that is always known.")
-    return pred
+    return SeparatedRMLTerm([NOT_MODL()], pred) if negated else SeparatedRMLTerm(list(), pred)
 
 def dollar_term_transformer(self, args):
     return Variable(f"dlr_{args[1].value}")
@@ -196,6 +195,11 @@ def _(self, rml: RML) -> None:
     """Check types annotations of an RML."""
     self.check_type(rml._get_predicate())
 
+@TypeChecker.check_type.register
+def _(self, sep: SeparatedRMLTerm) -> None:
+    """Check types annotations of a separated RML term."""
+    self.check_type(sep.term)
+
 def new_predicate_eq(self, other):
     """New predicate equality check that takes into account the new always_known, modl, and negated terms."""
     # adapted from the PDDL Predicate class __eq__ method
@@ -273,9 +277,9 @@ def construct_domain_grammar():
     inject_domain_grammar("derived_term", "const_or_var_term | dollar_term", return_option)
     inject_domain_grammar("ALWAYS", "\"always\"", return_token_val)
     inject_domain_grammar("NEVER", "\"never\"", return_token_val)
-    inject_domain_grammar("derived_modl", "LSQB modl_term COMMA derived_term RSQB | LESSER_OP modl_term COMMA derived_term GREATER_OP", modl)
+    inject_domain_grammar("derived_modl", "[EXC] LSQB modl_term COMMA derived_term RSQB | [EXC] LESSER_OP modl_term COMMA derived_term GREATER_OP", modl)
     inject_domain_grammar("derived_terminal_predicate", "LPAR [EXC] predicate derived_term* RPAR", terminal_predicate)
-    inject_domain_grammar("derived_atomic_formula_term", "[EXC] derived_modl* derived_terminal_predicate", atomic_formula_term)
+    inject_domain_grammar("derived_atomic_formula_term", "derived_modl* derived_terminal_predicate", atomic_formula_term)
     inject_domain_grammar("derived_conditions", "ALWAYS | NEVER | derived_atomic_formula_term", return_option)
     inject_domain_grammar("DERIVE_CONDITION", "\":derive-condition\"", basic_tokens_transformer)
     replace_in_grammar(
@@ -288,6 +292,6 @@ def construct_domain_grammar():
         ""
     )
     inject_domain_grammar("terminal_predicate", "LPAR [EXC] predicate const_or_var_term* RPAR", terminal_predicate)
-    inject_domain_grammar("atomic_formula_term", "[EXC] modl* terminal_predicate", atomic_formula_term)
+    inject_domain_grammar("atomic_formula_term", "modl* terminal_predicate", atomic_formula_term)
     inject_domain_grammar("const_or_var_term", "constant | var", return_option)
     inject_domain_grammar("constant", "NAME", constant)

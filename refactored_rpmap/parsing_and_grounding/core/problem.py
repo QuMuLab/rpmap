@@ -1,13 +1,14 @@
 import pddl as pddl
 import pddl.core
 from .domain import terminal_predicate, get_constants
-from .anc_eff import modl, atomic_formula_term, RML
+from .anc_eff import modl, atomic_formula_term, RML, SeparatedRMLTerm, RMLOrPredTerm
 from ..utils import *
 from pddl.formatter import (
     print_constants,
     remove_empty_lines,
     sort_and_print_collection,
 )
+from pddl.logic.predicates import Predicate
 from pddl.logic.base import Formula, Atomic, Not, And
 from pddl.logic.effects import Forall
 from pddl.parser import problem, GRAMMAR_FILE
@@ -112,6 +113,8 @@ def is_literal_modified(formula: Formula) -> bool:
             and isinstance(formula._get_predicate(), Atomic))
         or (isinstance(formula, Forall)
             and is_literal_modified(formula.effect))
+        or (isinstance(formula, SeparatedRMLTerm)
+            and (isinstance(formula.term, RMLOrPredTerm) or isinstance(formula.term, Predicate)))
     )
 
 def problem__constant(self, args):
@@ -184,8 +187,8 @@ def construct_problem_grammar():
     )
     inject_problem_grammar("problem__constant", "NAME", problem__constant)
     inject_problem_grammar("terminal_predicate_constant_problem", "LPAR [EXC] predicate problem__constant* RPAR", terminal_predicate)
-    inject_problem_grammar("atomic_formula_name", "[EXC] problem_modl* terminal_predicate_constant_problem", atomic_formula_term)
-    inject_problem_grammar("problem_modl", "LSQB modl_term COMMA problem__constant RSQB | LESSER_OP modl_term COMMA problem__constant GREATER_OP", modl)
+    inject_problem_grammar("atomic_formula_name", "problem_modl* terminal_predicate_constant_problem", atomic_formula_term)
+    inject_problem_grammar("problem_modl", "[EXC] LSQB modl_term COMMA problem__constant RSQB | [EXC] LESSER_OP modl_term COMMA problem__constant GREATER_OP", modl)
     inject_problem_grammar("projection", "LPAR PROJECTION RPAR", projection_transformer)
     inject_problem_grammar("depth", "LPAR DEPTH NUMBER RPAR", depth_transformer)
     inject_problem_grammar("task", "LPAR TASK require_task_key RPAR", task_transformer)
@@ -199,7 +202,7 @@ def construct_problem_grammar():
     inject_problem_grammar("problem_forall", "LPAR FORALL LPAR typed_list_variable RPAR problem_effect RPAR", problem_forall)
     inject_problem_grammar("problem_effect", "and_paft | problem__atomic_formula_term", return_option)
     
-    inject_problem_grammar("problem__atomic_formula_term", "[EXC] modl* problem__terminal_predicate", atomic_formula_term)
+    inject_problem_grammar("problem__atomic_formula_term", "modl* problem__terminal_predicate", atomic_formula_term)
     inject_problem_grammar("problem__terminal_predicate", "LPAR [EXC] predicate problem__const_or_var_term* RPAR", terminal_predicate)
     inject_problem_grammar("problem__const_or_var_term", "problem__constant | var", return_option)
     inject_problem_grammar("problem__gd", "problem__atomic_formula_term | LPAR OR problem__gd* RPAR | LPAR NOT problem__gd RPAR | LPAR AND problem__gd* RPAR | LPAR IMPLY problem__gd problem__gd RPAR | LPAR EXISTS LPAR typed_list_variable RPAR problem__gd RPAR | LPAR FORALL LPAR typed_list_variable RPAR problem__gd RPAR | LPAR binary_comp f_exp f_exp RPAR", problem__gd)

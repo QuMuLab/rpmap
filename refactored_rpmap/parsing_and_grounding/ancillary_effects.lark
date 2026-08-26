@@ -45,27 +45,25 @@ var: QMRK NAME
 
 modl_term: BELIEF | DESIRE | INTENTION | DISDAIN | LOVE
 
-modl: LSQB modl_term COMMA const_or_var_term RSQB | LESSER_OP modl_term COMMA const_or_var_term GREATER_OP
+modl: [EXC] LSQB modl_term COMMA const_or_var_term RSQB | [EXC] LESSER_OP modl_term COMMA const_or_var_term GREATER_OP
 
 rml_options: list_comp_r_var | list_comp_r_agents | list_comp_rml_var | list_comp_rml_agents | atomic_formula_term_rml | effect
 
 rml_or_pred_term: RML_NAME | PRED_NAME
 
-rml_term: LCRL RML_NAME RCRL
+rml_term: [EXC] LCRL RML_NAME RCRL
 
-pred_term: LCRL PRED_NAME RCRL 
+pred_term: [EXC] LCRL PRED_NAME RCRL 
 
-terminal_rml_nested: LSQB rml_term RSQB
+terminal_rml_nested: [EXC] LSQB rml_term RSQB
 
-terminal_pred_nested: LSQB pred_term RSQB
+terminal_pred_nested: [EXC] LSQB pred_term RSQB
 
 terminal_rml_or_pred: rml_term | pred_term | terminal_rml_nested | terminal_pred_nested
 
 pos_or_neg_term: POS | NEG
 
-// terminal_r: [LSQB] LPAR [EXC] R RPAR [RSQB]
-
-atomic_formula_term_rml: [EXC] modl* terminal_rml_or_pred
+atomic_formula_term_rml: modl* terminal_rml_or_pred
 
 anceff_params: PARAMETERS action_parameters
 
@@ -76,8 +74,6 @@ ant_negcond: NEGCOND NEG
 cons_poscond: POSCOND pos_or_neg_cond
 
 cons_negcond: NEGCOND pos_or_neg_cond
-
-// atomic_formula_term_list_comp_r: [EXC] modl* terminal_r
 
 list_comp_r_var: LCRL atomic_formula_term_rml FOR rml_term IN pos_or_neg_term RCRL
 
