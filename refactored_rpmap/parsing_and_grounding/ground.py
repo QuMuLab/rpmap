@@ -38,27 +38,31 @@ def set_rml_deepest_child(rml: RML, new_child, assignment = None):
     return nestings[0]
 
 def ground_formula(formula: Sequence, assignment, domain, problem):
-    grounded_formulas = set()
+    grounded_formulas = []
     for fo in formula:
         fo = deepcopy(fo)
         if isinstance(fo, Predicate):
+            # no predicate should be negated yet, since everything is separated
+            if fo.negated:
+                raise ValueError("Parsing error. Predicates should not be negated yet, as modalities (including negations) have not yet been applied.")
             # turn action predicate into atomic predicate
             if fo.name in domain.lifted_action_names:
-                grounded_formulas.add(Predicate(f"{fo.name}_{'_'.join(t.name for t in fo.terms)}"))
+                grounded_formulas.append(Predicate(f"{fo.name}_{'_'.join(t.name for t in fo.terms)}"))
             else:
                 terms = list(fo.terms)
                 for i in range(len(terms)):
                     terms[i] = Constant(assignment[terms[i].name]) if isinstance(terms[i], Variable) else terms[i]
-                fl = Predicate(fo.name, *terms)
-                fl.negated = fo.negated
-                grounded_formulas.add(fl)
+                p = Predicate(fo.name, *terms)
+                p.negated = fo.negated
+                p.always_known = fo.always_known
+                grounded_formulas.append(p)
         elif isinstance(fo, RML):
             # need to set the base predicate of the RML to the grounded predicate
             grounded_predicate = list(ground_formula([fo._get_predicate()], assignment, domain, problem))[0]
             grounded_rml = set_rml_deepest_child(fo, grounded_predicate, assignment)
             # need to ground the agents in the MODLs as well
             check_intention_error(grounded_rml, domain)
-            grounded_formulas.add(grounded_rml)
+            grounded_formulas.append(grounded_rml)
         elif isinstance(fo, ForallCondition):
             vars = {v for v in fo.variables}
             val_generator = create_valuations(domain._agents.keys(), domain.gathered_constants, vars)
@@ -66,7 +70,7 @@ def ground_formula(formula: Sequence, assignment, domain, problem):
                 var_names = [v.name for v in vars]
                 for var_name, val in zip(var_names, valuation):
                     assignment[var_name] = val
-                    grounded_formulas.update(ground_formula([fo.condition], assignment, domain, problem))
+                    grounded_formulas.extend(ground_formula([fo.condition], assignment, domain, problem))
             assignment = {}
         elif isinstance(fo, Forall):
             var_names = [v.name for v in fo.variables]
@@ -75,15 +79,15 @@ def ground_formula(formula: Sequence, assignment, domain, problem):
                 # need to add onto the existing assignment so we retain knowledge of outer variables
                 for var_name, val in zip(var_names, valuation):
                     assignment[var_name] = val
-                    grounded_formulas.update(ground_formula([fo.effect], assignment, domain, problem))
+                    grounded_formulas.extend(ground_formula([fo.effect], assignment, domain, problem))
             assignment = {}
         elif isinstance(fo, And):
             for o in fo.operands:
-                grounded_formulas.update(ground_formula([o], assignment, domain, problem))
+                grounded_formulas.extend(ground_formula([o], assignment, domain, problem))
         elif isinstance(fo, Not):
-            if not isinstance(fo.argument, RML) and not isinstance(fo.argument, Predicate):
+            if not isinstance(fo.argument, RML) and not isinstance(fo.argument, Predicate) and not isinstance(fo.argument, SeparatedRMLTerm):
                 raise PDDLValidationError(f"'Not' was applied to {type(fo.argument)}. 'Not' can only be applied to an RML or Predicate.")
-            grounded_formulas.add(Not(list(ground_formula([fo.argument], assignment, domain, problem))[0]))
+            grounded_formulas.append(Not(list(ground_formula([fo.argument], assignment, domain, problem))[0]))
         elif isinstance(fo, When):
             cond = ground_formula([fo.condition], assignment, domain, problem)
             # for formatting reasons we want to force this into being an "And"
@@ -94,7 +98,16 @@ def ground_formula(formula: Sequence, assignment, domain, problem):
             and_term = And(*[])
             and_term._operands.extend(eff)
             eff = and_term
-            grounded_formulas.add(When(cond, eff))
+            grounded_formulas.append(When(cond, eff))
+        elif isinstance(fo, SeparatedRMLTerm):
+            grounded_formulas.append(SeparatedRMLTerm(list(ground_formula(fo.nestings, assignment, domain, problem)), list(ground_formula([fo.term], assignment, domain, problem))[0]))
+        elif isinstance(fo, Nesting):
+            if fo.child:
+                raise ValueError("Nestings should not yet be nested (stored in a list, not nested with children).")
+            fo.agent.term = Constant(assignment[fo.agent.term.name]) if isinstance(fo.agent.term, Variable) else fo.agent.term
+            grounded_formulas.append(fo)
+        elif isinstance(fo, NOT_MODL):
+            grounded_formulas.append(fo)
         else:
             raise NotImplementedError("Unknown formula type: " + str(type(fo)))
     return grounded_formulas
@@ -115,13 +128,12 @@ def create_grounded_operators(domain, problem):
     for a in domain.actions:
         vars = set(a.parameters)
         if a.derive_condition and not isinstance(a.derive_condition, str):
-            is_rml = isinstance(a.derive_condition, RML)
-            # get predicate terms
-            dc_pred = a.derive_condition._get_predicate() if is_rml else a.derive_condition
+            if not isinstance(a.derive_condition, SeparatedRMLTerm):
+                raise PDDLValidationError(f"Unknown type {type(a.derive_condition)}.")
+            dc_pred = a.derive_condition.term
             vars.update(dc_pred.terms)
-            if is_rml:
-                if isinstance(a.derive_condition.agent, Variable):
-                    vars.add(Variable(a.derive_condition.agent.name, type_tags=["agent"]))
+            for n in a.derive_condition.nestings:
+                vars.add(n.agent.term)
         var_names = [v.name for v in vars]
         val_generator = create_valuations(domain._agents.keys(), domain.gathered_constants, vars)
         for valuation in val_generator:
@@ -190,7 +202,7 @@ def create_itn_action_preds(operators, agents, problem, anc_effs):
         itn_preds.update(gather_itn_preds(a.precondition.operands))
         itn_preds.update(gather_itn_preds(a.effect.operands))
     for ae in anc_effs.anceffs:
-        for fo in (ae.antecedent.rml + ae.consequent.rml):
+        for fo in ([ae.antecedent.rml] + ae.consequent.rml):
             if isinstance(fo, ListCompVar) or isinstance(fo, ListCompAgents):
                 itn_preds.update(gather_itn_preds([fo.term]))
             else:

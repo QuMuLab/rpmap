@@ -10,7 +10,7 @@
         :consequent (
             :poscond ?pos
             :negcond ?neg
-            :rml ![{rml}]
+            :rml !{rml}
             :type del
         )
     )
@@ -22,8 +22,8 @@
             :type add
         )
         :consequent (
-            :negcond {![{rml}] for {rml} in ?pos} + ?neg
-            :rml ![{rml}]
+            :negcond {!{rml} for {rml} in ?pos} + ?neg
+            :rml !{rml}
             :type del
         )
     )
@@ -143,8 +143,8 @@
             :type add
         )
         :consequent (
-            :poscond {[bel, ?a][{rml}] for {rml} in ?pos} + {![bel, ?a][{rml}] for {rml} in ?neg}
-            :rml [bel, ?a][{rml}]
+            :poscond {[bel, ?a]{rml} for {rml} in ?pos} + {![bel, ?a]{rml} for {rml} in ?neg}
+            :rml [bel, ?a]{rml}
             :type add
         )
     )
@@ -158,8 +158,8 @@
             :type del
         )
         :consequent (
-            :poscond {[bel, ?a][{rml}] for {rml} in ?pos} + {![bel, ?a][{rml}] for {rml} in ?neg}
-            :rml ![bel, ?a][{rml}]
+            :poscond {[bel, ?a]{rml} for {rml} in ?pos} + {![bel, ?a]{rml} for {rml} in ?neg}
+            :rml ![bel, ?a]{rml}
             :type add
         )
     )

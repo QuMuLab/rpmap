@@ -185,10 +185,6 @@ class PredTerm(RMLOrPredTerm):
     def __repr__(self):
         return "{pred}"
 
-class RMLorPredTermNegated(RMLOrPredTerm):
-    def __init__(self):
-        pass
-
 class RMLTermNegated(RMLTerm):
     def __repr__(self):
         return "!{rml}"
@@ -196,24 +192,6 @@ class RMLTermNegated(RMLTerm):
 class PredTermNegated(PredTerm):
     def __repr__(self):
         return "!{pred}"
-
-class NestedRMLorPredTerm(RMLOrPredTerm):
-    def __init__(self, child: RMLTerm | RMLTermNegated | PredTerm | PredTermNegated):
-        self.child = child
-
-    def __repr__(self):
-        return f"[{self.child}]"
-
-    def __eq__(self, other):
-        return isinstance(other, self.__class__) and self.child == other.child
-
-class NestedRMLTerm(NestedRMLorPredTerm):
-    def __init__(self, child: RMLTerm | RMLTermNegated):
-        super().__init__(child)
-
-class NestedPredTerm(NestedRMLorPredTerm):
-    def __init__(self, child: PredTerm | PredTermNegated):
-        super().__init__(child)
 
 class ListCompVar:
     def __init__(self, term: RMLOrPredTerm | RML, var: Variable):
@@ -235,7 +213,6 @@ class ListCompAgents:
 
     def __hash__(self):
         return hash((ListCompVar, self.term))
-
 
 class SeparatedRMLTerm:
     def __init__(self, nestings: list[Nesting | NOT_MODL], rml_or_pred_term: RMLOrPredTerm | Predicate):
@@ -283,7 +260,7 @@ class SeparatedRMLTerm:
         return f"{self.nestings} >> {self.term}"
 
 class AncEffPart:
-    def __init__(self, poscond: list, negcond: list, rml: list[RML | Nesting | Predicate], anceff_type: str):
+    def __init__(self, poscond: list, negcond: list, rml: SeparatedRMLTerm | list[SeparatedRMLTerm | ListCompAgents | ListCompVar], anceff_type: str):
         self.poscond = poscond
         self.negcond = negcond
         self.rml = rml
@@ -300,11 +277,11 @@ class AncEffPart:
         return hash((self.poscond, self.negcond, self.rml, self.anceff_type))
 
 class Consequent(AncEffPart):
-    def __init__(self, poscond: list, negcond: list, rml: list[RML | Nesting | Predicate], anceff_type: str):
+    def __init__(self, poscond: list, negcond: list, rml: list[SeparatedRMLTerm | ListCompAgents | ListCompVar], anceff_type: str):
         super().__init__(poscond, negcond, rml, anceff_type)
 
 class Antecedent(AncEffPart):
-    def __init__(self, awareness: bool, rml: list[RML | SeparatedRMLTerm | Predicate], anceff_type: str):
+    def __init__(self, awareness: bool, rml: SeparatedRMLTerm, anceff_type: str):
         super().__init__([Variable("pos")], [Variable("neg")], rml, anceff_type)
         self.awareness = awareness
 
@@ -406,19 +383,6 @@ def pred_term(self, args):
         return PredTermNegated()
     return PredTerm()
 
-def rml_or_pred_nested(self, args):
-    negated = args[0] is not None
-    if isinstance(args[2], RMLTerm):
-        if negated:
-            return SeparatedRMLTerm([NOT_MODL()], NestedRMLTerm(args[2]))
-        return NestedRMLTerm(args[2])
-    elif isinstance(args[2], PredTerm):
-        if negated:
-            return SeparatedRMLTerm([NOT_MODL()], NestedPredTerm(args[2]))
-        return NestedPredTerm(args[2])
-    else:
-        raise ValueError(f"Unknown type {type(args[2])}.")
-
 def return_all(self, args):
     return args
 
@@ -475,8 +439,6 @@ class AncEffTransformer(Transformer):
         setattr(AncEffTransformer, "pred_term", pred_term)
         setattr(AncEffTransformer, "rml_or_pred_term", return_option)
         setattr(AncEffTransformer, "terminal_rml_or_pred", return_option)
-        setattr(AncEffTransformer, "terminal_rml_nested", rml_or_pred_nested)
-        setattr(AncEffTransformer, "terminal_pred_nested", rml_or_pred_nested)
         setattr(AncEffTransformer, "modl", modl)
         setattr(AncEffTransformer, "var", var)
         setattr(AncEffTransformer, "anceff_params", anceff_params)
@@ -487,9 +449,8 @@ class AncEffTransformer(Transformer):
         setattr(AncEffTransformer, "antecedent", antecedent)
         setattr(AncEffTransformer, "consequent", consequent)
         setattr(AncEffTransformer, "rml_options", return_option)
-        setattr(AncEffTransformer, "atomic_formula_term_antecedent", atomic_formula_term)
         setattr(AncEffTransformer, "rml_cons_def", rml_plural)
-        setattr(AncEffTransformer, "rml_ant_def", rml_plural)
+        setattr(AncEffTransformer, "rml_ant_def", anceff_params)
         setattr(AncEffTransformer, "cond_type_def", cond_type_def)
         setattr(AncEffTransformer, "pos_or_neg_cond_options", return_option)
         setattr(AncEffTransformer, "pos_or_neg_cond", plural)
