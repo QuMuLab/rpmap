@@ -185,11 +185,11 @@ class PredTerm(RMLOrPredTerm):
     def __repr__(self):
         return "{pred}"
 
-class RMLTermNegated(RMLTerm):
+class RMLTermNegated(RMLOrPredTerm):
     def __repr__(self):
         return "!{rml}"
 
-class PredTermNegated(PredTerm):
+class PredTermNegated(RMLOrPredTerm):
     def __repr__(self):
         return "!{pred}"
 

@@ -35,7 +35,7 @@
         (
             :poscond ?pos
             :negcond ?neg
-            :rml [bel, ?a]{rml}
+            :rml [bel, ?a]!{rml}
             :type add
         )
         :consequent 

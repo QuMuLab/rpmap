@@ -3,7 +3,7 @@ from refactored_rpmap.parsing_and_grounding.ground import ground
 from refactored_rpmap.parsing_and_grounding.core.domain import construct_domain_grammar
 from refactored_rpmap.parsing_and_grounding.core.problem import construct_problem_grammar
 from refactored_rpmap.parsing_and_grounding.utils import write
-from refactored_rpmap.parsing_and_grounding.apply_anc_effs import apply_cond_effs
+from refactored_rpmap.parsing_and_grounding.apply_anc_effs import ApplyAncEffs
 from pddl.parser import GRAMMAR_FILE
 import os
 
@@ -42,7 +42,7 @@ def test_parse(pdkbddl_str):
 
     # breaking here, as we still have to fix grounding.
     anc_effs, grounded_domain, grounded_problem = (result[1][0], *ground(result[1][0], result[0], result[2]))
-    apply_cond_effs(anc_effs, grounded_domain, grounded_problem)
+    ApplyAncEffs(anc_effs, grounded_domain, grounded_problem).apply_cond_effs()
     # base_path = os.path.join("refactored_rpmap", "test_files")
     # grounded_dom_path = os.path.join(base_path, "pdkb-domain.pddl")
     # grounded_prob_path = os.path.join(base_path, "pdkb-problem.pddl")
