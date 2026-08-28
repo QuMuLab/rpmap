@@ -193,6 +193,16 @@ class PredTermNegated(RMLOrPredTerm):
     def __repr__(self):
         return "!{pred}"
 
+class NestingWildcardTerm:
+    def __repr__(self):
+        return "{nesting}"
+
+    def __eq__(self, other):
+        return isinstance(other, self.__class__)
+
+    def __hash__(self):
+        return hash(self.__class__)
+
 class ListCompVar:
     def __init__(self, term: RMLOrPredTerm | RML, var: Variable):
         self.term = term
@@ -243,9 +253,16 @@ class SeparatedRMLTerm:
     def normal_form(self, nestings):
         if nestings and len(nestings) >= 2:
             not_count = len([n for n in nestings if isinstance(n, NOT_MODL)])
+            nesting_idxs = [i for i in range(len(nestings)) if isinstance(nestings[i], NestingWildcardTerm)]
+            nestings = [n for n in nestings if not isinstance(n, NestingWildcardTerm)]
             for i in range(len(nestings) - 2, - 1, - 1):
                 nestings[i] = nestings[i](nestings[i + 1])
             nestings = SeparatedRMLTerm._get_as_list(nestings[0])
+            # add the nesting wildcard terms back in
+            for i in nesting_idxs:
+                nestings.insert(i, NestingWildcardTerm())
+            # we have to manually add the NOT_MODL back because usually it will manifest by negating the final Predicate,
+            # but we want to keep modalities (including negations) separate in this data structure.
             if not_count % 2 != 0:
                 nestings.append(NOT_MODL()) 
         return nestings
@@ -282,6 +299,8 @@ class Consequent(AncEffPart):
 
 class Antecedent(AncEffPart):
     def __init__(self, awareness: bool, rml: SeparatedRMLTerm, anceff_type: str):
+        if set(rml.nestings) == {NestingWildcardTerm()}:
+            raise PDDLValidationError("Used a nesting term in an antecedent, but no other terms.")
         super().__init__([Variable("pos")], [Variable("neg")], rml, anceff_type)
         self.awareness = awareness
 
@@ -293,6 +312,8 @@ class Antecedent(AncEffPart):
 
 class AncEff:
     def __init__(self, name: str, parameters: list[Variable], antecedent: Antecedent, consequent: Consequent):
+        if NestingWildcardTerm() in [term for rml in consequent.rml for term in rml.nestings] and NestingWildcardTerm() not in antecedent.rml.nestings:
+            raise PDDLValidationError(f"Nesting referenced in the consequent of the ancillary effect {name}, but not in the antecedent.")
         self.name = name
         self.parameters = parameters
         self.antecedent = antecedent
@@ -414,8 +435,11 @@ def rml_plural(self, args):
 def cond_type_def(self, args):
     return args[1].children[0].value
 
-def anceff_params(self, args):
+def return_second(self, args):
     return args[1]
+
+def return_wildcard_nesting(self, args):
+    return [NestingWildcardTerm()]
 
 def pos_or_neg_var(self, args):
     return Variable(args.value[1:])
@@ -441,7 +465,9 @@ class AncEffTransformer(Transformer):
         setattr(AncEffTransformer, "terminal_rml_or_pred", return_option)
         setattr(AncEffTransformer, "modl", modl)
         setattr(AncEffTransformer, "var", var)
-        setattr(AncEffTransformer, "anceff_params", anceff_params)
+        setattr(AncEffTransformer, "anceff_params", return_second)
+        setattr(AncEffTransformer, "nesting_term", return_wildcard_nesting)
+        setattr(AncEffTransformer, "modl_with_wildcard_nesting", return_option)
         setattr(AncEffTransformer, "list_comp_r_var", list_comp_var)
         setattr(AncEffTransformer, "list_comp_rml_var", list_comp_var)
         setattr(AncEffTransformer, "list_comp_r_agents", list_comp_agents)
@@ -450,7 +476,7 @@ class AncEffTransformer(Transformer):
         setattr(AncEffTransformer, "consequent", consequent)
         setattr(AncEffTransformer, "rml_options", return_option)
         setattr(AncEffTransformer, "rml_cons_def", rml_plural)
-        setattr(AncEffTransformer, "rml_ant_def", anceff_params)
+        setattr(AncEffTransformer, "rml_ant_def", return_second)
         setattr(AncEffTransformer, "cond_type_def", cond_type_def)
         setattr(AncEffTransformer, "pos_or_neg_cond_options", return_option)
         setattr(AncEffTransformer, "pos_or_neg_cond", plural)
