@@ -7,7 +7,7 @@ from pddl.logic.terms import Variable, Constant, Term
 from pddl.parser.domain import DomainTransformer
 from pddl.parser.problem import ProblemTransformer
 from copy import deepcopy
-from ..utils import return_option
+from ..utils import return_option, basic_tokens_transformer
 
 # ----- CLASSES -----
 
@@ -150,7 +150,7 @@ class BLANK_MODL:
 
 class NOT_MODL:
     def __init__(self):
-        pass
+        self.mod_type = self
 
     def _negate(self):
         return BLANK_MODL()
@@ -203,6 +203,31 @@ class NestingWildcardTerm:
     def __hash__(self):
         return hash(self.__class__)
 
+class MODLTermWNesting:
+    def __init__(self, modl: Nesting):
+        self.modl = modl
+
+class LeadingNesting(MODLTermWNesting):
+    def __init__(self, modl: Nesting):
+        super().__init__(modl)
+
+    def __repr__(self):
+        return "{nesting}" + repr(self.modl)
+
+class TrailingNesting(MODLTermWNesting):
+    def __init__(self, modl: Nesting):
+        super().__init__(modl)
+
+    def __repr__(self):
+        return repr(self.modl) + "{nesting}"
+
+class LeadingTrailingNesting(MODLTermWNesting):
+    def __init__(self, modl: Nesting):
+        super().__init__(modl)
+
+    def __repr__(self):
+        return "{nesting}" + repr(self.modl) + "{nesting}"
+
 class ListCompVar:
     def __init__(self, term: RMLOrPredTerm | RML, var: Variable):
         self.term = term
@@ -251,7 +276,7 @@ class SeparatedRMLTerm:
         return modl_list
 
     def normal_form(self, nestings):
-        if nestings and len(nestings) >= 2:
+        if nestings and len(nestings) >= 2 and MODLTermWNesting not in nestings:
             not_count = len([n for n in nestings if isinstance(n, NOT_MODL)])
             nesting_idxs = [i for i in range(len(nestings)) if isinstance(nestings[i], NestingWildcardTerm)]
             nestings = [n for n in nestings if not isinstance(n, NestingWildcardTerm)]
@@ -299,8 +324,6 @@ class Consequent(AncEffPart):
 
 class Antecedent(AncEffPart):
     def __init__(self, awareness: bool, rml: SeparatedRMLTerm, anceff_type: str):
-        if set(rml.nestings) == {NestingWildcardTerm()}:
-            raise PDDLValidationError("Used a nesting term in an antecedent, but no other terms.")
         super().__init__([Variable("pos")], [Variable("neg")], rml, anceff_type)
         self.awareness = awareness
 
@@ -312,8 +335,10 @@ class Antecedent(AncEffPart):
 
 class AncEff:
     def __init__(self, name: str, parameters: list[Variable], antecedent: Antecedent, consequent: Consequent):
-        if NestingWildcardTerm() in [term for rml in consequent.rml for term in rml.nestings] and NestingWildcardTerm() not in antecedent.rml.nestings:
-            raise PDDLValidationError(f"Nesting referenced in the consequent of the ancillary effect {name}, but not in the antecedent.")
+        ant_terms_w_nesting_types = {type(term) for term in antecedent.rml.nestings if isinstance(term, MODLTermWNesting)}
+        cons_terms_w_nesting_types = {type(term) for rml in consequent.rml for term in rml.nestings if isinstance(term, MODLTermWNesting)}
+        if ant_terms_w_nesting_types != cons_terms_w_nesting_types:
+            raise PDDLValidationError(f"The antecedent and consequent of the {name} ancillary effect feature different" + "{nesting} term types.")
         self.name = name
         self.parameters = parameters
         self.antecedent = antecedent
@@ -353,6 +378,23 @@ def atomic_formula_term(self, args):
         raise ValueError(f"Unknown type {type(args[-1])}.")
     return SeparatedRMLTerm(all_nestings, term)
 
+def atomic_formula_term_anceff(self, args):
+    nestings = []
+    term = None
+    for a in args[:-1]:
+        if isinstance(a, list):
+            nestings.extend(a)
+        elif isinstance(a, MODLTermWNesting):
+            nestings.append(a)
+            break
+        else:
+            raise ValueError(f"Unknown type {type(a)}.")
+    if isinstance(args[-1], RMLOrPredTerm):
+        term = args[-1]
+    else:
+        raise ValueError(f"Unknown type {type(args[-1])}.")
+    return SeparatedRMLTerm(nestings, term)
+
 def get_constants(transformer_class, args):
     if isinstance(transformer_class, DomainTransformer):
         constants = transformer_class._constants_by_name | transformer_class._agents
@@ -369,6 +411,24 @@ def get_constants(transformer_class, args):
 
 def var(self, args):
     return Variable(args[1].value)
+
+def modls(self, args):
+    return args[0] if len(args) > 0 else list()
+
+def modls_trailing_nesting(self, args):
+    if len(args) != 2:
+        raise PDDLValidationError("Only a single MODL is allowed when {nesting} terms are used.")
+    return TrailingNesting(args[0][0])
+
+def modls_leading_nesting(self, args):
+    if len(args) != 2:
+        raise PDDLValidationError("Only a single MODL is allowed when  terms are used.")
+    return LeadingNesting(args[1][0])
+
+def modls_leading_trailing_nesting(self, args):
+    if len(args) != 3:
+        raise PDDLValidationError("Only a single MODL is allowed when {nesting} terms are used.")
+    return LeadingTrailingNesting(args[1][0])
 
 def modl(self, args):
     # hard modality
@@ -389,9 +449,9 @@ def modl(self, args):
                 args[4] = Constant(args[4].name, "agent")
             else:
                 args[4]._type_tags = frozenset(["agent"])
-            modl = [NOT_MODL()] if args[0] else []
-            modl.append(Nesting(modl_type[term_name], Agent(args[4])))
-            return modl
+            modls = [NOT_MODL()] if args[0] else []
+            modls.append(Nesting(modl_type[term_name], Agent(args[4])))
+            return modls
     raise PDDLValidationError(f"MODL Type {term_name} is not specified in any of the MODLType categories in 'anc_eff.py.'")
 
 def rml_term(self, args):
@@ -439,7 +499,7 @@ def return_second(self, args):
     return args[1]
 
 def return_wildcard_nesting(self, args):
-    return [NestingWildcardTerm()]
+    return NestingWildcardTerm()
 
 def pos_or_neg_var(self, args):
     return Variable(args.value[1:])
@@ -459,6 +519,7 @@ class AncEffTransformer(Transformer):
 
     def set_up_transformers(self):
         setattr(AncEffTransformer, "atomic_formula_term_rml", atomic_formula_term)
+        setattr(AncEffTransformer, "atomic_formula_term_anceff", atomic_formula_term_anceff)
         setattr(AncEffTransformer, "rml_term", rml_term)
         setattr(AncEffTransformer, "pred_term", pred_term)
         setattr(AncEffTransformer, "rml_or_pred_term", return_option)
@@ -467,6 +528,11 @@ class AncEffTransformer(Transformer):
         setattr(AncEffTransformer, "var", var)
         setattr(AncEffTransformer, "anceff_params", return_second)
         setattr(AncEffTransformer, "nesting_term", return_wildcard_nesting)
+        setattr(AncEffTransformer, "modls_trailing_nesting", modls_trailing_nesting)
+        setattr(AncEffTransformer, "modls_leading_nesting", modls_leading_nesting)
+        setattr(AncEffTransformer, "modls_leading_trailing_nesting", modls_leading_trailing_nesting)
+        setattr(AncEffTransformer, "modls", modls)
+        setattr(AncEffTransformer, "all_modl_options", return_option)
         setattr(AncEffTransformer, "modl_with_wildcard_nesting", return_option)
         setattr(AncEffTransformer, "list_comp_r_var", list_comp_var)
         setattr(AncEffTransformer, "list_comp_rml_var", list_comp_var)

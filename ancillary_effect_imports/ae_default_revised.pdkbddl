@@ -35,14 +35,14 @@
         (
             :poscond ?pos
             :negcond ?neg
-            :rml [bel, ?a]!{rml}
+            :rml [bel, ?a]{nesting}{rml}
             :type add
         )
         :consequent 
         (
             :poscond ?pos
             :negcond ?neg
-            :rml <bel, ?a>{rml}
+            :rml <bel, ?a>{nesting}{rml}
             :type add
         )
     )
@@ -53,7 +53,7 @@
             :poscond ?pos
             :negcond ?neg
             ; agent a desires (rml)
-            :rml [des, ?a]{rml}
+            :rml {nesting}[des, ?a]{rml}
             :type add
         )
         :consequent 
@@ -61,7 +61,7 @@
             :poscond ?pos
             :negcond ?neg
             ; agent a possibly desires (rml)
-            :rml <des, ?a>{rml}
+            :rml {nesting}<des, ?a>{rml}
             :type add
         )
     )
@@ -91,13 +91,13 @@
         :antecedent (
             :poscond ?pos
             :negcond ?neg
-            :rml <bel, ?a>{rml}
+            :rml {nesting}<bel, ?a>{nesting}{rml}
             :type add
         )
         :consequent (
             :poscond ?pos
             :negcond ?neg
-            :rml [bel, ?a]{rml}
+            :rml {nesting}[bel, ?a]{nesting}{rml}
             :type del
         )
     )
