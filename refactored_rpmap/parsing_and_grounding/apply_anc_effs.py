@@ -120,11 +120,8 @@ class ApplyAncEffs:
             cond = next_cond.argument
         # if dealing with a When statement, we need to compare against the When effect.
         elif isinstance(next_cond, When):
-            cond = next_cond.effect.operands
-            if len(cond) > 1:
-                # TODO: ground When operators by splitting them by effect?
-                raise NotImplementedError("Handle When clauses with plural effects?")
-            cond = cond[0]
+            # note that these have already been grounded such that every When has only one condition
+            cond = next_cond.effect.operands[0]
         if isinstance(ant_rml.term, RMLTerm):
             if ant_rml.nestings:
 
