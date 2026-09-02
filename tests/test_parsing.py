@@ -94,13 +94,13 @@ class TestParsing:
         with open(GRAMMAR_FILE, "r") as f:
             request.cls.grammar = f.read()
         # get the template files
-        domain_path = os.path.join(*os.getcwd().split() + ["tests", "domain_template.pdkbddl"])
+        domain_path = os.path.join(*os.getcwd().split() + ["tests", "parsing_templates", "domain_template.pdkbddl"])
         with open(domain_path, "r") as f:
             domain = f.read()
-        problem_path = os.path.join(*os.getcwd().split() + ["tests", "problem_template.pdkbddl"])
+        problem_path = os.path.join(*os.getcwd().split() + ["tests", "parsing_templates", "problem_template.pdkbddl"])
         with open(problem_path, "r") as f:
             problem = f.read()
-        anceff_path = os.path.join(*os.getcwd().split() + ["tests", "anceff_template.pdkbddl"])
+        anceff_path = os.path.join(*os.getcwd().split() + ["tests", "parsing_templates", "anceff_template.pdkbddl"])
         with open(anceff_path, "r") as f:
             anceff = f.read()
         # create a dictionary that indicates the appropriate places to insert into the domain

@@ -51,48 +51,6 @@ class ApplyAncEffs:
                 return False
             else:
                 raise PDDLValidationError("Unknown {nesting} term type " + type(nesting_term))
-
-
-        # if len(cond.nestings) >= 2:
-        #     print()
-        # if NestingWildcardTerm() in ant_rml.nestings:
-        #     if not cond.nestings:
-        #         return False
-        #     # need to gather the antecedents without the nesting terms
-        #     ant_nestings_no_w = [(ant_rml.nestings[i], i) for i in range(len(ant_rml.nestings)) if not isinstance(ant_rml.nestings[i], NestingWildcardTerm)]
-        #     nestings_found_idxs = {}
-        #     for (ant_nesting, ant_n_idx) in ant_nestings_no_w:
-        #         nesting_found = False
-        #         # find the non-nesting terms and store at what index they are found
-        #         for i in range(len(cond.nestings)):
-        #             if cond.nestings[i].mod_type == ant_nesting.mod_type:
-        #                 nestings_found_idxs[ant_n_idx] = i
-        #                 nesting_found = True
-        #                 break
-        #         # return no match if no match for any non-nesting term was found
-        #         if not nesting_found:
-        #             return False
-        #     # now we need to set the nesting terms for later
-        #     ant_rml_nestings_copy = deepcopy(ant_rml.nestings)
-        #     found_cond_idxs = sorted(list(nestings_found_idxs.values()))
-        #     next_cond_idx = found_cond_idxs.pop(0)
-        #     # cond_idx = 1 if next_cond_idx == 0 else 0
-        #     # if next_cond_idx == 0:
-        #     #     # next_cond_idx = found_cond_idxs.pop(0) if found_cond_idxs else len(cond.nestings)
-        #     #     cond_idx += 1
-        #     cond_idx = 0
-        #     for i in range(len(ant_rml_nestings_copy)):
-        #         if i not in nestings_found_idxs:
-        #             next_nesting_term = []
-        #             while cond_idx < next_cond_idx:
-        #                 next_nesting_term.append(cond.nestings[cond_idx])
-        #                 cond_idx += 1
-        #             # if we run out of found cond indices, reassign it to the length of the list + 1
-        #             # so we just fill out the nestings until the end of the list
-        #             next_cond_idx = found_cond_idxs.pop(0) if found_cond_idxs else len(cond.nestings) + 1
-        #             cond_idx += 1
-        #             self.nestings.append(next_nesting_term)
-        #     print()
         else:
             # need to check if the antecedent nesting "begins" the cond nesting (for {rml})
             if soft_check:
@@ -124,9 +82,7 @@ class ApplyAncEffs:
             cond = next_cond.effect.operands[0]
         if isinstance(ant_rml.term, RMLTerm):
             if ant_rml.nestings:
-
                 if self.check_ant_rml_nestings(ant_rml, cond, soft_check=True):
-                    
                     return True
             # if there's no antecedent nestings, then anything can be matched.
             else:
