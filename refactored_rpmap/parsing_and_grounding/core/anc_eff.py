@@ -207,6 +207,12 @@ class MODLTermWNesting:
     def __init__(self, modl: Nesting):
         self.modl = modl
 
+    def __eq__(self, other):
+        return isinstance(other, self.__class__)
+
+    def __hash__(self):
+        return hash(self.__class__)
+
 class LeadingNesting(MODLTermWNesting):
     def __init__(self, modl: Nesting):
         super().__init__(modl)
@@ -231,6 +237,8 @@ class LeadingTrailingNesting(MODLTermWNesting):
 class ListCompVar:
     def __init__(self, term: RMLOrPredTerm | RML, var: Variable):
         self.term = term
+        if var not in [Variable("pos"), Variable("neg")]:
+            raise PDDLValidationError("Only ?pos and ?neg can be referenced as variables in an ancillary effect list comprehension.")
         self.var = var
 
     def __eq__(self, other):
@@ -335,14 +343,33 @@ class Antecedent(AncEffPart):
 
 class AncEff:
     def __init__(self, name: str, parameters: list[Variable], antecedent: Antecedent, consequent: Consequent):
+        self.name = name
+        self.parameters = parameters
+        error_msg = f"Agent not listed in the ancillary effect {name} parameters."
+        if not self.check_referenced_agents(antecedent.rml):
+            raise PDDLValidationError(error_msg)
+        for r in consequent.rml:
+            if not self.check_referenced_agents(r):
+                raise PDDLValidationError(error_msg)
+
         ant_terms_w_nesting_types = {type(term) for term in antecedent.rml.nestings if isinstance(term, MODLTermWNesting)}
         cons_terms_w_nesting_types = {type(term) for rml in consequent.rml for term in rml.nestings if isinstance(term, MODLTermWNesting)}
         if ant_terms_w_nesting_types != cons_terms_w_nesting_types:
-            raise PDDLValidationError(f"The antecedent and consequent of the {name} ancillary effect feature different" + "{nesting} term types.")
-        self.name = name
-        self.parameters = parameters
+            raise PDDLValidationError(f"The antecedent and consequent of the {self.name} ancillary effect feature different" + "{nesting} term types.")
         self.antecedent = antecedent
         self.consequent = consequent
+
+    def check_referenced_agents(self, rml: SeparatedRMLTerm | MODLTermWNesting | Nesting):
+        if isinstance(rml, MODLTermWNesting):
+            return rml.modl.agent.term in self.parameters if self.parameters else False
+        elif isinstance(rml, Nesting):
+            return rml.agent.term in self.parameters if self.parameters else False
+        else:
+            for n in rml.nestings:
+                if not self.check_referenced_agents(n):
+                    return False
+            return True
+                
 
     def __eq__(self, other):
         return (isinstance(other, AncEff) and 
@@ -415,19 +442,20 @@ def var(self, args):
 def modls(self, args):
     return args[0] if len(args) > 0 else list()
 
-def modls_trailing_nesting(self, args):
-    if len(args) != 2:
+def plural_modl_check(args):
+    if len(args) != 1:
         raise PDDLValidationError("Only a single MODL is allowed when {nesting} terms are used.")
+
+def modls_trailing_nesting(self, args):
+    plural_modl_check(args[0])
     return TrailingNesting(args[0][0])
 
 def modls_leading_nesting(self, args):
-    if len(args) != 2:
-        raise PDDLValidationError("Only a single MODL is allowed when  terms are used.")
+    plural_modl_check(args[1])
     return LeadingNesting(args[1][0])
 
 def modls_leading_trailing_nesting(self, args):
-    if len(args) != 3:
-        raise PDDLValidationError("Only a single MODL is allowed when {nesting} terms are used.")
+    plural_modl_check(args[1])
     return LeadingTrailingNesting(args[1][0])
 
 def modl(self, args):
@@ -534,9 +562,7 @@ class AncEffTransformer(Transformer):
         setattr(AncEffTransformer, "modls", modls)
         setattr(AncEffTransformer, "all_modl_options", return_option)
         setattr(AncEffTransformer, "modl_with_wildcard_nesting", return_option)
-        setattr(AncEffTransformer, "list_comp_r_var", list_comp_var)
         setattr(AncEffTransformer, "list_comp_rml_var", list_comp_var)
-        setattr(AncEffTransformer, "list_comp_r_agents", list_comp_agents)
         setattr(AncEffTransformer, "list_comp_rml_agents", list_comp_agents)
         setattr(AncEffTransformer, "antecedent", antecedent)
         setattr(AncEffTransformer, "consequent", consequent)

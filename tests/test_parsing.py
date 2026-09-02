@@ -62,16 +62,16 @@ class TestParsing:
 
     @staticmethod
     def get_template_anceff():
-        # create a generic AncEff object to test, based on negation-removal
+        # create a generic AncEff object to test
         pos_var = Variable("pos")
         neg_var = Variable("neg")
         rml_term = RMLTerm()
-        nested_rml_term = NestedRMLTerm(rml_term)
+        rml_term_negated = RMLTermNegated()
         return AncEff(
-            name="negation-removal",
+            name="some-anceff",
             parameters=None,
-            antecedent=Antecedent(False, [SeparatedRMLTerm([], rml_term)], "add"),
-            consequent=Consequent([Variable("pos")], [Variable("neg")], [SeparatedRMLTerm([NOT_MODL()], nested_rml_term)], "del")
+            antecedent=Antecedent(False, SeparatedRMLTerm(list(), rml_term), "add"),
+            consequent=Consequent([Variable("pos")], [Variable("neg")], [SeparatedRMLTerm(list(), rml_term_negated)], "del")
         )
 
     @pytest.fixture(autouse=True)
@@ -236,6 +236,9 @@ class TestParsing:
             elif insert_type == PDDLSection.GOAL:
                 self.insert_goal(new_data)
                 self.get_parsed_problem()
+            elif insert_type == PDDLSection.ANC_EFF:
+                self.insert_anceff(new_data)
+                self.get_parsed_anceff()
         for e in errors[1:]:
             assert isinstance(outer_e.value.orig_exc, e)
 
@@ -657,7 +660,7 @@ class TestParsing:
     # ANCILLARY EFFECT PARSING
     def test_basic_anceff(self):
         self.valid_anceff_tester("""
-    (:anceff negation-removal
+    (:anceff some-anceff
         :antecedent (
             :poscond ?pos
             :negcond ?neg
@@ -667,8 +670,442 @@ class TestParsing:
         :consequent (
             :poscond ?pos
             :negcond ?neg
-            :rml ![{rml}]
+            :rml !{rml}
             :type del
         )
-    )""", self.get_template_anceff())
+    )""", self.anceff_template)
+
+    def test_anceff_missing_param(self):
+        self.error_tester_anceff("""
+    (:anceff some-anceff
+        :antecedent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml [bel, ?a]{rml}
+            :type add
+        )
+        :consequent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml !{rml}
+            :type del
+        )
+    )""", [VisitError, PDDLValidationError])
     
+    def test_anceff_missing_param_2(self):
+        self.error_tester_anceff("""
+    (:anceff some-anceff
+        :parameters (?a - agent)
+        :antecedent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml [bel, ?c]{rml}
+            :type add
+        )
+        :consequent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml !{rml}
+            :type del
+        )
+    )""", [VisitError, PDDLValidationError])
+    
+
+    def test_forall_var(self):
+        anceff = deepcopy(self.anceff_template)
+        anceff.consequent.poscond = None
+        anceff.consequent.negcond = [ListCompVar(SeparatedRMLTerm(list(), RMLTermNegated()), Variable("pos")), Variable("neg")]
+        self.valid_anceff_tester("""
+    (:anceff some-anceff
+        :antecedent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml {rml}
+            :type add
+        )
+        :consequent (
+            :negcond {!{rml} for {rml} in ?pos} + ?neg
+            :rml !{rml}
+            :type del
+        )
+    )""", anceff)
+
+    def test_forall_var_wrong_name(self):
+        self.error_tester_anceff("""
+    (:anceff some-anceff
+        :antecedent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml {rml}
+            :type add
+        )
+        :consequent (
+            :negcond {!{rml} for {rml} in ?blah} + ?neg
+            :rml !{rml}
+            :type del
+        )
+    )""", [UnexpectedCharacters])
+
+    def test_forall_agents(self):
+        anceff = deepcopy(self.anceff_template)
+        anceff.consequent.poscond = None
+        anceff.consequent.negcond = [ListCompAgents(SeparatedRMLTerm([Nesting(GenericMODLType.BEL, Agent(Variable("ag", ["agent"])))], RMLTerm())), Variable("pos")]
+        self.valid_anceff_tester("""
+    (:anceff some-anceff
+        :antecedent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml {rml}
+            :type add
+        )
+        :consequent (
+            :negcond {[bel, ?ag]{rml} for ?ag in ?agents} + ?pos
+            :rml !{rml}
+            :type del
+        )
+    )""", anceff)
+
+    def test_nesting_trailing(self):
+        anceff = deepcopy(self.anceff_template)
+        agent_var = Variable("a", ["agent"])
+        agent = Agent(agent_var)
+        rml = RMLTerm()
+        anceff.parameters = [agent_var]
+        anceff.antecedent.rml = SeparatedRMLTerm([TrailingNesting(Nesting(GenericMODLType.BEL, agent))], rml)
+        anceff.consequent.rml = [SeparatedRMLTerm([TrailingNesting(Nesting(PossibleGenericMODLType.PBEL, agent))], rml)]
+        self.valid_anceff_tester("""
+    (:anceff some-anceff
+        :parameters (?a - agent)
+        :antecedent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml [bel, ?a]{nesting}{rml}
+            :type add
+        )
+        :consequent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml <bel, ?a>{nesting}{rml}
+            :type del
+        )
+    )""", anceff)
+
+    def test_nesting_leading(self):
+        anceff = deepcopy(self.anceff_template)
+        agent_var = Variable("a", ["agent"])
+        agent = Agent(agent_var)
+        rml = RMLTerm()
+        anceff.parameters = [agent_var]
+        anceff.antecedent.rml = SeparatedRMLTerm([LeadingNesting(Nesting(GenericMODLType.BEL, agent))], rml)
+        anceff.consequent.rml = [SeparatedRMLTerm([LeadingNesting(Nesting(PossibleGenericMODLType.PBEL, agent))], rml)]
+        self.valid_anceff_tester("""
+    (:anceff some-anceff
+        :parameters (?a - agent)
+        :antecedent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml {nesting}[bel, ?a]{rml}
+            :type add
+        )
+        :consequent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml {nesting}<bel, ?a>{rml}
+            :type del
+        )
+    )""", anceff)
+
+    def test_nesting_leading_trailing(self):
+        anceff = deepcopy(self.anceff_template)
+        agent_var = Variable("a", ["agent"])
+        agent = Agent(agent_var)
+        rml = RMLTerm()
+        anceff.parameters = [agent_var]
+        anceff.antecedent.rml = SeparatedRMLTerm([LeadingTrailingNesting(Nesting(GenericMODLType.BEL, agent))], rml)
+        anceff.consequent.rml = [SeparatedRMLTerm([LeadingTrailingNesting(Nesting(PossibleGenericMODLType.PBEL, agent))], rml)]
+        self.valid_anceff_tester("""
+    (:anceff some-anceff
+        :parameters (?a - agent)
+        :antecedent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml {nesting}[bel, ?a]{nesting}{rml}
+            :type add
+        )
+        :consequent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml {nesting}<bel, ?a>{nesting}{rml}
+            :type del
+        )
+    )""", anceff)
+
+    def test_double_nesting_error(self):
+        self.error_tester_anceff("""
+    (:anceff some-anceff
+        :parameters (?a - agent)
+        :antecedent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml [bel, ?a]{nesting}{nesting}{rml}
+            :type add
+        )
+        :consequent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml <bel, ?a>{nesting}{nesting}{rml}
+            :type del
+        )
+    )""", [UnexpectedCharacters])
+
+    def test_double_nesting_error_2(self):
+        self.error_tester_anceff("""
+    (:anceff some-anceff
+        :parameters (?a - agent)
+        :antecedent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml {nesting}{nesting}[bel, ?a]{rml}
+            :type add
+        )
+        :consequent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml {nesting}{nesting}<bel, ?a>{rml}
+            :type del
+        )
+    )""", [UnexpectedCharacters])
+
+    def test_double_nesting_error_3(self):
+        self.error_tester_anceff("""
+    (:anceff some-anceff
+        :parameters (?a - agent)
+        :antecedent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml {nesting}{nesting}[bel, ?a]{nesting}{nesting}{rml}
+            :type add
+        )
+        :consequent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml {nesting}{nesting}<bel, ?a>{nesting}{nesting}{rml}
+            :type del
+        )
+    )""", [UnexpectedCharacters])
+
+    def test_nesting_negation_error(self):
+        self.error_tester_anceff("""
+    (:anceff some-anceff
+        :parameters (?a - agent)
+        :antecedent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml ![bel, ?a]{nesting}{rml}
+            :type add
+        )
+        :consequent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml !<bel, ?a>{nesting}{rml}
+            :type del
+        )
+    )""", [VisitError, PDDLValidationError])
+
+    def test_nesting_negation_error_2(self):
+        self.error_tester_anceff("""
+    (:anceff some-anceff
+        :parameters (?a - agent)
+        :antecedent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml {nesting}![bel, ?a]{rml}
+            :type add
+        )
+        :consequent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml {nesting}!<bel, ?a>{rml}
+            :type del
+        )
+    )""", [VisitError, PDDLValidationError])
+
+    def test_nesting_negation_error_3(self):
+        self.error_tester_anceff("""
+    (:anceff some-anceff
+        :parameters (?a - agent)
+        :antecedent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml {nesting}![bel, ?a]{nesting}{rml}
+            :type add
+        )
+        :consequent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml {nesting}!<bel, ?a>{nesting}{rml}
+            :type del
+        )
+    )""", [VisitError, PDDLValidationError])
+
+    def test_mismatch_nesting_error(self):
+        self.error_tester_anceff("""
+    (:anceff some-anceff
+        :parameters (?a - agent)
+        :antecedent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml {nesting}[bel, ?a]{rml}
+            :type add
+        )
+        :consequent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml !<bel, ?a>{nesting}{rml}
+            :type del
+        )
+    )""", [VisitError, PDDLValidationError])
+
+    def test_mismatch_nesting_error_2(self):
+        self.error_tester_anceff("""
+    (:anceff some-anceff
+        :parameters (?a - agent)
+        :antecedent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml [bel, ?a]{nesting}{rml}
+            :type add
+        )
+        :consequent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml {nesting}<bel, ?a>{rml}
+            :type del
+        )
+    )""", [VisitError, PDDLValidationError])
+
+    def test_mismatch_nesting_error_3(self):
+        self.error_tester_anceff("""
+    (:anceff some-anceff
+        :parameters (?a - agent)
+        :antecedent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml {nesting}[bel, ?a]{nesting}{rml}
+            :type add
+        )
+        :consequent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml {nesting}<bel, ?a>{rml}
+            :type del
+        )
+    )""", [VisitError, PDDLValidationError])
+
+    def test_mismatch_nesting_error_4(self):
+        self.error_tester_anceff("""
+    (:anceff some-anceff
+        :parameters (?a - agent)
+        :antecedent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml {nesting}[bel, ?a]{nesting}{rml}
+            :type add
+        )
+        :consequent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml <bel, ?a>{nesting}{rml}
+            :type del
+        )
+    )""", [VisitError, PDDLValidationError])
+
+    def test_mismatch_nesting_error_5(self):
+        self.error_tester_anceff("""
+    (:anceff some-anceff
+        :parameters (?a - agent)
+        :antecedent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml {nesting}[bel, ?a]{rml}
+            :type add
+        )
+        :consequent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml {nesting}<bel, ?a>{nesting}{rml}
+            :type del
+        )
+    )""", [VisitError, PDDLValidationError])
+
+    def test_mismatch_nesting_error_6(self):
+        self.error_tester_anceff("""
+    (:anceff some-anceff
+        :parameters (?a - agent)
+        :antecedent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml [bel, ?a]{nesting}{rml}
+            :type add
+        )
+        :consequent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml {nesting}<bel, ?a>{nesting}{rml}
+            :type del
+        )
+    )""", [VisitError, PDDLValidationError])
+
+    def test_mismatch_nesting_error_7(self):
+        self.error_tester_anceff("""
+    (:anceff some-anceff
+        :parameters (?a - agent)
+        :antecedent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml [bel, ?a]{rml}
+            :type add
+        )
+        :consequent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml {nesting}<bel, ?a>{rml}
+            :type del
+        )
+    )""", [VisitError, PDDLValidationError])
+
+    def test_mismatch_nesting_error_8(self):
+        self.error_tester_anceff("""
+    (:anceff some-anceff
+        :parameters (?a - agent)
+        :antecedent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml [bel, ?a]{rml}
+            :type add
+        )
+        :consequent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml <bel, ?a>{nesting}{rml}
+            :type del
+        )
+    )""", [VisitError, PDDLValidationError])
+
+    def test_mismatch_nesting_error_9(self):
+        self.error_tester_anceff("""
+    (:anceff some-anceff
+        :parameters (?a - agent)
+        :antecedent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml [bel, ?a]{rml}
+            :type add
+        )
+        :consequent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml {nesting}<bel, ?a>{nesting}{rml}
+            :type del
+        )
+    )""", [VisitError, PDDLValidationError])
