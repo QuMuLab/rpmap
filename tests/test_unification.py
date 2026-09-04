@@ -25,7 +25,9 @@ class TestUnification:
         request.cls.srt = SeparatedRMLTerm(list(), Predicate("secret"))
         request.cls.rml_term = SeparatedRMLTerm(list(), RMLTerm())
         request.cls.pred_term = SeparatedRMLTerm(list(), PredTerm())
+        request.cls.pred_term_negated = SeparatedRMLTerm(list(), PredTermNegated())
         request.cls.rml_term_modality = SeparatedRMLTerm([self.bel], RMLTerm())
+        request.cls.pred_term_modality = SeparatedRMLTerm([self.bel], PredTerm())
         request.cls.leading_nesting = SeparatedRMLTerm([LeadingNesting(self.bel)], RMLTerm())
         request.cls.trailing_nesting = SeparatedRMLTerm([TrailingNesting(self.bel)], RMLTerm())
         request.cls.leading_trailing_nesting = SeparatedRMLTerm([LeadingTrailingNesting(self.bel)], RMLTerm())
@@ -59,8 +61,8 @@ class TestUnification:
     # ----- antecedent: [modality]{pred} -----
 
     def test_add_pred_w_modalities(self):
-        srt = SeparatedRMLTerm([self.bel, self.des], Predicate("secret"))
-        assert self.apply_anc_effs.check_ant_match(SeparatedRMLTerm([self.bel, self.des], PredTerm()), "add", srt)
+        srt = SeparatedRMLTerm([self.bel], Predicate("secret"))
+        assert self.apply_anc_effs.check_ant_match(self.pred_term_modality, "add", srt)
         assert self.apply_anc_effs.pred == self.srt.term
 
     def test_add_pred_w_modalities_negation(self):
@@ -70,7 +72,7 @@ class TestUnification:
 
     def test_add_pred_mismatched_modality(self):
         srt = SeparatedRMLTerm([self.des], Predicate("secret"))
-        assert not self.apply_anc_effs.check_ant_match(SeparatedRMLTerm([self.bel], PredTerm()), "add", srt)
+        assert not self.apply_anc_effs.check_ant_match(self.pred_term_modality, "add", srt)
         assert self.apply_anc_effs.pred is None
 
     def test_add_pred_missing_modality(self):
@@ -80,7 +82,7 @@ class TestUnification:
 
     def test_add_pred_missing_modality_2(self):
         srt = SeparatedRMLTerm(list(), Predicate("secret"))
-        assert not self.apply_anc_effs.check_ant_match(SeparatedRMLTerm([self.bel], PredTerm()), "add", srt)
+        assert not self.apply_anc_effs.check_ant_match(self.pred_term_modality, "add", srt)
         assert self.apply_anc_effs.pred is None
 
     def test_del_pred_w_modalities(self):
@@ -95,7 +97,7 @@ class TestUnification:
 
     def test_del_pred_mismatched_modality(self):
         srt = SeparatedRMLTerm([self.des], Predicate("secret"))
-        assert not self.apply_anc_effs.check_ant_match(SeparatedRMLTerm([self.bel], PredTerm()), "del", Not(srt))
+        assert not self.apply_anc_effs.check_ant_match(self.pred_term_modality, "del", Not(srt))
         assert self.apply_anc_effs.pred is None
 
     def test_del_pred_missing_modality(self):
@@ -105,10 +107,101 @@ class TestUnification:
 
     def test_del_pred_missing_modality_2(self):
         srt = SeparatedRMLTerm(list(), Predicate("secret"))
-        assert not self.apply_anc_effs.check_ant_match(SeparatedRMLTerm([self.bel], PredTerm()), "del", Not(srt))
+        assert not self.apply_anc_effs.check_ant_match(self.pred_term_modality, "del", Not(srt))
         assert self.apply_anc_effs.pred is None
 
-    # ----
+    # ---- antecedent: !{pred} -----
+    def test_add_pred_term_negated(self):
+        srt = SeparatedRMLTerm([NOT_MODL()], Predicate("secret"))
+        assert self.apply_anc_effs.check_ant_match(self.pred_term_negated, "add", srt)
+        assert self.apply_anc_effs.pred == self.srt.term
+
+    def test_add_pred_term_negated_extra_modality(self):
+        srt = SeparatedRMLTerm([self.bel, NOT_MODL()], Predicate("secret"))
+        assert not self.apply_anc_effs.check_ant_match(self.pred_term_negated, "add", srt)
+        assert self.apply_anc_effs.pred is None
+
+    def test_add_pred_term_negated_extra_negation(self):
+        srt = SeparatedRMLTerm([NOT_MODL(), NOT_MODL()], Predicate("secret"))
+        assert not self.apply_anc_effs.check_ant_match(self.pred_term_negated, "add", srt)
+        assert self.apply_anc_effs.pred is None
+
+    def test_add_pred_term_negated_triple_negation(self):
+        srt = SeparatedRMLTerm([NOT_MODL(), NOT_MODL(), NOT_MODL()], Predicate("secret"))
+        assert self.apply_anc_effs.check_ant_match(self.pred_term_negated, "add", srt)
+        assert self.apply_anc_effs.pred == self.srt.term
+
+    def test_del_pred_term_negated(self):
+        srt = SeparatedRMLTerm([NOT_MODL()], Predicate("secret"))
+        assert self.apply_anc_effs.check_ant_match(self.pred_term_negated, "del", Not(srt))
+        assert self.apply_anc_effs.pred == self.srt.term
+
+    def test_del_pred_term_negated_extra_modality(self):
+        srt = SeparatedRMLTerm([self.bel, NOT_MODL()], Predicate("secret"))
+        assert not self.apply_anc_effs.check_ant_match(self.pred_term_negated, "del", Not(srt))
+        assert self.apply_anc_effs.pred is None
+
+    def test_del_pred_term_negated_extra_negation(self):
+        srt = SeparatedRMLTerm([NOT_MODL(), NOT_MODL()], Predicate("secret"))
+        assert not self.apply_anc_effs.check_ant_match(self.pred_term_negated, "del", Not(srt))
+        assert self.apply_anc_effs.pred is None
+
+    def test_del_pred_term_negated_triple_negation(self):
+        srt = SeparatedRMLTerm([NOT_MODL(), NOT_MODL(), NOT_MODL()], Predicate("secret"))
+        assert self.apply_anc_effs.check_ant_match(self.pred_term_negated, "del", Not(srt))
+        assert self.apply_anc_effs.pred == self.srt.term
+
+    # ---- antecedent: [modality]!{pred} -----
+
+    def test_add_pred_term_negated_w_modality(self):
+        srt = SeparatedRMLTerm([self.bel, NOT_MODL()], Predicate("secret"))
+        assert self.apply_anc_effs.check_ant_match(SeparatedRMLTerm([self.bel], PredTermNegated()), "add", srt)
+        assert self.apply_anc_effs.pred == self.srt.term
+
+    def test_add_pred_term_negated_w_modality_2(self):
+        srt = SeparatedRMLTerm([NOT_MODL(), self.bel], Predicate("secret"))
+        assert self.apply_anc_effs.check_ant_match(SeparatedRMLTerm([Nesting(PossibleGenericMODLType.PBEL, Agent(Variable("a", ["agent"])))], PredTermNegated()), "add", srt)
+        assert self.apply_anc_effs.pred == self.srt.term
+
+    def test_add_pred_term_negated_w_modality_3(self):
+        srt = SeparatedRMLTerm([self.des, NOT_MODL(), self.bel], Predicate("secret"))
+        assert self.apply_anc_effs.check_ant_match(SeparatedRMLTerm([self.des, Nesting(PossibleGenericMODLType.PBEL, Agent(Variable("a", ["agent"])))], PredTermNegated()), "add", srt)
+        assert self.apply_anc_effs.pred == self.srt.term
+
+    def test_add_pred_term_negated_mismatched_modality(self):
+        srt = SeparatedRMLTerm([self.des, NOT_MODL()], Predicate("secret"))
+        assert not self.apply_anc_effs.check_ant_match(SeparatedRMLTerm([self.bel], PredTermNegated()), "add", srt)
+        assert self.apply_anc_effs.pred is None
+
+    def test_add_pred_term_negated_missing_modality(self):
+        srt = SeparatedRMLTerm([NOT_MODL()], Predicate("secret"))
+        assert not self.apply_anc_effs.check_ant_match(SeparatedRMLTerm([self.bel], PredTermNegated()), "add", srt)
+        assert self.apply_anc_effs.pred is None
+
+    def test_del_pred_term_negated_w_modality(self):
+        srt = SeparatedRMLTerm([self.bel, NOT_MODL()], Predicate("secret"))
+        assert self.apply_anc_effs.check_ant_match(SeparatedRMLTerm([self.bel], PredTermNegated()), "del", Not(srt))
+        assert self.apply_anc_effs.pred == self.srt.term
+
+    def test_del_pred_term_negated_w_modality_2(self):
+        srt = SeparatedRMLTerm([NOT_MODL(), self.bel], Predicate("secret"))
+        assert self.apply_anc_effs.check_ant_match(SeparatedRMLTerm([Nesting(PossibleGenericMODLType.PBEL, Agent(Variable("a", ["agent"])))], PredTermNegated()), "del", Not(srt))
+        assert self.apply_anc_effs.pred == self.srt.term
+
+    def test_del_pred_term_negated_w_modality_3(self):
+        srt = SeparatedRMLTerm([self.des, NOT_MODL(), self.bel], Predicate("secret"))
+        assert self.apply_anc_effs.check_ant_match(SeparatedRMLTerm([self.des, Nesting(PossibleGenericMODLType.PBEL, Agent(Variable("a", ["agent"])))], PredTermNegated()), "del", Not(srt))
+        assert self.apply_anc_effs.pred == self.srt.term    
+
+    def test_del_pred_term_negated_mismatched_modality(self):
+        srt = SeparatedRMLTerm([self.des, NOT_MODL()], Predicate("secret"))
+        assert not self.apply_anc_effs.check_ant_match(SeparatedRMLTerm([self.bel], PredTermNegated()), "del", Not(srt))
+        assert self.apply_anc_effs.pred is None
+
+    def test_del_pred_term_negated_missing_modality(self):
+        srt = SeparatedRMLTerm([NOT_MODL()], Predicate("secret"))
+        assert not self.apply_anc_effs.check_ant_match(SeparatedRMLTerm([self.bel], PredTermNegated()), "del", Not(srt))
+        assert self.apply_anc_effs.pred is None
 
     # ----- antecedent: {rml} ----- 
 

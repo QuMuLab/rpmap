@@ -217,6 +217,8 @@ def new_predicate_hash(self):
     return hash((self.name, self.arity, self.terms, self.always_known, self.negated))
 
 def negate_predicate(self):
+    if self.always_known:
+        raise PDDLValidationError("Cannot apply a '!' to a predicate that is always known.")
     new_base = deepcopy(self)
     new_base.negated = not self.negated
     return new_base

@@ -139,6 +139,9 @@ class BLANK_MODL:
     def __init__(self):
         pass
 
+    def _negate(self):
+        return NOT_MODL()
+
     def __eq__(self, other):
         return isinstance(other, NOT_MODL)
 

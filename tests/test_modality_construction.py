@@ -23,6 +23,29 @@ class TestModalityConstruction:
         assert repr(DES(pred)) == "[DES, bob](secret)"
         assert repr(ITN(pred)) == "[ITN, cindy](secret)"
 
+    def test_negate_always_known(self):
+        BEL, DES, ITN, _, _, _, NOT, pred = self.get_vars()
+        with pytest.raises(PDDLValidationError):
+            p = deepcopy(pred)
+            p.always_known = True
+            NOT(p)
+        with pytest.raises(PDDLValidationError):
+            p = deepcopy(pred)
+            p.always_known = True
+            NOT(BEL(p))
+        with pytest.raises(PDDLValidationError):
+            p = deepcopy(pred)
+            p.always_known = True
+            BEL(NOT(p))
+        with pytest.raises(PDDLValidationError):
+            p = deepcopy(pred)
+            p.always_known = True
+            NOT(NOT(NOT(p)))
+        with pytest.raises(PDDLValidationError):
+            p = deepcopy(pred)
+            p.always_known = True
+            NOT(BEL(NOT(DES(NOT(ITN(p))))))
+
     def test_rml_vs_nesting_formation(self):
         BEL, DES, ITN, PBEL, PDES, PITN, NOT, pred = self.get_vars()
         assert isinstance(BEL, Nesting)
@@ -229,6 +252,7 @@ class TestModalityConstruction:
     
     def test_double_negation_basic_triple_nesting_mixed(self):
         BEL, DES, ITN, PBEL, PDES, PITN, NOT , pred = self.get_vars()
+        assert repr(NOT(NOT(NOT(BEL(PDES(BEL(pred))))))) == "<BEL, alice>[DES, bob]<BEL, alice>(!secret)"
         assert repr(NOT(NOT(BEL(PDES(BEL(pred)))))) == "[BEL, alice]<DES, bob>[BEL, alice](secret)"
         assert repr(BEL(PDES(DES(NOT(NOT(pred)))))) == "[BEL, alice]<DES, bob>[DES, bob](secret)"
         assert repr(NOT(NOT(BEL(PDES(ITN(pred)))))) == "[BEL, alice]<DES, bob>[ITN, cindy](secret)"

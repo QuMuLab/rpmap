@@ -135,18 +135,22 @@ class ApplyAncEffs:
             self.rml = SeparatedRMLTerm(deepcopy(temp_nestings), deepcopy(cond.term))
             return True
         elif isinstance(ant_rml.term, PredTermNegated):
-            # indicates that cond is a Predicate (no modalities) and also is not negated.
-            if not cond.nestings: 
+            # ensures that cond has a negation
+            if not cond.nestings or cond.nestings[-1] != NOT_MODL(): 
                 return False
-            elif ant_rml.nestings:
+            # remove the last negation from the cond nestings, since that matches the '!' in '!{pred}'
+            cond.nestings = cond.nestings[:-1]
+            if ant_rml.nestings:
                 if not self.check_ant_rml_nestings(ant_rml, cond, soft_check=False):
                     return False
-            # the cond predicate has to be negated
-            if cond.nestings[-1] != NOT_MODL():
-                return False
-            # we want to isolate the {pred}, so return the "pure" version without the negation.
-            self.pred = deepcopy(cond.term)
-            return True
+                self.pred = deepcopy(cond.term)
+                return True
+            else:
+                if cond.nestings:
+                    return False
+                # we want to isolate the {pred}, so return the "pure" version without the negation.
+                self.pred = deepcopy(cond.term)
+                return True
         else:
             raise PDDLValidationError(f"Unknown Antecedent RML type {type(ant_rml)}")
 
