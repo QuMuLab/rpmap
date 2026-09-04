@@ -18,12 +18,13 @@ class ApplyAncEffs:
         self.problem = problem
         self.rml: SeparatedRMLTerm = None
         self.pred: Predicate = None
-        self.nestings: list[Nesting] = list()
+        self.nestings: list[list[Nesting]] = None
 
     def reset(self):
         self.rml = None
         self.pred = None
-        self.nestings = list()
+        self.nestings = None
+
 
     @staticmethod
     def gen_id(cond):
@@ -37,28 +38,38 @@ class ApplyAncEffs:
 
     def check_ant_rml_nestings(self, ant_rml: SeparatedRMLTerm, cond: SeparatedRMLTerm, soft_check: bool):
         if isinstance(ant_rml.nestings[0], MODLTermWNesting):
+            self.nestings = []
             if not cond.nestings:
                 return False
             nesting_term = ant_rml.nestings[0]
             if isinstance(nesting_term, TrailingNesting):
                 if cond.nestings[0].mod_type == nesting_term.modl.mod_type:
-                    self.nestings = deepcopy(cond.nestings[1:]) if len(cond.nestings) > 1 else list()
+                    nesting_terms = deepcopy(cond.nestings[1:]) if len(cond.nestings) > 1 else list()
+                    self.nestings.append(nesting_terms)
                     return True
+                self.nestings = None
                 return False
             elif isinstance(nesting_term, LeadingNesting):
                 if cond.nestings[-1].mod_type == nesting_term.modl.mod_type:
-                    self.nestings = deepcopy(cond.nestings[:-1]) if len(cond.nestings) > 1 else list()
+                    nesting_terms = deepcopy(cond.nestings[:-1]) if len(cond.nestings) > 1 else list()
+                    self.nestings.append(nesting_terms)
                     return True
+                self.nestings = None
                 return False
             elif isinstance(nesting_term, LeadingTrailingNesting):
                 found = False
+                nesting_terms = []
                 for n in cond.nestings:
                     if n.mod_type == nesting_term.modl.mod_type and not found:
                         found = True
+                        self.nestings.append(nesting_terms)
+                        nesting_terms = []
                     else:
-                        self.nestings.append(deepcopy(n))
+                        nesting_terms.append(deepcopy(n))
                 if not found:
-                    self.nestings = list()
+                    self.nestings = None
+                else:
+                    self.nestings.append(nesting_terms)
                 return found
             else:
                 raise PDDLValidationError("Unknown {nesting} term type " + type(nesting_term))
