@@ -205,6 +205,8 @@ class NestingWildcardTerm:
 
 class MODLTermWNesting:
     def __init__(self, modl: Nesting):
+        if not isinstance(modl, Nesting):
+            raise PDDLValidationError(f"Unknown type {type(modl)}")
         self.modl = modl
 
     def __eq__(self, other):
@@ -359,8 +361,10 @@ class AncEff:
         self.antecedent = antecedent
         self.consequent = consequent
 
-    def check_referenced_agents(self, rml: SeparatedRMLTerm | MODLTermWNesting | Nesting):
-        if isinstance(rml, MODLTermWNesting):
+    def check_referenced_agents(self, rml: SeparatedRMLTerm | MODLTermWNesting | Nesting | NOT_MODL):
+        if isinstance(rml, NOT_MODL):
+            return True
+        elif isinstance(rml, MODLTermWNesting):
             return rml.modl.agent.term in self.parameters if self.parameters else False
         elif isinstance(rml, Nesting):
             return rml.agent.term in self.parameters if self.parameters else False
@@ -487,9 +491,15 @@ def rml_term(self, args):
         return RMLTermNegated()
     return RMLTerm()
 
+def rml_term_no_neg(self, args):
+    return RMLTerm()
+
 def pred_term(self, args):
     if args[0] is not None:
         return PredTermNegated()
+    return PredTerm()
+
+def pred_term_no_neg(self, args):
     return PredTerm()
 
 def return_all(self, args):
@@ -547,10 +557,13 @@ class AncEffTransformer(Transformer):
 
     def set_up_transformers(self):
         setattr(AncEffTransformer, "atomic_formula_term_rml", atomic_formula_term)
-        setattr(AncEffTransformer, "atomic_formula_term_anceff", atomic_formula_term_anceff)
+        setattr(AncEffTransformer, "atomic_formula_term_nesting_term", atomic_formula_term_anceff)
+        setattr(AncEffTransformer, "atomic_formula_term_anceff", return_option)
         setattr(AncEffTransformer, "rml_term", rml_term)
         setattr(AncEffTransformer, "pred_term", pred_term)
-        setattr(AncEffTransformer, "rml_or_pred_term", return_option)
+        setattr(AncEffTransformer, "rml_term_no_neg", rml_term_no_neg)
+        setattr(AncEffTransformer, "pred_term_no_neg", pred_term_no_neg)
+        setattr(AncEffTransformer, "terminal_rml_or_pred_no_neg", return_option)
         setattr(AncEffTransformer, "terminal_rml_or_pred", return_option)
         setattr(AncEffTransformer, "modl", modl)
         setattr(AncEffTransformer, "var", var)
@@ -560,7 +573,7 @@ class AncEffTransformer(Transformer):
         setattr(AncEffTransformer, "modls_leading_nesting", modls_leading_nesting)
         setattr(AncEffTransformer, "modls_leading_trailing_nesting", modls_leading_trailing_nesting)
         setattr(AncEffTransformer, "modls", modls)
-        setattr(AncEffTransformer, "all_modl_options", return_option)
+        setattr(AncEffTransformer, "all_modl_nesting_options", return_option)
         setattr(AncEffTransformer, "modl_with_wildcard_nesting", return_option)
         setattr(AncEffTransformer, "list_comp_rml_var", list_comp_var)
         setattr(AncEffTransformer, "list_comp_rml_agents", list_comp_agents)

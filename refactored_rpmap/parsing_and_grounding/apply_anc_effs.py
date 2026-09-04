@@ -41,14 +41,25 @@ class ApplyAncEffs:
                 return False
             nesting_term = ant_rml.nestings[0]
             if isinstance(nesting_term, TrailingNesting):
-                return cond.nestings[0].mod_type == nesting_term.modl.mod_type
-            elif isinstance(nesting_term, LeadingNesting):
-                return cond.nestings[-1].mod_type == nesting_term.modl.mod_type
-            elif isinstance(nesting_term, LeadingTrailingNesting):
-                for n in cond.nestings:
-                    if n.mod_type == nesting_term.modl.mod_type:
-                        return True
+                if cond.nestings[0].mod_type == nesting_term.modl.mod_type:
+                    self.nestings = deepcopy(cond.nestings[1:]) if len(cond.nestings) > 1 else list()
+                    return True
                 return False
+            elif isinstance(nesting_term, LeadingNesting):
+                if cond.nestings[-1].mod_type == nesting_term.modl.mod_type:
+                    self.nestings = deepcopy(cond.nestings[:-1]) if len(cond.nestings) > 1 else list()
+                    return True
+                return False
+            elif isinstance(nesting_term, LeadingTrailingNesting):
+                found = False
+                for n in cond.nestings:
+                    if n.mod_type == nesting_term.modl.mod_type and not found:
+                        found = True
+                    else:
+                        self.nestings.append(deepcopy(n))
+                if not found:
+                    self.nestings = list()
+                return found
             else:
                 raise PDDLValidationError("Unknown {nesting} term type " + type(nesting_term))
         else:

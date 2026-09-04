@@ -40,7 +40,6 @@ def get_parsing_result(pdkbddl_str):
 def test_parse(pdkbddl_str):
     result = get_parsing_result(pdkbddl_str)
 
-    # breaking here, as we still have to fix grounding.
     anc_effs, grounded_domain, grounded_problem = (result[1][0], *ground(result[1][0], result[0], result[2]))
     ApplyAncEffs(anc_effs, grounded_domain, grounded_problem).apply_cond_effs()
     # base_path = os.path.join("refactored_rpmap", "test_files")

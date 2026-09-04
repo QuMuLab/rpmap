@@ -10,7 +10,8 @@ from pddl.parser.domain import Domain
 from pddl.parser import GRAMMAR_FILE
 from refactored_rpmap.parsing_and_grounding.core.anc_eff import *
 from refactored_rpmap.parsing_and_grounding.parser_setup import read_pdkbddl_file
-from run import parse
+from refactored_rpmap.parsing_and_grounding.apply_anc_effs import ApplyAncEffs
+from run import parse, get_parsing_result
 from copy import deepcopy
 from enum import Enum
 import pytest
@@ -947,6 +948,24 @@ class TestParsing:
             :type del
         )
     )""", [VisitError, PDDLValidationError])
+
+    def test_nesting_negation_error_4(self):
+        self.error_tester_anceff("""
+    (:anceff some-anceff
+        :parameters (?a - agent)
+        :antecedent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml {nesting}[bel, ?a]{nesting}!{rml}
+            :type add
+        )
+        :consequent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml {nesting}<bel, ?a>{nesting}!{rml}
+            :type del
+        )
+    )""", [UnexpectedCharacters])
 
     def test_mismatch_nesting_error(self):
         self.error_tester_anceff("""
