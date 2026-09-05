@@ -85,9 +85,6 @@ class ApplyAncEffs:
             for i in range(len(ant_rml.nestings)):
                 if ant_rml.nestings[i].mod_type != cond.nestings[i].mod_type:
                     return False
-            if soft_check:
-                remaining_cond_nestings = cond.nestings[len(ant_rml.nestings):] if len(cond.nestings) > len(ant_rml.nestings) else []
-                self.rml = SeparatedRMLTerm(deepcopy(remaining_cond_nestings), deepcopy(cond.term))
             return True
 
     def check_ant_match(self, ant_rml: SeparatedRMLTerm, ant_rml_type: str, next_cond: Not | When | SeparatedRMLTerm):
@@ -107,7 +104,11 @@ class ApplyAncEffs:
         if isinstance(cond, SeparatedRMLTerm):
             if isinstance(ant_rml.term, RMLTerm):
                 if ant_rml.nestings:
-                    return self.check_ant_rml_nestings(ant_rml, cond, soft_check=True)
+                    if self.check_ant_rml_nestings(ant_rml, cond, soft_check=True):
+                        remaining_cond_nestings = cond.nestings[len(ant_rml.nestings):] if len(cond.nestings) > len(ant_rml.nestings) else []
+                        self.rml = SeparatedRMLTerm(deepcopy(remaining_cond_nestings), deepcopy(cond.term))
+                        return True
+                    return False
                 # if there's no antecedent nestings, then anything can be matched.
                 else:
                     self.rml = deepcopy(cond)
