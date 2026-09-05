@@ -146,20 +146,47 @@ class ApplyAncEffs:
         else:
             raise PDDLValidationError(f"Unknown cond type {type(cond)}")
 
-    def get_cond(self, next_cond):
-        if isinstance(next_cond, When):
-            pass
+    def get_positive_conds(self, raw_conds):
+        return [c for c in raw_conds if not isinstance(c, Not)]
+
+    def get_negative_conds(self, raw_conds):
+        return [c for c in raw_conds if isinstance(c, Not)]
+
+    def match_cond(self, cond_to_match, raw_conds):
+        if cond_to_match == Variable("pos"):
+            return self.get_positive_conds(raw_conds)
+        elif cond_to_match == Variable("neg"):
+            return self.get_negative_conds(raw_conds)
+        elif isinstance(cond_to_match, ListCompAgents):
+            print()
+        elif isinstance(cond_to_match, ListCompVar):
+            print()
+        elif isinstance(cond_to_match, SeparatedRMLTerm):
+            print()
+        else:
+            raise ValueError(f"Unknown condition type {type(cond_to_match)}")
+
+    def get_raw_conds(self, next_cond):
+        if isinstance(next_cond, Not) or isinstance(next_cond, SeparatedRMLTerm) or isinstance(next_cond, Predicate):
+            return next_cond
+        elif isinstance(next_cond, When):
+            return [self.get_raw_conds(o) for o in next_cond.condition.operands]
+        elif isinstance(next_cond, And):
+            return [self.get_raw_conds(o) for o in next_cond.operands]
+        else:
+            raise ValueError(f"Unknown condition type {type(next_cond)}")
 
     def get_conds(self, poscond, negcond, next_cond):
-        conditions = []
-        for p in poscond:
-            if p == Variable("pos"):
-                print()
-        for n in negcond:
-            if n == Variable("neg"):
-                print()
+        raw_conds = self.get_raw_conds(next_cond)
+        conds = []
+        if poscond:
+            for c in poscond:
+                conds.extend(self.match_cond(c, raw_conds))
+        if negcond:
+            for c in negcond:
+                conds.extend(self.match_cond(c, raw_conds))
 
-    def apply_anc_eff(self, anc_eff_cons, next_cond):
+    def apply_anc_eff(self, anc_eff_cons: Consequent, next_cond):
         self.get_conds(anc_eff_cons.poscond, anc_eff_cons.negcond, next_cond)
         if self.pred:
             print()
