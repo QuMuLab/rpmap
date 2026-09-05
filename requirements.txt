@@ -1,1 +1,3 @@
 pddl
+pytest
+pytest-cov

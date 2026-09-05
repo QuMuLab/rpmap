@@ -1,4 +1,5 @@
-from pddl.logic.base import Not
+from pddl.logic.base import Not, And
+from pddl.logic.effects import When
 from pddl.logic.terms import Variable
 from pddl.parser import GRAMMAR_FILE
 from refactored_rpmap.parsing_and_grounding.core.anc_eff import *
@@ -39,9 +40,7 @@ class TestUnification:
     @pytest.fixture(autouse=True)
     def reset_data(self):
         yield
-        self.apply_anc_effs.rml = None
-        self.apply_anc_effs.pred = None
-        self.apply_anc_effs.nestings = None
+        self.apply_anc_effs.reset()
 
     # ----- antecedent: {pred} -----
     def test_add_pred(self):
@@ -480,6 +479,11 @@ class TestUnification:
         assert self.apply_anc_effs.check_ant_match(self.leading_nesting, "add", srt)
         assert self.apply_anc_effs.nestings == [[self.des]]
 
+    def test_add_leading_nesting_no_cond_nesting(self):
+        srt = SeparatedRMLTerm(list(), self.pred)
+        assert not self.apply_anc_effs.check_ant_match(self.leading_nesting, "add", srt)
+        assert self.apply_anc_effs.nestings is None
+
     def test_add_leading_nesting_wrong_pos(self):
         srt = SeparatedRMLTerm([self.bel, self.des], self.pred)
         assert not self.apply_anc_effs.check_ant_match(self.leading_nesting, "add", srt)
@@ -516,6 +520,11 @@ class TestUnification:
         srt = SeparatedRMLTerm([self.bel], self.pred)
         assert self.apply_anc_effs.check_ant_match(self.trailing_nesting, "add", srt)
         assert self.apply_anc_effs.nestings == [[]]
+
+    def test_add_trailing_nesting_no_cond_nesting(self):
+        srt = SeparatedRMLTerm(list(), self.pred)
+        assert not self.apply_anc_effs.check_ant_match(self.trailing_nesting, "add", srt)
+        assert self.apply_anc_effs.nestings is None
 
     def test_add_trailing_nesting_extra_nesting(self):
         srt = SeparatedRMLTerm([self.bel, self.des], self.pred)
@@ -558,6 +567,11 @@ class TestUnification:
         srt = SeparatedRMLTerm([self.bel], self.pred)
         assert self.apply_anc_effs.check_ant_match(self.leading_trailing_nesting, "add", srt)
         assert self.apply_anc_effs.nestings == [[], []]
+
+    def test_add_leading_trailing_nesting_no_cond_nesting(self):
+        srt = SeparatedRMLTerm(list(), self.pred)
+        assert not self.apply_anc_effs.check_ant_match(self.leading_trailing_nesting, "add", srt)
+        assert self.apply_anc_effs.nestings is None
 
     def test_add_leading_trailing_nesting_extra_nesting(self):
         srt = SeparatedRMLTerm([self.bel, self.des], self.pred)
@@ -633,3 +647,88 @@ class TestUnification:
         srt = SeparatedRMLTerm([self.des], self.pred)
         assert not self.apply_anc_effs.check_ant_match(self.leading_trailing_nesting, "del", Not(srt))
         assert self.apply_anc_effs.nestings is None
+
+    # ----- When formula testing -----
+
+    def test_add_pred_when(self):
+        eff = And(*[])
+        eff._operands.append(self.srt)
+        assert self.apply_anc_effs.check_ant_match(self.pred_term, "add", When(And(), self.srt))
+        assert self.apply_anc_effs.pred == self.srt.term
+
+    def test_add_pred_when_w_and(self):
+        eff = And(*[])
+        eff._operands.append(self.srt)
+        assert self.apply_anc_effs.check_ant_match(self.pred_term, "add", When(And(), eff))
+        assert self.apply_anc_effs.pred == self.srt.term
+
+    def test_del_pred_when(self):
+        assert self.apply_anc_effs.check_ant_match(self.pred_term, "del", When(And(), Not(self.srt)))
+        assert self.apply_anc_effs.pred == self.srt.term
+
+    def test_del_pred_when_not_negated(self):
+        assert not self.apply_anc_effs.check_ant_match(self.pred_term, "del", When(And(), self.srt))
+        assert self.apply_anc_effs.pred is None
+
+    def test_del_pred_when_w_and(self):
+        eff = And(*[])
+        eff._operands.append(Not(self.srt))
+        assert self.apply_anc_effs.check_ant_match(self.pred_term, "del", When(And(), eff))
+        assert self.apply_anc_effs.pred == self.srt.term
+
+    def test_add_rml_when(self):
+        eff = And(*[])
+        eff._operands.append(self.srt)
+        assert self.apply_anc_effs.check_ant_match(self.rml_term, "add", When(And(), self.srt))
+        assert self.apply_anc_effs.rml == self.srt
+
+    def test_add_rml_when_w_and(self):
+        eff = And(*[])
+        eff._operands.append(self.srt)
+        assert self.apply_anc_effs.check_ant_match(self.rml_term, "add", When(And(), eff))
+        assert self.apply_anc_effs.rml == self.srt
+
+    def test_del_rml_when(self):
+        assert self.apply_anc_effs.check_ant_match(self.rml_term, "del", When(And(), Not(self.srt)))
+        assert self.apply_anc_effs.rml == self.srt
+
+    def test_del_rml_when_not_negated(self):
+        assert not self.apply_anc_effs.check_ant_match(self.rml_term, "del", When(And(), self.srt))
+        assert self.apply_anc_effs.rml is None
+
+    def test_del_rml_when_w_and(self):
+        eff = And(*[])
+        eff._operands.append(Not(self.srt))
+        assert self.apply_anc_effs.check_ant_match(self.rml_term, "del", When(And(), eff))
+        assert self.apply_anc_effs.rml == self.srt
+
+    def test_add_rml_when_complex(self):
+        srt = SeparatedRMLTerm([self.des, self.des, self.bel, self.des, self.des], self.pred)
+        assert self.apply_anc_effs.check_ant_match(self.leading_trailing_nesting, "add", When(And(), srt))
+        assert self.apply_anc_effs.nestings == [[self.des, self.des], [self.des, self.des]]
+
+    def test_del_rml_when_complex(self):
+        srt = SeparatedRMLTerm([NOT_MODL()], self.pred)
+        assert not self.apply_anc_effs.check_ant_match(SeparatedRMLTerm([self.bel], RMLTermNegated()), "del", When(And(), Not(srt)))
+        assert self.apply_anc_effs.rml is None
+
+    # ----- type error testing ----- 
+    def test_unknown_antecedent_rml_term_type(self):
+        with pytest.raises(PDDLValidationError):
+            self.apply_anc_effs.check_ant_match(SeparatedRMLTerm(list(), Variable("v")), "add", self.srt)
+    
+    def test_unknown_antecedent_rml_type_2(self):
+        with pytest.raises(PDDLValidationError):
+            self.apply_anc_effs.check_ant_match(self.srt, "del", Not(Not(self.srt)))
+        
+    def test_unknown_antecedent_rml_type_3(self):        
+        with pytest.raises(PDDLValidationError):
+            self.apply_anc_effs.check_ant_match(self.srt, "del", When(And(), Not(Not(self.srt))))
+        
+    def test_unknown_antecedent_rml_type_4(self):
+        with pytest.raises(PDDLValidationError):
+            self.apply_anc_effs.check_ant_match(self.srt, "del", Not(When(And(), self.srt)))
+
+    def test_unknown_nesting_term_type(self):
+        with pytest.raises(PDDLValidationError):
+            self.apply_anc_effs.check_ant_match(SeparatedRMLTerm([MODLTermWNesting(self.bel)], RMLTerm()), "add", SeparatedRMLTerm([self.bel], self.pred))
