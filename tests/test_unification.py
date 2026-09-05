@@ -682,6 +682,12 @@ class TestUnification:
         assert self.apply_anc_effs.check_ant_match(self.rml_term, "add", When(And(), self.srt))
         assert self.apply_anc_effs.rml == self.srt
 
+    def test_add_rml_when_multiple_cond(self):
+        eff = And(*[])
+        eff._operands.append(self.srt)
+        assert self.apply_anc_effs.check_ant_match(self.rml_term, "add", When(And(self.pred, Predicate("test")), self.srt))
+        assert self.apply_anc_effs.rml == self.srt
+
     def test_add_rml_when_w_and(self):
         eff = And(*[])
         eff._operands.append(self.srt)

@@ -91,12 +91,12 @@ def ground_formula(formula: Sequence, assignment, domain, problem):
         elif isinstance(fo, When):
             cond = ground_formula([fo.condition], assignment, domain, problem)
             # for formatting/consistency reasons, we want to force this into being an "And"
+            and_term_cond = And(*[])
+            and_term_cond._operands.extend(eff)
             eff = ground_formula([fo.effect], assignment, domain, problem)
-            and_term_eff = And(*[])
-            and_term_eff._operands.extend(eff)
-            for c in cond:
-                and_term_cond = And(*[])
-                and_term_cond._operands.append(c)
+            for e in eff:
+                and_term_eff = And(*[])
+                and_term_eff._operands.append(c)
                 grounded_formulas.append(When(and_term_cond, and_term_eff))
         elif isinstance(fo, SeparatedRMLTerm):
             grounded_formulas.append(SeparatedRMLTerm(list(ground_formula(fo.nestings, assignment, domain, problem)), list(ground_formula([fo.term], assignment, domain, problem))[0]))

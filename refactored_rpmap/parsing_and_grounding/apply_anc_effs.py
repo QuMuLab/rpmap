@@ -91,7 +91,7 @@ class ApplyAncEffs:
         cond = deepcopy(next_cond)
         # if dealing with a When statement, we need to compare against the When effect.
         if isinstance(cond, When):
-            # note that When formulas already been grounded such that every When has only one condition
+            # note that When formulas already been grounded such that every When has only one effect
             # there is a possibility it is a Not instead though
             cond = cond.effect.operands[0] if isinstance(cond.effect, And) else cond.effect
         # compare Not status with the antecedent type status
@@ -146,7 +146,29 @@ class ApplyAncEffs:
         else:
             raise PDDLValidationError(f"Unknown cond type {type(cond)}")
 
-    def apply_cond_eff(self, o):
+    def get_cond(self, next_cond):
+        if isinstance(next_cond, When):
+            pass
+
+    def get_conds(self, poscond, negcond, next_cond):
+        conditions = []
+        for p in poscond:
+            if p == Variable("pos"):
+                print()
+        for n in negcond:
+            if n == Variable("neg"):
+                print()
+
+    def apply_anc_eff(self, anc_eff_cons, next_cond):
+        self.get_conds(anc_eff_cons.poscond, anc_eff_cons.negcond, next_cond)
+        if self.pred:
+            print()
+        elif self.rml:
+            print()
+        else:
+            raise ValueError(f"Neither {rml} nor {pred} were set.")
+
+    def apply_anc_effs_to_action(self, o):
         o.id = ApplyAncEffs.gen_id(o)
         o.parent = None
         condleft = [o]
@@ -159,9 +181,10 @@ class ApplyAncEffs:
                 for anc_eff in self.anc_effs:
                     if self.check_ant_match(anc_eff.antecedent.rml, anc_eff.antecedent.anceff_type, next_cond):
                         print(f"{next_cond} passed the ancillary effect {anc_eff.name} antecedent {anc_eff.antecedent.rml}")
+                        self.apply_anc_eff(anc_eff.consequent, next_cond)
                     self.reset()
 
-    def apply_cond_effs(self):
+    def apply_anc_effs(self):
         for action in self.domain.actions:
             for o in action.effect.operands:
-                new_rmls = self.apply_cond_eff(o)
+                new_rmls = self.apply_anc_effs_to_action(o)
