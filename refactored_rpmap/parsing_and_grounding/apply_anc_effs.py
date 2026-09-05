@@ -104,28 +104,16 @@ class ApplyAncEffs:
             cond = next_cond.effect.operands[0]
         if isinstance(ant_rml.term, RMLTerm):
             if ant_rml.nestings:
-                if self.check_ant_rml_nestings(ant_rml, cond, soft_check=True):
-                    return True
+                return self.check_ant_rml_nestings(ant_rml, cond, soft_check=True)
             # if there's no antecedent nestings, then anything can be matched.
             else:
                 self.rml = deepcopy(cond)
-                return True
-        elif isinstance(ant_rml.term, PredTerm):
-            if ant_rml.nestings:
-                if self.check_ant_rml_nestings(ant_rml, cond, soft_check=False):
-                    self.pred = deepcopy(cond.term)
-                    return True
-                return False
-            else:
-                if cond.nestings:
-                    return False
-                self.pred = deepcopy(cond.term)
                 return True
         elif isinstance(ant_rml.term, RMLTermNegated):
             # indicates that cond is a Predicate (no modalities) and also is not negated.
             if not cond.nestings: 
                 return False
-            elif ant_rml.nestings:
+            if ant_rml.nestings:
                 if not self.check_ant_rml_nestings(ant_rml, cond, soft_check=True):
                     return False
             # create a copy of the cond's nestings after the RML point, and add a negation.
@@ -134,23 +122,21 @@ class ApplyAncEffs:
             # recreate the SeparatedRMLTerm with these new nestings, which will also put the nestings in normal form.
             self.rml = SeparatedRMLTerm(deepcopy(temp_nestings), deepcopy(cond.term))
             return True
-        elif isinstance(ant_rml.term, PredTermNegated):
-            # ensures that cond has a negation
-            if not cond.nestings or cond.nestings[-1] != NOT_MODL(): 
-                return False
-            # remove the last negation from the cond nestings, since that matches the '!' in '!{pred}'
-            cond.nestings = cond.nestings[:-1]
+        elif isinstance(ant_rml.term, PredTerm) or isinstance(ant_rml.term, PredTermNegated):
+            if isinstance(ant_rml.term, PredTermNegated):
+                # ensures that cond has a negation
+                if not cond.nestings or cond.nestings[-1] != NOT_MODL(): 
+                    return False
+                # remove the last negation from the cond nestings, since that matches the '!' in '!{pred}'
+                cond.nestings = cond.nestings[:-1]
             if ant_rml.nestings:
                 if not self.check_ant_rml_nestings(ant_rml, cond, soft_check=False):
                     return False
-                self.pred = deepcopy(cond.term)
-                return True
             else:
                 if cond.nestings:
                     return False
-                # we want to isolate the {pred}, so return the "pure" version without the negation.
-                self.pred = deepcopy(cond.term)
-                return True
+            self.pred = deepcopy(cond.term)
+            return True
         else:
             raise PDDLValidationError(f"Unknown Antecedent RML type {type(ant_rml)}")
 
