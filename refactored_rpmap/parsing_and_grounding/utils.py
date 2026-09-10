@@ -2,7 +2,7 @@ import itertools
 import re
 from typing import Sequence
 from lark.lexer import Token
-from pddl.logic.base import Not
+from pddl.logic.base import Not, And
 from pddl.logic.terms import Variable
 from pddl.parser import GRAMMAR_FILE
 
@@ -86,3 +86,8 @@ def return_option(self, args):
 # ----- OTHER -----
 def cleaned_not(arg):
     return arg.argument if isinstance(arg, Not) else Not(arg)
+
+def create_and(operands):
+    and_ = And(*[])
+    and_._operands = operands
+    return and_

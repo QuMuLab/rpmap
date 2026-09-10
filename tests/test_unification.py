@@ -5,7 +5,7 @@ from pddl.parser import GRAMMAR_FILE
 from refactored_rpmap.parsing_and_grounding.core.anc_eff import *
 from refactored_rpmap.parsing_and_grounding.apply_anc_effs import ApplyAncEffs
 from refactored_rpmap.parsing_and_grounding.parser_setup import read_pdkbddl_file
-from refactored_rpmap.parsing_and_grounding.utils import cleaned_not
+from refactored_rpmap.parsing_and_grounding.utils import cleaned_not, create_and
 from run import parse, ground
 import pytest
 import os
@@ -656,15 +656,11 @@ class TestUnification:
     # ----- When formula testing -----
 
     def test_add_pred_when(self):
-        eff = And(*[])
-        eff._operands.append(self.srt)
         assert self.apply_anc_effs.check_ant_match(self.pred_term, "add", When(And(), self.srt))
         assert self.apply_anc_effs.pred == self.srt.term
 
     def test_add_pred_when_w_and(self):
-        eff = And(*[])
-        eff._operands.append(self.srt)
-        assert self.apply_anc_effs.check_ant_match(self.pred_term, "add", When(And(), eff))
+        assert self.apply_anc_effs.check_ant_match(self.pred_term, "add", When(And(), create_and([self.srt])))
         assert self.apply_anc_effs.pred == self.srt.term
 
     def test_del_pred_when(self):
@@ -680,27 +676,19 @@ class TestUnification:
         assert self.apply_anc_effs.pred is None
 
     def test_del_pred_when_w_and(self):
-        eff = And(*[])
-        eff._operands.append(cleaned_not(self.srt))
-        assert self.apply_anc_effs.check_ant_match(self.pred_term, "del", When(And(), eff))
+        assert self.apply_anc_effs.check_ant_match(self.pred_term, "del", When(And(), create_and([cleaned_not(self.srt)])))
         assert self.apply_anc_effs.pred == self.srt.term
 
     def test_add_rml_when(self):
-        eff = And(*[])
-        eff._operands.append(self.srt)
         assert self.apply_anc_effs.check_ant_match(self.rml_term, "add", When(And(), self.srt))
         assert self.apply_anc_effs.rml == self.srt
 
     def test_add_rml_when_multiple_cond(self):
-        eff = And(*[])
-        eff._operands.append(self.srt)
         assert self.apply_anc_effs.check_ant_match(self.rml_term, "add", When(And(self.pred, Predicate("test")), self.srt))
         assert self.apply_anc_effs.rml == self.srt
 
     def test_add_rml_when_w_and(self):
-        eff = And(*[])
-        eff._operands.append(self.srt)
-        assert self.apply_anc_effs.check_ant_match(self.rml_term, "add", When(And(), eff))
+        assert self.apply_anc_effs.check_ant_match(self.rml_term, "add", When(And(), create_and([self.srt])))
         assert self.apply_anc_effs.rml == self.srt
 
     def test_del_rml_when(self):
@@ -712,9 +700,7 @@ class TestUnification:
         assert self.apply_anc_effs.rml is None
 
     def test_del_rml_when_w_and(self):
-        eff = And(*[])
-        eff._operands.append(cleaned_not(self.srt))
-        assert self.apply_anc_effs.check_ant_match(self.rml_term, "del", When(And(), eff))
+        assert self.apply_anc_effs.check_ant_match(self.rml_term, "del", When(And(), create_and([cleaned_not(self.srt)])))
         assert self.apply_anc_effs.rml == self.srt
 
     def test_add_rml_when_complex(self):

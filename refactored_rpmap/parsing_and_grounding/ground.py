@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from .utils import create_valuations, cleaned_not
+from .utils import create_valuations, cleaned_not, create_and
 from .core.anc_eff import ActionMODLType, PossibleActionMODLType, NOT_MODL, Agent, RMLOrPredTerm, ListCompVar, ListCompAgents, RML, Nesting, SeparatedRMLTerm
 from copy import deepcopy
 from pddl.action import Action
@@ -91,13 +91,9 @@ def ground_formula(formula: Sequence, assignment, domain, problem):
         elif isinstance(fo, When):
             cond = ground_formula([fo.condition], assignment, domain, problem)
             # for formatting/consistency reasons, we want to force this into being an "And"
-            and_term_cond = And(*[])
-            and_term_cond._operands.extend(cond)
             eff = ground_formula([fo.effect], assignment, domain, problem)
             for e in eff:
-                and_term_eff = And(*[])
-                and_term_eff._operands.append(e)
-                grounded_formulas.append(When(and_term_cond, and_term_eff))
+                grounded_formulas.append(When(create_and([cond]), create_and([e])))
         elif isinstance(fo, SeparatedRMLTerm):
             grounded_formulas.append(SeparatedRMLTerm(list(ground_formula(fo.nestings, assignment, domain, problem)), list(ground_formula([fo.term], assignment, domain, problem))[0]))
         elif isinstance(fo, Nesting):
@@ -142,14 +138,10 @@ def create_grounded_operators(domain, problem):
             pass_pre = a.precondition.operands if type(a.precondition) is And else [a.precondition]
             precondition = ground_formula(pass_pre, assignment, domain, problem)
             if not isinstance(precondition, And):
-                and_ = And(*[])
-                and_._operands.extend(precondition)
-                precondition = and_
+                precondition = create_and(precondition)
             effect = ground_formula([a.effect], assignment, domain, problem) 
             if not isinstance(effect, And):
-                and_ = And(*[])
-                and_._operands.extend(effect)
-                effect = and_
+                effect = create_and(effect)
             new_a = Action(
                     op_name,
                     None,

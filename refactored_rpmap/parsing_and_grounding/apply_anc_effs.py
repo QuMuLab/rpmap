@@ -1,5 +1,5 @@
 from .core.anc_eff import *
-from .utils import cleaned_not
+from .utils import cleaned_not, create_and
 from pddl.core import Domain, Problem
 from pddl.exceptions import PDDLValidationError
 from pddl.logic.base import Not, And
@@ -95,67 +95,73 @@ class ApplyAncEffs:
             for i in range(len(ant_rml.nestings)):
                 if ant_rml.nestings[i].mod_type != cond.nestings[i].mod_type:
                     return False
-                self.agent_assignment[ant_rml.nestings[i].modl.agent.term] = cond.nestings[i].agent.term
+                if isinstance(ant_rml.nestings[i], Nesting):
+                    self.agent_assignment[ant_rml.nestings[i].agent.term] = cond.nestings[i].agent.term
             return True
 
     def check_ant_match(self, ant_rml: SeparatedRMLTerm, ant_rml_type: str, next_term: Not | When | SeparatedRMLTerm):
-        cond = deepcopy(next_term)
+        nt = deepcopy(next_term)
         # if dealing with a When statement, we need to compare against the When effect.
-        if isinstance(cond, When):
+        if isinstance(nt, When):
             # note that When formulas already been grounded such that every When has only one effect
             # there is a possibility it is a Not instead though
-            cond = cond.effect.operands[0] if isinstance(cond.effect, And) else cond.effect
+            nt = nt.effect.operands[0] if isinstance(nt.effect, And) else nt.effect
         # compare Not status with the antecedent type status
-        if (ant_rml_type == "del" and not isinstance(cond, Not)) or (isinstance(cond, Not) and ant_rml_type != "del"):
+        if (ant_rml_type == "del" and not isinstance(nt, Not)) or (isinstance(nt, Not) and ant_rml_type != "del"):
             return False
         # if dealing with a Not statement, we need to compare against the argument.
-        if isinstance(cond, Not): 
+        if isinstance(nt, Not): 
             # Not has been checked in grounding such that it can take an RML, Predicate, or SeparatedRMLTerm
-            cond = cond.argument
-        if isinstance(cond, SeparatedRMLTerm):
+            nt = nt.argument
+        if isinstance(nt, SeparatedRMLTerm):
             if isinstance(ant_rml.term, RMLTerm):
                 if ant_rml.nestings:
-                    if self.check_ant_rml_nestings(ant_rml, cond, soft_check=True):
-                        remaining_cond_nestings = cond.nestings[len(ant_rml.nestings):] if len(cond.nestings) > len(ant_rml.nestings) else []
-                        self.rml = SeparatedRMLTerm(deepcopy(remaining_cond_nestings), deepcopy(cond.term))
+                    if self.check_ant_rml_nestings(ant_rml, nt, soft_check=True):
+                        # if dealing with a {nesting} term type, then anything remaining will have already been stored in self.nestings
+                        # also note that the MODLTermWNesting case currently is only allowed to match with RMLTerms (at the parsing level)
+                        if isinstance(ant_rml.nestings[0], MODLTermWNesting):
+                            self.rml = SeparatedRMLTerm(list(), nt.term)
+                        else:
+                            remaining_cond_nestings = nt.nestings[len(ant_rml.nestings):] if len(nt.nestings) > len(ant_rml.nestings) else []
+                            self.rml = SeparatedRMLTerm(deepcopy(remaining_cond_nestings), deepcopy(nt.term))
                         return True
                     return False
                 # if there's no antecedent nestings, then anything can be matched.
                 else:
-                    self.rml = deepcopy(cond)
+                    self.rml = deepcopy(nt)
                     return True
             elif isinstance(ant_rml.term, RMLTermNegated):
-                # indicates that cond is a Predicate (no modalities) and also is not negated.
-                if not cond.nestings: 
+                # indicates that the next term is a Predicate (no modalities) and also is not negated.
+                if not nt.nestings: 
                     return False
                 if ant_rml.nestings:
-                    if not self.check_ant_rml_nestings(ant_rml, cond, soft_check=True):
+                    if not self.check_ant_rml_nestings(ant_rml, nt, soft_check=True):
                         return False
-                # create a copy of the cond's nestings after the RML point, and add a negation.
+                # create a copy of the nt's nestings after the RML point, and add a negation.
                 # we basically want to isolate the {rml}.
-                temp_nestings = [NOT_MODL()] + cond.nestings[len(ant_rml.nestings):] if len(cond.nestings) > len(ant_rml.nestings) else []
+                temp_nestings = [NOT_MODL()] + nt.nestings[len(ant_rml.nestings):] if len(nt.nestings) > len(ant_rml.nestings) else []
                 # recreate the SeparatedRMLTerm with these new nestings, which will also put the nestings in normal form.
-                self.rml = SeparatedRMLTerm(deepcopy(temp_nestings), deepcopy(cond.term))
+                self.rml = SeparatedRMLTerm(deepcopy(temp_nestings), deepcopy(nt.term))
                 return True
             elif isinstance(ant_rml.term, PredTerm) or isinstance(ant_rml.term, PredTermNegated):
                 if isinstance(ant_rml.term, PredTermNegated):
-                    # ensures that cond has a negation
-                    if not cond.nestings or cond.nestings[-1] != NOT_MODL(): 
+                    # ensures that nt has a negation
+                    if not nt.nestings or nt.nestings[-1] != NOT_MODL(): 
                         return False
-                    # remove the last negation from the cond nestings, since that matches the '!' in '!{pred}'
-                    cond.nestings = cond.nestings[:-1]
+                    # remove the last negation from the nt nestings, since that matches the '!' in '!{pred}'
+                    nt.nestings = nt.nestings[:-1]
                 if ant_rml.nestings:
-                    if not self.check_ant_rml_nestings(ant_rml, cond, soft_check=False):
+                    if not self.check_ant_rml_nestings(ant_rml, nt, soft_check=False):
                         return False
                 else:
-                    if cond.nestings:
+                    if nt.nestings:
                         return False
-                self.pred = deepcopy(cond.term)
+                self.pred = deepcopy(nt.term)
                 return True
             else:
                 raise PDDLValidationError(f"Unknown Antecedent term type {type(ant_rml.term)}")
         else:
-            raise PDDLValidationError(f"Unknown cond type {type(cond)}")
+            raise PDDLValidationError(f"Unknown nt type {type(nt)}")
 
     def get_positive_conds(self, raw_conds):
         return [c for c in raw_conds if not isinstance(c, Not)]
@@ -197,7 +203,7 @@ class ApplyAncEffs:
             else:
                 raise ValueError(f"Unknown nesting type {type(new_rml.nestings[0])}.")
         else:
-            rml_terms = new_rml.nestings
+            rml_terms = deepcopy(new_rml.nestings)
         if isinstance(new_rml.term, PredTermNegated) or isinstance(new_rml.term, RMLTermNegated) or isinstance(new_rml.term, RTermNegated):
             rml_terms.append(NOT_MODL())
         if isinstance(new_rml.term, RMLTerm) or isinstance(new_rml.term, RMLTermNegated):
@@ -254,11 +260,7 @@ class ApplyAncEffs:
         for term in anc_eff_cons.rml: 
             for g_term in self.ground_cond_or_rml(term):
                 eff.append(g_term if anc_eff_cons.anceff_type == "add" else cleaned_not(g_term))
-        conds_and_ = And(*[])
-        conds_and_._operands = conds
-        eff_and_ = And(*[])
-        eff_and_._operands = eff
-        return When(conds_and_, eff_and_) if conds else eff_and_
+        return When(create_and(conds), create_and(eff)) if conds else create_and(eff)
                 
     def set_assignment_apply_anc_eff(self, parameters: list[Variable], anc_eff_cons: Consequent, next_term):
         anc_effs = []

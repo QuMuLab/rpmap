@@ -5,7 +5,7 @@ from pddl.parser import GRAMMAR_FILE
 from refactored_rpmap.parsing_and_grounding.core.anc_eff import *
 from refactored_rpmap.parsing_and_grounding.apply_anc_effs import ApplyAncEffs
 from refactored_rpmap.parsing_and_grounding.parser_setup import read_pdkbddl_file
-from refactored_rpmap.parsing_and_grounding.utils import cleaned_not
+from refactored_rpmap.parsing_and_grounding.utils import cleaned_not, create_and
 from run import parse, ground
 import pytest
 import os
@@ -54,40 +54,37 @@ class TestApplyAncEffs:
         if self.apply_anc_effs.check_ant_match(anc_eff.antecedent.rml, anc_eff.antecedent.anceff_type, next_term):
             return self.apply_anc_effs.set_assignment_apply_anc_eff(anc_eff.parameters, anc_eff.consequent, next_term)
 
-    @staticmethod
-    def create_and(operands):
-        and_ = And(*[])
-        and_._operands = operands
-        return and_
-
     # ----- NEGATION REMOVAL -----
     def test_negation_removal(self):
         p = deepcopy(self.pred)
         p.negated = True
-        assert self.apply_anc_eff_helper(self.negation_removal, self.srt) == [TestApplyAncEffs.create_and([cleaned_not(p)])]
+        assert self.apply_anc_eff_helper(self.negation_removal, self.srt) == [create_and([cleaned_not(p)])]
 
     def test_negation_removal_always_known(self):
         p = deepcopy(self.pred)
         p.always_known = True
-        assert self.apply_anc_eff_helper(self.negation_removal, SeparatedRMLTerm(list(), p)) == [TestApplyAncEffs.create_and([p])]
+        assert self.apply_anc_eff_helper(self.negation_removal, SeparatedRMLTerm(list(), p)) == [create_and([p])]
 
     def test_negation_removal_modalities(self):
         term = self.pbel_alice(self.pred)
         p = deepcopy(self.pred)
         p.negated = True
-        assert self.apply_anc_eff_helper(self.negation_removal, SeparatedRMLTerm([self.bel_alice], self.pred)) == [TestApplyAncEffs.create_and([cleaned_not(self.pbel_alice(p))])]
+        assert self.apply_anc_eff_helper(self.negation_removal, SeparatedRMLTerm([self.bel_alice], self.pred)) == [create_and([cleaned_not(self.pbel_alice(p))])]
 
     def test_negation_removal_modalities_2(self):
         term = self.pbel_alice(self.pred)
         p = deepcopy(self.pred)
         p.negated = True
-        assert self.apply_anc_eff_helper(self.negation_removal, SeparatedRMLTerm([self.pbel_alice, self.des_bob], self.pred)) == [TestApplyAncEffs.create_and([cleaned_not(self.bel_alice(self.pdes_bob(p)))])]
+        assert self.apply_anc_eff_helper(self.negation_removal, SeparatedRMLTerm([self.pbel_alice, self.des_bob], self.pred)) == [create_and([cleaned_not(self.bel_alice(self.pdes_bob(p)))])]
 
     def test_negation_removal_modalities_3(self):
-        assert self.apply_anc_eff_helper(self.negation_removal, SeparatedRMLTerm([self.bel_alice, NOT_MODL(), self.des_bob], self.pred)) == [TestApplyAncEffs.create_and([cleaned_not(self.pbel_alice(self.des_bob(self.pred)))])]
+        assert self.apply_anc_eff_helper(self.negation_removal, SeparatedRMLTerm([self.bel_alice, NOT_MODL(), self.des_bob], self.pred)) == [create_and([cleaned_not(self.pbel_alice(self.des_bob(self.pred)))])]
 
     # ----- UNCERTAIN FIRING -----
 
     # ----- CLOSURE (BELIEF) -----
     def test_closure(self):
-        assert self.apply_anc_eff_helper(self.kd45closure__belief, SeparatedRMLTerm([self.bel_alice], self.pred)) == [TestApplyAncEffs.create_and([self.pbel_alice(self.pred)])]
+        assert self.apply_anc_eff_helper(self.kd45closure__belief, SeparatedRMLTerm([self.bel_alice], self.pred)) == [create_and([self.pbel_alice(self.pred)])]
+
+    def test_closure_leading(self):
+        assert self.apply_anc_eff_helper(self.kd45closure__belief, SeparatedRMLTerm([self.bel_alice, self.des_bob], self.pred)) == [create_and([self.pbel_alice(self.des_bob(self.pred))])]
