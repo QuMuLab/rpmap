@@ -221,7 +221,7 @@ def new_predicate_hash(self):
 def negate_predicate(self):
     new_base = deepcopy(self)
     if self.always_known:
-        warnings.warn(f"Applying a '!' to a Predicate {self} that is always known.")
+        warnings.warn(f"Applying a '!' to a Predicate {self} that is always known.", Warning)
         return Not(new_base)
     new_base.negated = not self.negated
     return new_base

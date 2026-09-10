@@ -195,7 +195,7 @@ class TestParsing:
         return parse(self.grammar, "\n".join(read_pdkbddl_file(self.problem_path)))[2]
 
     def get_parsed_anceff(self):
-        self.insert_problem_data("import_insert", "{include:anceff_template.pdkbddl}")
+        # self.insert_problem_data("import_insert", "{include:anceff_template.pdkbddl}")
         return parse(self.grammar, "\n".join(read_pdkbddl_file(self.problem_path)))[1]
 
     def valid_predicate_tester(self, pred_str: str, pred_obj: Predicate):
@@ -221,7 +221,8 @@ class TestParsing:
     def valid_anceff_tester(self, anceff_str: str, anceff_obj: AncEff):
         self.insert_anceff(anceff_str)
         anc_effs = self.get_parsed_anceff()
-        assert anceff_obj in anc_effs[0].anceffs
+        all_anc_effs = [anc_eff for anc_eff_group in anc_effs for anc_eff in anc_eff_group]
+        assert anceff_obj in all_anc_effs
 
     def error_tester(self, insert_type: PDDLSection, new_data: str, errors: list[Exception]):
         with pytest.raises(errors[0]) as outer_e:
@@ -715,7 +716,7 @@ class TestParsing:
     def test_forall_var(self):
         anceff = deepcopy(self.anceff_template)
         anceff.consequent.poscond = None
-        anceff.consequent.negcond = [ListCompVar(SeparatedRMLTerm(list(), RMLTermNegated()), Variable("pos")), Variable("neg")]
+        anceff.consequent.negcond = [ListCompVar(SeparatedRMLTerm(list(), RTermNegated()), Variable("pos")), Variable("neg")]
         self.valid_anceff_tester("""
     (:anceff some-anceff
         :antecedent (
@@ -725,7 +726,7 @@ class TestParsing:
             :type add
         )
         :consequent (
-            :negcond {!{rml} for {rml} in ?pos} + ?neg
+            :negcond {!{r} for {r} in ?pos} + ?neg
             :rml !{rml}
             :type del
         )
@@ -741,7 +742,7 @@ class TestParsing:
             :type add
         )
         :consequent (
-            :negcond {!{rml} for {rml} in ?blah} + ?neg
+            :negcond {!{r} for {r} in ?blah} + ?neg
             :rml !{rml}
             :type del
         )
@@ -749,6 +750,7 @@ class TestParsing:
 
     def test_forall_agents(self):
         anceff = deepcopy(self.anceff_template)
+        anceff.parameters.append(Variable("ag", ["agent"]))
         anceff.consequent.poscond = None
         anceff.consequent.negcond = [ListCompAgents(SeparatedRMLTerm([Nesting(GenericMODLType.BEL, Agent(Variable("ag", ["agent"])))], RMLTerm())), Variable("pos")]
         self.valid_anceff_tester("""

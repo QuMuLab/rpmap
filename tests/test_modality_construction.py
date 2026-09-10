@@ -23,9 +23,9 @@ class TestModalityConstruction:
         assert repr(DES(pred)) == "[DES, bob](secret)"
         assert repr(ITN(pred)) == "[ITN, cindy](secret)"
 
-    def test_negate_always_known(self):
+    def test_always_known(self):
         BEL, DES, ITN, _, _, _, NOT, pred = self.get_vars()
-        with pytest.raises(PDDLValidationError):
+        with pytest.warns(Warning):
             p = deepcopy(pred)
             p.always_known = True
             NOT(p)
@@ -37,7 +37,7 @@ class TestModalityConstruction:
             p = deepcopy(pred)
             p.always_known = True
             BEL(NOT(p))
-        with pytest.raises(PDDLValidationError):
+        with pytest.warns(Warning):
             p = deepcopy(pred)
             p.always_known = True
             NOT(NOT(NOT(p)))

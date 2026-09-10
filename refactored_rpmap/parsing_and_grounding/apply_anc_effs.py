@@ -4,11 +4,12 @@ from pddl.exceptions import PDDLValidationError
 from pddl.logic.base import Not, And
 from pddl.logic.effects import When
 from copy import deepcopy
+import itertools
 
 
 class ApplyAncEffs:
-    def __init__(self, anc_effs: AncEffs, domain: Domain, problem: Problem, effs_to_apply: list[str] = None):
-        anc_effs = {a.name: a for a in anc_effs.anceffs}
+    def __init__(self, anc_effs: list[AncEff], domain: Domain, problem: Problem, effs_to_apply: list[str] = None):
+        anc_effs = {a.name: a for a in anc_effs}
         self.anc_effs = (
             [anc_effs[a] for a in anc_effs if a in effs_to_apply]
             if effs_to_apply
@@ -16,14 +17,17 @@ class ApplyAncEffs:
         )
         self.domain = domain
         self.problem = problem
+        self.agents = set(domain._agents.keys())
         self.rml: SeparatedRMLTerm = None
         self.pred: Predicate = None
         self.nestings: list[list[Nesting]] = None
+        self.agent_assignment: dict[Variable, str] = {}
 
     def reset(self):
         self.rml = None
         self.pred = None
         self.nestings = None
+        self.agent_assignment = {}
 
     @staticmethod
     def gen_id(cond):
@@ -223,10 +227,16 @@ class ApplyAncEffs:
                 conds.extend([Not(mc) for mc in self.ground_cond_or_rml(c, raw_conds)])
         return conds
 
-    def apply_anc_eff(self, anc_eff_cons: Consequent, next_cond):
-        conds = self.get_conds(anc_eff_cons.poscond, anc_eff_cons.negcond, next_cond)
-        # eff = [self.apply_rml()]
-        # for term in anc_eff_cons.rml:
+    def apply_anc_eff(self, parameters: list[Variable], anc_eff_cons: Consequent, next_cond):
+        if parameters:
+            agent_assignment = {p: self.agents for p in parameters}
+            val_generator = itertools.product(*agent_assignment.values())
+            for valuation in val_generator:
+                for agent, val in zip(parameters, valuation):
+                    self.agent_assignment[agent] = val
+                conds = self.get_conds(anc_eff_cons.poscond, anc_eff_cons.negcond, next_cond)
+                # eff = [self.apply_rml()]
+                # for term in anc_eff_cons.rml:
 
 
     def apply_anc_effs_to_action(self, o):
@@ -242,7 +252,7 @@ class ApplyAncEffs:
                 for anc_eff in self.anc_effs:
                     if self.check_ant_match(anc_eff.antecedent.rml, anc_eff.antecedent.anceff_type, next_cond):
                         print(f"{next_cond} passed the ancillary effect {anc_eff.name} antecedent {anc_eff.antecedent.rml}")
-                        self.apply_anc_eff(anc_eff.consequent, next_cond)
+                        self.apply_anc_eff(anc_eff.parameters, anc_eff.consequent, next_cond)
                     self.reset()
 
     def apply_anc_effs(self):

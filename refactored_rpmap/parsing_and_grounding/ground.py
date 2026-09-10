@@ -64,13 +64,13 @@ def ground_formula(formula: Sequence, assignment, domain, problem):
             check_intention_error(grounded_rml, domain)
             grounded_formulas.append(grounded_rml)
         elif isinstance(fo, ForallCondition):
-            vars = {v for v in fo.variables}
-            val_generator = create_valuations(domain._agents.keys(), domain.gathered_constants, vars)
+            variables = {v for v in fo.variables}
+            val_generator = create_valuations(domain._agents.keys(), domain.gathered_constants, variables)
             for valuation in val_generator:
                 var_names = [v.name for v in vars]
                 for var_name, val in zip(var_names, valuation):
                     assignment[var_name] = val
-                    grounded_formulas.extend(ground_formula([fo.condition], assignment, domain, problem))
+                grounded_formulas.extend(ground_formula([fo.condition], assignment, domain, problem))
             assignment = {}
         elif isinstance(fo, Forall):
             var_names = [v.name for v in fo.variables]
@@ -79,7 +79,7 @@ def ground_formula(formula: Sequence, assignment, domain, problem):
                 # need to add onto the existing assignment so we retain knowledge of outer variables
                 for var_name, val in zip(var_names, valuation):
                     assignment[var_name] = val
-                    grounded_formulas.extend(ground_formula([fo.effect], assignment, domain, problem))
+                grounded_formulas.extend(ground_formula([fo.effect], assignment, domain, problem))
             assignment = {}
         elif isinstance(fo, And):
             for o in fo.operands:
@@ -200,7 +200,7 @@ def create_itn_action_preds(operators, agents, problem, anc_effs):
     for a in operators:
         itn_preds.update(gather_itn_preds(a.precondition.operands))
         itn_preds.update(gather_itn_preds(a.effect.operands))
-    for ae in anc_effs.anceffs:
+    for ae in anc_effs:
         for fo in ([ae.antecedent.rml] + ae.consequent.rml):
             if isinstance(fo, ListCompVar) or isinstance(fo, ListCompAgents):
                 itn_preds.update(gather_itn_preds([fo.term]))

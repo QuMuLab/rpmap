@@ -85,7 +85,11 @@ class Nesting(GeneralRML):
             new_base = deepcopy(self)
             new_base.set_child(deepcopy(arg))
             return new_base
-        elif isinstance(arg, RML) or isinstance(arg, Predicate):
+        elif isinstance(arg, RML):
+            return RML(self.mod_type, self.agent, deepcopy(arg))
+        elif isinstance(arg, Predicate):
+            if arg.always_known:
+                raise PDDLValidationError(f"Nesting {self} cannot be applied to a Predicate {arg} that is always known.")
             return RML(self.mod_type, self.agent, deepcopy(arg))
         elif isinstance(arg, BLANK_MODL):
             return deepcopy(self)
@@ -363,9 +367,8 @@ class Antecedent(AncEffPart):
 class AncEff:
     def __init__(self, name: str, parameters: list[Variable], antecedent: Antecedent, consequent: Consequent):
         self.name = name
-        self.parameters = parameters
+        self.parameters = parameters if parameters else list()
         agents = self.get_agents(antecedent.rml)
-        agents = set()
         if consequent.poscond:
             for r in consequent.poscond:
                 agents.update(self.get_agents(r))
@@ -418,9 +421,9 @@ class AncEff:
     def __hash__(self):
         return hash((self.name, self.parameters, self.antecedent, self.consequent))
 
-class AncEffs:
-    def __init__(self, anceffs):
-        self.anceffs = anceffs
+# class AncEffs:
+#     def __init__(self, anceffs):
+#         self.anceffs = anceffs
 
 # ----- TRANSFORMER FUNCTIONS -----
 
@@ -543,7 +546,7 @@ def return_all(self, args):
     return args
 
 def anceffs(self, args):
-    return AncEffs(args[2:-1])
+    return args[2:-1]
 
 def anceff(self, args):
     return AncEff(args[2].value, args[3], args[4], args[5])
