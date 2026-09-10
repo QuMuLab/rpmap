@@ -1,0 +1,24 @@
+{include:domain_template.pdkbddl}
+{include:ae_default.pdkbddl}
+;; {insert here}
+(define (problem depth_2_agents_2)
+    (:domain grapevine)
+    (:objects l1 l2 - loc)
+    (:projection )
+	(:depth 2)
+    (:task valid_generation)
+    (:init-type complete)
+    (:init
+        (connected l1 l2)
+        (connected l2 l1)
+        (at alice l1)
+        (at bob l2)
+        ;; {insert here}
+    )
+    (:goal
+        (and
+            ;; {insert here}
+        )
+    )
+    (:plan )
+)

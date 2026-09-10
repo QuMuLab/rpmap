@@ -53,6 +53,7 @@ class ApplyAncEffs:
                 if cond.nestings[0].mod_type == nesting_term.modl.mod_type:
                     nesting_terms = deepcopy(cond.nestings[1:]) if len(cond.nestings) > 1 else list()
                     self.nestings.append(nesting_terms)
+                    self.agent_assignment[nesting_term.modl.agent.term] = cond.nestings[0].agent.term
                     return True
                 self.nestings = None
                 return False
@@ -60,6 +61,7 @@ class ApplyAncEffs:
                 if cond.nestings[-1].mod_type == nesting_term.modl.mod_type:
                     nesting_terms = deepcopy(cond.nestings[:-1]) if len(cond.nestings) > 1 else list()
                     self.nestings.append(nesting_terms)
+                    self.agent_assignment[nesting_term.modl.agent.term] = cond.nestings[-1].agent.term
                     return True
                 self.nestings = None
                 return False
@@ -68,6 +70,7 @@ class ApplyAncEffs:
                 nesting_terms = []
                 for n in cond.nestings:
                     if n.mod_type == nesting_term.modl.mod_type and not found:
+                        self.agent_assignment[nesting_term.modl.agent.term] = n.agent.term
                         found = True
                         self.nestings.append(nesting_terms)
                         nesting_terms = []
@@ -92,6 +95,7 @@ class ApplyAncEffs:
             for i in range(len(ant_rml.nestings)):
                 if ant_rml.nestings[i].mod_type != cond.nestings[i].mod_type:
                     return False
+                self.agent_assignment[ant_rml.nestings[i].modl.agent.term] = cond.nestings[i].agent.term
             return True
 
     def check_ant_match(self, ant_rml: SeparatedRMLTerm, ant_rml_type: str, next_term: Not | When | SeparatedRMLTerm):
@@ -172,6 +176,9 @@ class ApplyAncEffs:
             if isinstance(n, Nesting):
                 if isinstance(n.agent.term, Variable):
                     n.agent.term = self.agent_assignment[n.agent.term]
+            elif isinstance(n, MODLTermWNesting):
+                if isinstance(n.modl.agent.term, Variable):
+                    n.modl.agent.term = self.agent_assignment[n.modl.agent.term]
 
     def apply_rml(self, new_rml: SeparatedRMLTerm):
         self.ground_nesting(new_rml)
@@ -190,26 +197,25 @@ class ApplyAncEffs:
             else:
                 raise ValueError(f"Unknown nesting type {type(new_rml.nestings[0])}.")
         else:
-            rml_terms = []
-            rml_terms.extend(new_rml.nestings)
-            if isinstance(new_rml.term, PredTermNegated) or isinstance(new_rml.term, RMLTermNegated) or isinstance(new_rml.term, RTermNegated):
-                rml_terms.append(NOT_MODL())
-            if isinstance(new_rml.term, RMLTerm) or isinstance(new_rml.term, RMLTermNegated):
-                srt = self.rml
-            elif isinstance(new_rml.term, PredTerm) or isinstance(new_rml.term, PredTermNegated):
-                srt = self.pred
-            elif isinstance(new_rml.term, RTerm) or isinstance(new_rml.term, RTermNegated):
-                srt = self.r
-            else:
-                raise ValueError("No term set before attempting to apply an rml.")
-            if isinstance(srt, Not):
-                srt = srt.argument
-                rml_terms.append(NOT_MODL())
-            rml_terms.extend(srt.nestings)
-            rml_terms.append(srt.term)
-            for i in range(len(rml_terms) - 2, - 1, - 1):
-                rml_terms[i] = rml_terms[i](rml_terms[i + 1])
-            return rml_terms[0]
+            rml_terms = new_rml.nestings
+        if isinstance(new_rml.term, PredTermNegated) or isinstance(new_rml.term, RMLTermNegated) or isinstance(new_rml.term, RTermNegated):
+            rml_terms.append(NOT_MODL())
+        if isinstance(new_rml.term, RMLTerm) or isinstance(new_rml.term, RMLTermNegated):
+            srt = self.rml
+        elif isinstance(new_rml.term, PredTerm) or isinstance(new_rml.term, PredTermNegated):
+            srt = self.pred
+        elif isinstance(new_rml.term, RTerm) or isinstance(new_rml.term, RTermNegated):
+            srt = self.r
+        else:
+            raise ValueError("No term set before attempting to apply an rml.")
+        if isinstance(srt, Not):
+            srt = srt.argument
+            rml_terms.append(NOT_MODL())
+        rml_terms.extend(srt.nestings)
+        rml_terms.append(srt.term)
+        for i in range(len(rml_terms) - 2, - 1, - 1):
+            rml_terms[i] = rml_terms[i](rml_terms[i + 1])
+        return rml_terms[0]
 
     def ground_cond_or_rml(self, descriptor):
         if descriptor in [Variable("pos"), Variable("neg")]:
@@ -256,11 +262,10 @@ class ApplyAncEffs:
                 
     def set_assignment_apply_anc_eff(self, parameters: list[Variable], anc_eff_cons: Consequent, next_term):
         anc_effs = []
-        if parameters:
-            agent_assignment = {p: self.agents for p in parameters}
-            val_generator = itertools.product(*agent_assignment.values())
-            for valuation in val_generator:
-                self.agent_assignment = {agent: self.domain._agents[val] for agent, val in zip(parameters, valuation)}
+        # list comprehension across agents
+        if parameters and Variable("ag", ["agent"]) in parameters:
+            for ag in self.domain._agents.values():
+                self.agent_assignment["ag"] = ag
                 anc_effs.append(self.apply_anc_eff(anc_eff_cons, next_term))
         else:
             anc_effs.append(self.apply_anc_eff(anc_eff_cons, next_term))
