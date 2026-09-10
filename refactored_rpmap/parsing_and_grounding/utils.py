@@ -2,6 +2,7 @@ import itertools
 import re
 from typing import Sequence
 from lark.lexer import Token
+from pddl.logic.base import Not
 from pddl.logic.terms import Variable
 from pddl.parser import GRAMMAR_FILE
 
@@ -81,3 +82,7 @@ def basic_tokens_transformer(self, args):
 
 def return_option(self, args):
     return args[0]
+
+# ----- OTHER -----
+def cleaned_not(arg):
+    return arg.argument if isinstance(arg, Not) else Not(arg)

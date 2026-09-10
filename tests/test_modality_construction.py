@@ -1,4 +1,5 @@
 from refactored_rpmap.parsing_and_grounding.core.anc_eff import *
+from refactored_rpmap.parsing_and_grounding.utils import cleaned_not
 import pytest
 
 
@@ -49,20 +50,20 @@ class TestModalityConstruction:
     def test_not(self):
         BEL, DES, ITN, _, _, _, NOT, pred = self.get_vars()
         assert repr(NOT(pred)) == "(!secret)"
-        assert repr(Not(pred)) == "(not (secret))"
-        assert repr(Not(BEL(pred))) == "(not [BEL, alice](secret))"
-        assert repr(Not(NOT(BEL(pred)))) == "(not <BEL, alice>(!secret))"
-        assert repr(NOT(Not(BEL(pred)))) == "[BEL, alice](secret)"
+        assert repr(cleaned_not(pred)) == "(not (secret))"
+        assert repr(cleaned_not(BEL(pred))) == "(not [BEL, alice](secret))"
+        assert repr(cleaned_not(NOT(BEL(pred)))) == "(not <BEL, alice>(!secret))"
+        assert repr(NOT(cleaned_not(BEL(pred)))) == "[BEL, alice](secret)"
 
     def test_not_on_always_known(self):
         BEL, DES, ITN, _, _, _, NOT, pred = self.get_vars()
         p = deepcopy(pred)
         p.always_known = True
         assert repr(NOT(p)) == "(not (secret))"
-        assert repr(Not(p)) == "(not (secret))"
+        assert repr(cleaned_not(p)) == "(not (secret))"
         assert repr(NOT(BEL(p))) == "(not (secret))"
-        assert repr(Not(NOT(BEL(p)))) == "(not (not (secret)))"
-        assert repr(NOT(Not(BEL(p)))) == "(secret)"
+        assert repr(cleaned_not(NOT(BEL(p)))) == "(secret)"
+        assert repr(NOT(cleaned_not(BEL(p)))) == "(secret)"
 
 
     def test_rml_vs_nesting_formation(self):

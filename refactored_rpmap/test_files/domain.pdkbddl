@@ -1,6 +1,6 @@
 (define (domain grapevine)
 	(:agents alice bob)
-    (:requirements :typing :disjunctive-preconditions)
+    (:requirements :typing)
     (:types loc)
     (:predicates
         (secret ?agent - agent)
@@ -11,14 +11,14 @@
     (:action move
         :derive-condition   always
         :parameters         (?a - agent ?l1 ?l2 - loc)
-        :precondition       (and (at ?a ?l1) (connected ?l1 ?l2) ![bel, ?a]![des, ?a](!secret ?a))
-        :effect             (and (at ?a ?l2) (not (at ?a ?l1)) [bel, ?a]<bel, ?a>(!secret ?a) <des, ?a>[bel, ?a](secret))
+        :precondition       (and (at ?a ?l1) (connected ?l1 ?l2))
+        :effect             (and (at ?a ?l2) (not (at ?a ?l1)))
     )
 
     (:action share
         :derive-condition   (at $agent$ ?l)
         :parameters         (?a ?as - agent ?l - loc)
-        :precondition       (and (at ?a ?l) [bel, ?a]![des, ?a](secret ?as))
+        :precondition       (and (at ?a ?l) [bel, ?a](secret ?as))
         :effect             (and
                                 (forall (?a2 - agent)
                                     (when (at ?a2 ?l)

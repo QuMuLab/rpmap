@@ -1,4 +1,5 @@
 from .core.anc_eff import *
+from .utils import cleaned_not
 from pddl.core import Domain, Problem
 from pddl.exceptions import PDDLValidationError
 from pddl.logic.base import Not, And
@@ -93,15 +94,15 @@ class ApplyAncEffs:
                     return False
             return True
 
-    def check_ant_match(self, ant_rml: SeparatedRMLTerm, ant_rml_type: str, next_cond: Not | When | SeparatedRMLTerm):
-        cond = deepcopy(next_cond)
+    def check_ant_match(self, ant_rml: SeparatedRMLTerm, ant_rml_type: str, next_term: Not | When | SeparatedRMLTerm):
+        cond = deepcopy(next_term)
         # if dealing with a When statement, we need to compare against the When effect.
         if isinstance(cond, When):
             # note that When formulas already been grounded such that every When has only one effect
             # there is a possibility it is a Not instead though
             cond = cond.effect.operands[0] if isinstance(cond.effect, And) else cond.effect
         # compare Not status with the antecedent type status
-        if (ant_rml_type == "del" and type(cond) is not Not) or (type(cond) is Not and ant_rml_type != "del"):
+        if (ant_rml_type == "del" and not isinstance(cond, Not)) or (isinstance(cond, Not) and ant_rml_type != "del"):
             return False
         # if dealing with a Not statement, we need to compare against the argument.
         if isinstance(cond, Not): 
@@ -226,18 +227,11 @@ class ApplyAncEffs:
         else:
             raise ValueError(f"Unknown condition type {type(descriptor)}")
 
-    def get_raw_conds(self, next_cond):
-        if isinstance(next_cond, Not) or isinstance(next_cond, SeparatedRMLTerm) or isinstance(next_cond, Predicate):
-            return next_cond
-        elif isinstance(next_cond, When):
-            return [self.get_raw_conds(o) for o in next_cond.condition.operands]
-        elif isinstance(next_cond, And):
-            return [self.get_raw_conds(o) for o in next_cond.operands]
-        else:
-            raise ValueError(f"Unknown condition type {type(next_cond)}")
+    def get_raw_conds(self, next_term):
+        return [self.get_raw_conds(o) for o in next_term.condition.operands] if isinstance(next_term, When) else []
 
-    def get_conds(self, poscond, negcond, next_cond):
-        raw_conds = self.get_raw_conds(next_cond)
+    def get_conds(self, poscond, negcond, next_term):
+        raw_conds = self.get_raw_conds(next_term)
         self.raw_conds = [raw_conds] if type(raw_conds) != list else raw_conds
         conds = []
         if poscond:
@@ -245,30 +239,31 @@ class ApplyAncEffs:
                 conds.extend(self.ground_cond_or_rml(c))
         if negcond:
             for c in negcond:
-                conds.extend([Not(gc) for gc in self.ground_cond_or_rml(c)])
+                conds.extend([cleaned_not(gc) for gc in self.ground_cond_or_rml(c)])
         return conds
 
-    def apply_anc_eff(self, anc_eff_cons: Consequent, next_cond):
-        conds = self.get_conds(anc_eff_cons.poscond, anc_eff_cons.negcond, next_cond)
+    def apply_anc_eff(self, anc_eff_cons: Consequent, next_term):
+        conds = self.get_conds(anc_eff_cons.poscond, anc_eff_cons.negcond, next_term)
         eff = []
         for term in anc_eff_cons.rml: 
-            eff.extend(self.ground_cond_or_rml(term))
+            for g_term in self.ground_cond_or_rml(term):
+                eff.append(g_term if anc_eff_cons.anceff_type == "add" else cleaned_not(g_term))
         conds_and_ = And(*[])
-        conds_and_.operands = conds
+        conds_and_._operands = conds
         eff_and_ = And(*[])
-        eff_and_.operands = eff
+        eff_and_._operands = eff
         return When(conds_and_, eff_and_) if conds else eff_and_
                 
-    def set_assignment_apply_anc_eff(self, parameters: list[Variable], anc_eff_cons: Consequent, next_cond):
-        anc_effs = set()
+    def set_assignment_apply_anc_eff(self, parameters: list[Variable], anc_eff_cons: Consequent, next_term):
+        anc_effs = []
         if parameters:
             agent_assignment = {p: self.agents for p in parameters}
             val_generator = itertools.product(*agent_assignment.values())
             for valuation in val_generator:
                 self.agent_assignment = {agent: self.domain._agents[val] for agent, val in zip(parameters, valuation)}
-                anc_effs.add(self.apply_anc_eff(anc_eff_cons, next_cond))
+                anc_effs.append(self.apply_anc_eff(anc_eff_cons, next_term))
         else:
-            anc_effs.add(self.apply_anc_eff(anc_eff_cons, next_cond))
+            anc_effs.append(self.apply_anc_eff(anc_eff_cons, next_term))
         return anc_effs
                 
     def apply_anc_effs_to_action(self, o):
@@ -278,13 +273,12 @@ class ApplyAncEffs:
         processed_conds = set()
         
         while condleft:
-            next_cond = condleft.pop(0)
-            if next_cond not in processed_conds:
-                processed_conds.add(next_cond)
+            next_term = condleft.pop(0)
+            if next_term not in processed_conds:
+                processed_conds.add(next_term)
                 for anc_eff in self.anc_effs:
-                    if self.check_ant_match(anc_eff.antecedent.rml, anc_eff.antecedent.anceff_type, next_cond):
-                        print(f"{next_cond} passed the ancillary effect {anc_eff.name} antecedent {anc_eff.antecedent.rml}")
-                        self.set_assignment_apply_anc_eff(anc_eff.parameters, anc_eff.consequent, next_cond)
+                    if self.check_ant_match(anc_eff.antecedent.rml, anc_eff.antecedent.anceff_type, next_term):
+                        self.set_assignment_apply_anc_eff(anc_eff.parameters, anc_eff.consequent, next_term)
                     self.reset()
 
     def apply_anc_effs(self):

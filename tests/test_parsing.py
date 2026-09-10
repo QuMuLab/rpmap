@@ -11,11 +11,13 @@ from pddl.parser import GRAMMAR_FILE
 from refactored_rpmap.parsing_and_grounding.core.anc_eff import *
 from refactored_rpmap.parsing_and_grounding.parser_setup import read_pdkbddl_file
 from refactored_rpmap.parsing_and_grounding.apply_anc_effs import ApplyAncEffs
+from refactored_rpmap.parsing_and_grounding.utils import cleaned_not
 from run import parse, get_parsing_result
 from copy import deepcopy
 from enum import Enum
 import pytest
 import os
+from .utils import get_template_anceff
 
 
 class PDDLSection(Enum):
@@ -59,20 +61,6 @@ class TestParsing:
                     frozenset([a2_var])
                 )
             )
-        )
-
-    @staticmethod
-    def get_template_anceff():
-        # create a generic AncEff object to test
-        pos_var = Variable("pos")
-        neg_var = Variable("neg")
-        rml_term = RMLTerm()
-        rml_term_negated = RMLTermNegated()
-        return AncEff(
-            name="some-anceff",
-            parameters=None,
-            antecedent=Antecedent(False, SeparatedRMLTerm(list(), rml_term), "add"),
-            consequent=Consequent([Variable("pos")], [Variable("neg")], [SeparatedRMLTerm(list(), rml_term_negated)], "del")
         )
 
     @pytest.fixture(autouse=True)
@@ -137,7 +125,7 @@ class TestParsing:
         }
         # set template action and ancillary effect
         request.cls.action_template = TestParsing.get_template_action()
-        request.cls.anceff_template = TestParsing.get_template_anceff()
+        request.cls.anceff_template = get_template_anceff()
 
     # ----- TEMPLATE FILE UPDATE FUNCTIONS -----
 
@@ -410,7 +398,7 @@ class TestParsing:
 
     def test_action_negated_precondition(self):
         action = deepcopy(self.action_template)
-        action._precondition = And(*[Not(p) for p in action._precondition._operands])
+        action._precondition = And(*[cleaned_not(p) for p in action._precondition._operands])
         self.valid_action_tester("""
         (:action share
             :derive-condition   (at $agent$ ?l)
@@ -491,7 +479,7 @@ class TestParsing:
 
     def test_action_negated_effect(self):
         action = deepcopy(self.action_template)
-        action._effect = Not(action._effect.effect.effect)
+        action._effect = cleaned_not(action._effect.effect.effect)
         self.valid_action_tester("""
         (:action share
             :derive-condition   (at $agent$ ?l)
@@ -556,7 +544,7 @@ class TestParsing:
         )""",
             action
         )
-        action._effect = Not(SeparatedRMLTerm([NOT_MODL()], action._effect.term))
+        action._effect = cleaned_not(SeparatedRMLTerm([NOT_MODL()], action._effect.term))
         self.valid_action_tester("""
         (:action share
             :derive-condition   (at $agent$ ?l)
@@ -573,7 +561,7 @@ class TestParsing:
         action = deepcopy(self.action_template)
         at_p = Predicate("at", Variable("as", ["agent"]), Variable("l", ["loc"]))
         at_p.always_known = True
-        action._effect = Not(SeparatedRMLTerm(list(), at_p))
+        action._effect = cleaned_not(SeparatedRMLTerm(list(), at_p))
         self.valid_action_tester("""
         (:action share
             :derive-condition   (at $agent$ ?l)
@@ -638,7 +626,7 @@ class TestParsing:
         self.valid_goal_tester("(or (secret alice) [bel, bob](secret alice))", Or(SeparatedRMLTerm(list(), secret), SeparatedRMLTerm([Nesting(GenericMODLType.BEL, Agent(Constant("bob", "agent")))], secret)))
 
     def test_problem_goal_not_rml(self):
-        self.valid_goal_tester("(not (secret alice))", Not(SeparatedRMLTerm(list(), Predicate("secret", Constant("alice", "agent")))))
+        self.valid_goal_tester("(not (secret alice))", cleaned_not(SeparatedRMLTerm(list(), Predicate("secret", Constant("alice", "agent")))))
 
     def test_problem_goal_and_rml(self):
         self.valid_goal_tester("(and (secret alice))", And(SeparatedRMLTerm(list(), Predicate("secret", Constant("alice", "agent")))))

@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from .utils import create_valuations
+from .utils import create_valuations, cleaned_not
 from .core.anc_eff import ActionMODLType, PossibleActionMODLType, NOT_MODL, Agent, RMLOrPredTerm, ListCompVar, ListCompAgents, RML, Nesting, SeparatedRMLTerm
 from copy import deepcopy
 from pddl.action import Action
@@ -87,7 +87,7 @@ def ground_formula(formula: Sequence, assignment, domain, problem):
         elif isinstance(fo, Not):
             if not isinstance(fo.argument, RML) and not isinstance(fo.argument, Predicate) and not isinstance(fo.argument, SeparatedRMLTerm):
                 raise PDDLValidationError(f"'Not' was applied to {type(fo.argument)}. 'Not' can only be applied to an RML or Predicate.")
-            grounded_formulas.append(Not(list(ground_formula([fo.argument], assignment, domain, problem))[0]))
+            grounded_formulas.append(cleaned_not(list(ground_formula([fo.argument], assignment, domain, problem))[0]))
         elif isinstance(fo, When):
             cond = ground_formula([fo.condition], assignment, domain, problem)
             # for formatting/consistency reasons, we want to force this into being an "And"
