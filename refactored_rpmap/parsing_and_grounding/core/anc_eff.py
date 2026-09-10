@@ -3,10 +3,12 @@ from enum import Enum
 from lark.visitors import Transformer, Token
 from pddl.core import Predicate
 from pddl.exceptions import PDDLValidationError
+from pddl.logic.base import Not
 from pddl.logic.terms import Variable, Constant, Term
 from pddl.parser.domain import DomainTransformer
 from pddl.parser.problem import ProblemTransformer
 from copy import deepcopy
+import warnings
 from ..utils import return_option, basic_tokens_transformer
 
 # ----- CLASSES -----
@@ -81,7 +83,7 @@ class Nesting(GeneralRML):
         self.child: Nesting | RML | Predicate
 
     def __call__(self, arg):
-        if isinstance(arg, Nesting) or isinstance(arg, NOT_MODL):
+        if isinstance(arg, Nesting) or isinstance(arg, NOT_MODL) or isinstance(arg, Not):
             new_base = deepcopy(self)
             new_base.set_child(deepcopy(arg))
             return new_base
@@ -89,7 +91,8 @@ class Nesting(GeneralRML):
             return RML(self.mod_type, self.agent, deepcopy(arg))
         elif isinstance(arg, Predicate):
             if arg.always_known:
-                raise PDDLValidationError(f"Nesting {self} cannot be applied to a Predicate {arg} that is always known.")
+                warnings.warn(f"Nesting {self} being applied to a Predicate {arg} that is always known. Returning {arg}...", Warning)
+                return arg
             return RML(self.mod_type, self.agent, deepcopy(arg))
         elif isinstance(arg, BLANK_MODL):
             return deepcopy(self)
@@ -380,8 +383,9 @@ class AncEff:
         for a in agents:
             if not (a in self.parameters if self.parameters else False):
                 raise PDDLValidationError(f"Agent {a} not in the ancillary effect {self.name} parameters, {self.parameters}.")
+        
         ant_terms_w_nesting_types = {type(term) for term in antecedent.rml.nestings if isinstance(term, MODLTermWNesting)}
-        cons_terms_w_nesting_types = {type(term) for rml in consequent.rml for term in rml.nestings if isinstance(term, MODLTermWNesting)}
+        cons_terms_w_nesting_types = {type(term) for rml in consequent.rml if isinstance(rml, SeparatedRMLTerm) for term in rml.nestings if isinstance(term, MODLTermWNesting)}
         if ant_terms_w_nesting_types != cons_terms_w_nesting_types:
             raise PDDLValidationError(f"The antecedent and consequent of the {self.name} ancillary effect feature different" + "{nesting} term types.")
         self.antecedent = antecedent

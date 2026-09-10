@@ -141,6 +141,9 @@ def new_predicate_str_rmls_repr(self):
         p_str = f"({p_str}"
     return p_str   
 
+def new_not_repr(self):
+    return f"(not {repr(self.argument)})"
+
 def new_domain_str(self):
     """New domain string adapted from the pddl.core.Domain.__str__ method."""
     # adapted from the PDDL Domain class __str__ method
@@ -240,6 +243,7 @@ def inject_domain_grammar(label, rule, function, grammar_file=GRAMMAR_FILE):
 
 def modify_domain_classes():
     pddl.logic.base.Not._negate = negate_not
+    pddl.logic.base.Not.__repr__ = new_not_repr
     pddl.logic.predicates.Predicate.__str__ = new_predicate_str_rmls_str
     pddl.logic.predicates.Predicate.__repr__ = new_predicate_str_rmls_repr
     pddl.logic.predicates.Predicate.__eq__ = new_predicate_eq

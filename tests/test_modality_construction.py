@@ -29,11 +29,11 @@ class TestModalityConstruction:
             p = deepcopy(pred)
             p.always_known = True
             NOT(p)
-        with pytest.raises(PDDLValidationError):
+        with pytest.warns(Warning):
             p = deepcopy(pred)
             p.always_known = True
             NOT(BEL(p))
-        with pytest.raises(PDDLValidationError):
+        with pytest.warns(Warning):
             p = deepcopy(pred)
             p.always_known = True
             BEL(NOT(p))
@@ -41,10 +41,29 @@ class TestModalityConstruction:
             p = deepcopy(pred)
             p.always_known = True
             NOT(NOT(NOT(p)))
-        with pytest.raises(PDDLValidationError):
+        with pytest.warns(Warning):
             p = deepcopy(pred)
             p.always_known = True
             NOT(BEL(NOT(DES(NOT(ITN(p))))))
+
+    def test_not(self):
+        BEL, DES, ITN, _, _, _, NOT, pred = self.get_vars()
+        assert repr(NOT(pred)) == "(!secret)"
+        assert repr(Not(pred)) == "(not (secret))"
+        assert repr(Not(BEL(pred))) == "(not [BEL, alice](secret))"
+        assert repr(Not(NOT(BEL(pred)))) == "(not <BEL, alice>(!secret))"
+        assert repr(NOT(Not(BEL(pred)))) == "[BEL, alice](secret)"
+
+    def test_not_on_always_known(self):
+        BEL, DES, ITN, _, _, _, NOT, pred = self.get_vars()
+        p = deepcopy(pred)
+        p.always_known = True
+        assert repr(NOT(p)) == "(not (secret))"
+        assert repr(Not(p)) == "(not (secret))"
+        assert repr(NOT(BEL(p))) == "(not (secret))"
+        assert repr(Not(NOT(BEL(p)))) == "(not (not (secret)))"
+        assert repr(NOT(Not(BEL(p)))) == "(secret)"
+
 
     def test_rml_vs_nesting_formation(self):
         BEL, DES, ITN, PBEL, PDES, PITN, NOT, pred = self.get_vars()

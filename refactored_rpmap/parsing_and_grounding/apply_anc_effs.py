@@ -21,6 +21,7 @@ class ApplyAncEffs:
         self.rml: SeparatedRMLTerm = None
         self.pred: Predicate = None
         self.nestings: list[list[Nesting]] = None
+        self.raw_conds: list[Not | SeparatedRMLTerm | Predicate] = None
         self.agent_assignment: dict[Variable, str] = {}
 
     def reset(self):
@@ -28,6 +29,7 @@ class ApplyAncEffs:
         self.pred = None
         self.nestings = None
         self.agent_assignment = {}
+        self.raw_conds = None
 
     @staticmethod
     def gen_id(cond):
@@ -164,9 +166,28 @@ class ApplyAncEffs:
         else:
             raise ValueError(f"Unknown variable {var}.")
 
+    def ground_nesting(self, new_rml: SeparatedRMLTerm):
+        for n in new_rml.nestings:
+            if isinstance(n, Nesting):
+                if isinstance(n.agent.term, Variable):
+                    n.agent.term = self.agent_assignment[n.agent.term]
+
     def apply_rml(self, new_rml: SeparatedRMLTerm):
+        self.ground_nesting(new_rml)
         if self.nestings:
-            pass
+            rml_terms = []
+            if isinstance(new_rml.nestings[0], LeadingNesting):
+                rml_terms.extend(self.nestings[0])
+                rml_terms.append(new_rml.nestings[0].modl)
+            elif isinstance(new_rml.nestings[0], TrailingNesting):
+                rml_terms.append(new_rml.nestings[0].modl)
+                rml_terms.extend(self.nestings[0])
+            elif isinstance(new_rml.nestings[0], LeadingTrailingNesting):
+                rml_terms.extend(self.nestings[0])
+                rml_terms.append(new_rml.nestings[0].modl)
+                rml_terms.extend(self.nestings[1])
+            else:
+                raise ValueError(f"Unknown nesting type {type(new_rml.nestings[0])}.")
         else:
             rml_terms = []
             rml_terms.extend(new_rml.nestings)
@@ -189,17 +210,17 @@ class ApplyAncEffs:
                 rml_terms[i] = rml_terms[i](rml_terms[i + 1])
             return rml_terms[0]
 
-    def ground_cond_or_rml(self, descriptor, raw_conds):
+    def ground_cond_or_rml(self, descriptor):
         if descriptor in [Variable("pos"), Variable("neg")]:
-            return self.get_pos_or_neg_conds(descriptor, raw_conds)
+            return self.get_pos_or_neg_conds(descriptor, self.raw_conds)
         elif isinstance(descriptor, ListCompVar):
-            pos_or_neg_conds = self.get_pos_or_neg_conds(descriptor.var, raw_conds)
+            pos_or_neg_conds = self.get_pos_or_neg_conds(descriptor.var, self.raw_conds)
             for i in range(len(pos_or_neg_conds)):
                 self.r = pos_or_neg_conds[i]
                 pos_or_neg_conds[i] = self.apply_rml(descriptor.term)
             return pos_or_neg_conds
         elif isinstance(descriptor, ListCompAgents):
-            print()
+            return [self.apply_rml(descriptor.term)]
         elif isinstance(descriptor, SeparatedRMLTerm):
             return [self.apply_rml(descriptor)]
         else:
@@ -217,28 +238,39 @@ class ApplyAncEffs:
 
     def get_conds(self, poscond, negcond, next_cond):
         raw_conds = self.get_raw_conds(next_cond)
-        raw_conds = [raw_conds] if type(raw_conds) != list else raw_conds
+        self.raw_conds = [raw_conds] if type(raw_conds) != list else raw_conds
         conds = []
         if poscond:
             for c in poscond:
-                conds.extend(self.ground_cond_or_rml(c, raw_conds))
+                conds.extend(self.ground_cond_or_rml(c))
         if negcond:
             for c in negcond:
-                conds.extend([Not(mc) for mc in self.ground_cond_or_rml(c, raw_conds)])
+                conds.extend([Not(gc) for gc in self.ground_cond_or_rml(c)])
         return conds
 
-    def apply_anc_eff(self, parameters: list[Variable], anc_eff_cons: Consequent, next_cond):
+    def apply_anc_eff(self, anc_eff_cons: Consequent, next_cond):
+        conds = self.get_conds(anc_eff_cons.poscond, anc_eff_cons.negcond, next_cond)
+        eff = []
+        for term in anc_eff_cons.rml: 
+            eff.extend(self.ground_cond_or_rml(term))
+        conds_and_ = And(*[])
+        conds_and_.operands = conds
+        eff_and_ = And(*[])
+        eff_and_.operands = eff
+        return When(conds_and_, eff_and_) if conds else eff_and_
+                
+    def set_assignment_apply_anc_eff(self, parameters: list[Variable], anc_eff_cons: Consequent, next_cond):
+        anc_effs = set()
         if parameters:
             agent_assignment = {p: self.agents for p in parameters}
             val_generator = itertools.product(*agent_assignment.values())
             for valuation in val_generator:
-                for agent, val in zip(parameters, valuation):
-                    self.agent_assignment[agent] = val
-                conds = self.get_conds(anc_eff_cons.poscond, anc_eff_cons.negcond, next_cond)
-                # eff = [self.apply_rml()]
-                # for term in anc_eff_cons.rml:
-
-
+                self.agent_assignment = {agent: self.domain._agents[val] for agent, val in zip(parameters, valuation)}
+                anc_effs.add(self.apply_anc_eff(anc_eff_cons, next_cond))
+        else:
+            anc_effs.add(self.apply_anc_eff(anc_eff_cons, next_cond))
+        return anc_effs
+                
     def apply_anc_effs_to_action(self, o):
         o.id = ApplyAncEffs.gen_id(o)
         o.parent = None
@@ -252,7 +284,7 @@ class ApplyAncEffs:
                 for anc_eff in self.anc_effs:
                     if self.check_ant_match(anc_eff.antecedent.rml, anc_eff.antecedent.anceff_type, next_cond):
                         print(f"{next_cond} passed the ancillary effect {anc_eff.name} antecedent {anc_eff.antecedent.rml}")
-                        self.apply_anc_eff(anc_eff.parameters, anc_eff.consequent, next_cond)
+                        self.set_assignment_apply_anc_eff(anc_eff.parameters, anc_eff.consequent, next_cond)
                     self.reset()
 
     def apply_anc_effs(self):
