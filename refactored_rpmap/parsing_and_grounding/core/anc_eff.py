@@ -196,6 +196,14 @@ class PredTermNegated(RMLOrPredTerm):
     def __repr__(self):
         return "!{pred}"
 
+class RTerm(RMLOrPredTerm):
+    def __repr__(self):
+        return "{r}"
+
+class RTermNegated(RMLOrPredTerm):
+    def __repr__(self):
+        return "!{r}"
+
 class NestingWildcardTerm:
     def __repr__(self):
         return "{nesting}"
@@ -240,7 +248,7 @@ class LeadingTrailingNesting(MODLTermWNesting):
         return "{nesting}" + repr(self.modl) + "{nesting}"
 
 class ListCompVar:
-    def __init__(self, term: RMLOrPredTerm | RML, var: Variable):
+    def __init__(self, term: SeparatedRMLTerm, var: Variable):
         self.term = term
         if var not in [Variable("pos"), Variable("neg")]:
             raise PDDLValidationError("Only ?pos and ?neg can be referenced as variables in an ancillary effect list comprehension.")
@@ -253,7 +261,13 @@ class ListCompVar:
         return hash((ListCompVar, self.term, self.var))
 
 class ListCompAgents:
-    def __init__(self, term: RMLOrPredTerm | RML):
+    def __init__(self, term: SeparatedRMLTerm):
+        ag_detected = False
+        for n in term.nestings:
+            if n.agent.term == Variable("ag", ["agent"]):
+                ag_detected = True
+        if not ag_detected:
+            raise PDDLValidationError(f"No ?ag agent detected in the agent list comprehension nestings.")
         self.term = term
 
     def __eq__(self, other):
@@ -350,13 +364,19 @@ class AncEff:
     def __init__(self, name: str, parameters: list[Variable], antecedent: Antecedent, consequent: Consequent):
         self.name = name
         self.parameters = parameters
-        error_msg = f"Agent not listed in the ancillary effect {name} parameters."
-        if not self.check_referenced_agents(antecedent.rml):
-            raise PDDLValidationError(error_msg)
+        agents = self.get_agents(antecedent.rml)
+        agents = set()
+        if consequent.poscond:
+            for r in consequent.poscond:
+                agents.update(self.get_agents(r))
+        if consequent.negcond:
+            for r in consequent.negcond:
+                agents.update(self.get_agents(r))
         for r in consequent.rml:
-            if not self.check_referenced_agents(r):
-                raise PDDLValidationError(error_msg)
-
+            agents.update(self.get_agents(r))
+        for a in agents:
+            if not (a in self.parameters if self.parameters else False):
+                raise PDDLValidationError(f"Agent {a} not in the ancillary effect {self.name} parameters, {self.parameters}.")
         ant_terms_w_nesting_types = {type(term) for term in antecedent.rml.nestings if isinstance(term, MODLTermWNesting)}
         cons_terms_w_nesting_types = {type(term) for rml in consequent.rml for term in rml.nestings if isinstance(term, MODLTermWNesting)}
         if ant_terms_w_nesting_types != cons_terms_w_nesting_types:
@@ -364,18 +384,27 @@ class AncEff:
         self.antecedent = antecedent
         self.consequent = consequent
 
-    def check_referenced_agents(self, rml: SeparatedRMLTerm | MODLTermWNesting | Nesting | NOT_MODL):
-        if isinstance(rml, NOT_MODL):
-            return True
+    def get_agents(self, rml: SeparatedRMLTerm | MODLTermWNesting | Nesting | NOT_MODL):
+        agents = set()
+        if isinstance(rml, NOT_MODL) or isinstance(rml, Variable):
+            return agents
         elif isinstance(rml, MODLTermWNesting):
-            return rml.modl.agent.term in self.parameters if self.parameters else False
+            agents.add(rml.modl.agent.term)
         elif isinstance(rml, Nesting):
-            return rml.agent.term in self.parameters if self.parameters else False
-        else:
+            agents.add(rml.agent.term)
+        elif isinstance(rml, ListCompVar):
+            for n in rml.term.nestings:
+                agents.update(self.get_agents(n))
+        elif isinstance(rml, ListCompAgents):
+            self.parameters.append(Variable("ag", ["agent"]))
+            for n in rml.term.nestings:
+                agents.update(self.get_agents(n))
+        elif isinstance(rml, SeparatedRMLTerm):
             for n in rml.nestings:
-                if not self.check_referenced_agents(n):
-                    return False
-            return True
+                agents.update(self.get_agents(n))
+        else:
+            raise ValueError(f"Unexpected type {type(rml)}.")
+        return agents
                 
 
     def __eq__(self, other):
@@ -447,7 +476,7 @@ def var(self, args):
     return Variable(args[1].value)
 
 def modls(self, args):
-    return args[0] if len(args) > 0 else list()
+    return [a[0] for a in args] if len(args) > 0 else list()
 
 def plural_modl_check(args):
     if len(args) != 1:
@@ -505,6 +534,11 @@ def pred_term(self, args):
 def pred_term_no_neg(self, args):
     return PredTerm()
 
+def r_term(self, args):
+    if args[0] is not None:
+        return RTermNegated()
+    return RTerm()
+
 def return_all(self, args):
     return args
 
@@ -560,8 +594,10 @@ class AncEffTransformer(Transformer):
 
     def set_up_transformers(self):
         setattr(AncEffTransformer, "atomic_formula_term_rml", atomic_formula_term)
+        setattr(AncEffTransformer, "atomic_formula_term_r", atomic_formula_term)
         setattr(AncEffTransformer, "atomic_formula_term_nesting_term", atomic_formula_term_anceff)
         setattr(AncEffTransformer, "atomic_formula_term_anceff", return_option)
+        setattr(AncEffTransformer, "r_term", r_term)
         setattr(AncEffTransformer, "rml_term", rml_term)
         setattr(AncEffTransformer, "pred_term", pred_term)
         setattr(AncEffTransformer, "rml_term_no_neg", rml_term_no_neg)
