@@ -23,6 +23,7 @@ FOR: "for"
 IN: "in"
 RML_NAME: "rml"
 PRED_NAME: "pred"
+R_NAME: "r"
 NESTING_NAME: "nesting"
 ADD: "add"
 DEL: "del"
@@ -63,6 +64,8 @@ rml_term_no_neg: LCRL RML_NAME RCRL
 
 pred_term_no_neg: LCRL PRED_NAME RCRL 
 
+r_term: [EXC] LCRL R_NAME RCRL
+
 rml_term: [EXC] LCRL RML_NAME RCRL
 
 pred_term: [EXC] LCRL PRED_NAME RCRL 
@@ -76,6 +79,8 @@ terminal_rml_or_pred_no_neg: rml_term_no_neg | pred_term_no_neg
 pos_or_neg_term: POS | NEG
 
 atomic_formula_term_rml: modls terminal_rml_or_pred
+
+atomic_formula_term_r: modls r_term
 
 atomic_formula_term_nesting_term: all_modl_nesting_options terminal_rml_or_pred_no_neg
 
@@ -91,7 +96,7 @@ cons_poscond: POSCOND pos_or_neg_cond
 
 cons_negcond: NEGCOND pos_or_neg_cond
 
-list_comp_rml_var: LCRL atomic_formula_term_rml FOR rml_term IN pos_or_neg_term RCRL
+list_comp_rml_var: LCRL atomic_formula_term_r FOR r_term IN pos_or_neg_term RCRL
 
 list_comp_rml_agents: LCRL atomic_formula_term_rml FOR AG IN AGENTS RCRL
 

@@ -152,19 +152,54 @@ class ApplyAncEffs:
     def get_negative_conds(self, raw_conds):
         return [c for c in raw_conds if isinstance(c, Not)]
 
-    def match_cond(self, cond_to_match, raw_conds):
-        if cond_to_match == Variable("pos"):
+    def get_pos_or_neg_conds(self, var: Variable, raw_conds):
+        if var == Variable("pos"):
             return self.get_positive_conds(raw_conds)
-        elif cond_to_match == Variable("neg"):
+        elif var == Variable("neg"):
             return self.get_negative_conds(raw_conds)
-        elif isinstance(cond_to_match, ListCompAgents):
-            print()
-        elif isinstance(cond_to_match, ListCompVar):
-            print()
-        elif isinstance(cond_to_match, SeparatedRMLTerm):
-            print()
         else:
-            raise ValueError(f"Unknown condition type {type(cond_to_match)}")
+            raise ValueError(f"Unknown variable {var}.")
+
+    def apply_rml(self, new_rml: SeparatedRMLTerm):
+        if self.nestings:
+            pass
+        else:
+            rml_terms = []
+            rml_terms.extend(new_rml.nestings)
+            if isinstance(new_rml.term, PredTermNegated) or isinstance(new_rml.term, RMLTermNegated) or isinstance(new_rml.term, RTermNegated):
+                rml_terms.append(NOT_MODL())
+            if isinstance(new_rml.term, RMLTerm) or isinstance(new_rml.term, RMLTermNegated):
+                srt = self.rml
+            elif isinstance(new_rml.term, PredTerm) or isinstance(new_rml.term, PredTermNegated):
+                srt = self.pred
+            elif isinstance(new_rml.term, RTerm) or isinstance(new_rml.term, RTermNegated):
+                srt = self.r
+            else:
+                raise ValueError("No term set before attempting to apply an rml.")
+            if isinstance(srt, Not):
+                srt = srt.argument
+                rml_terms.append(NOT_MODL())
+            rml_terms.extend(srt.nestings)
+            rml_terms.append(srt.term)
+            for i in range(len(rml_terms) - 2, - 1, - 1):
+                rml_terms[i] = rml_terms[i](rml_terms[i + 1])
+            return rml_terms[0]
+
+    def ground_cond_or_rml(self, descriptor, raw_conds):
+        if descriptor in [Variable("pos"), Variable("neg")]:
+            return self.get_pos_or_neg_conds(descriptor, raw_conds)
+        elif isinstance(descriptor, ListCompVar):
+            pos_or_neg_conds = self.get_pos_or_neg_conds(descriptor.var, raw_conds)
+            for i in range(len(pos_or_neg_conds)):
+                self.r = pos_or_neg_conds[i]
+                pos_or_neg_conds[i] = self.apply_rml(descriptor.term)
+            return pos_or_neg_conds
+        elif isinstance(descriptor, ListCompAgents):
+            print()
+        elif isinstance(descriptor, SeparatedRMLTerm):
+            return [self.apply_rml(descriptor)]
+        else:
+            raise ValueError(f"Unknown condition type {type(descriptor)}")
 
     def get_raw_conds(self, next_cond):
         if isinstance(next_cond, Not) or isinstance(next_cond, SeparatedRMLTerm) or isinstance(next_cond, Predicate):
@@ -178,22 +213,21 @@ class ApplyAncEffs:
 
     def get_conds(self, poscond, negcond, next_cond):
         raw_conds = self.get_raw_conds(next_cond)
+        raw_conds = [raw_conds] if type(raw_conds) != list else raw_conds
         conds = []
         if poscond:
             for c in poscond:
-                conds.extend(self.match_cond(c, raw_conds))
+                conds.extend(self.ground_cond_or_rml(c, raw_conds))
         if negcond:
             for c in negcond:
-                conds.extend(self.match_cond(c, raw_conds))
+                conds.extend([Not(mc) for mc in self.ground_cond_or_rml(c, raw_conds)])
+        return conds
 
     def apply_anc_eff(self, anc_eff_cons: Consequent, next_cond):
-        self.get_conds(anc_eff_cons.poscond, anc_eff_cons.negcond, next_cond)
-        if self.pred:
-            print()
-        elif self.rml:
-            print()
-        else:
-            raise ValueError(f"Neither {rml} nor {pred} were set.")
+        conds = self.get_conds(anc_eff_cons.poscond, anc_eff_cons.negcond, next_cond)
+        # eff = [self.apply_rml()]
+        # for term in anc_eff_cons.rml:
+
 
     def apply_anc_effs_to_action(self, o):
         o.id = ApplyAncEffs.gen_id(o)
