@@ -12,12 +12,14 @@ from pddl.formatter import (
     sort_and_print_collection,
 )
 from pddl.helpers.base import _typed_parameters
+from pddl.logic.base import Not
 from pddl.logic.predicates import Predicate
 from pddl.logic.terms import Variable, Constant
 from pddl.parser import domain, GRAMMAR_FILE
 from pddl._validation import Types, TypeChecker
 from textwrap import indent
 from .anc_eff import atomic_formula_term, get_constants, modl, RML, SeparatedRMLTerm, NOT_MODL
+import warnings
 
 # ----- TRANSFORMER FUNCTIONS -----
 
@@ -217,11 +219,15 @@ def new_predicate_hash(self):
     return hash((self.name, self.arity, self.terms, self.always_known, self.negated))
 
 def negate_predicate(self):
-    if self.always_known:
-        raise PDDLValidationError("Cannot apply a '!' to a predicate that is always known.")
     new_base = deepcopy(self)
+    if self.always_known:
+        warnings.warn(f"Applying a '!' to a Predicate {self} that is always known.")
+        return Not(new_base)
     new_base.negated = not self.negated
     return new_base
+
+def negate_not(self):
+    return deepcopy(self.argument)
 
 # ----- GRAMMAR CONSTRUCTION -----
 
@@ -233,6 +239,7 @@ def inject_domain_grammar(label, rule, function, grammar_file=GRAMMAR_FILE):
     setattr(domain.DomainTransformer, label, function)
 
 def modify_domain_classes():
+    pddl.logic.base.Not._negate = negate_not
     pddl.logic.predicates.Predicate.__str__ = new_predicate_str_rmls_str
     pddl.logic.predicates.Predicate.__repr__ = new_predicate_str_rmls_repr
     pddl.logic.predicates.Predicate.__eq__ = new_predicate_eq
