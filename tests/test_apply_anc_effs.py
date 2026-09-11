@@ -11,7 +11,7 @@ import pytest
 import os
 
 
-class TestApplyAncEffs:
+class TestApplyAncEffsSingle:
     @pytest.fixture(scope="class", autouse=True)
     def setup(self, request):
         # retrieve the current grammar file
@@ -80,6 +80,11 @@ class TestApplyAncEffs:
     def test_negation_removal_modalities_3(self):
         assert self.apply_anc_eff_helper(self.negation_removal, SeparatedRMLTerm([self.bel_alice, NOT_MODL(), self.des_bob], self.pred)) == [create_and([cleaned_not(self.pbel_alice(self.des_bob(self.pred)))])]
 
+    def test_negation_removal_when(self):
+        p = deepcopy(self.pred)
+        p.negated = True
+        assert self.apply_anc_eff_helper(self.negation_removal, When(create_and([SeparatedRMLTerm([self.bel_alice], self.pred)]), create_and([SeparatedRMLTerm([self.des_bob], self.pred)]))) == [When(create_and([self.bel_alice(self.pred)]), create_and([cleaned_not(self.pdes_bob(p))]))]
+
     # ----- UNCERTAIN FIRING -----
 
     # ----- CLOSURE (BELIEF) -----
@@ -88,3 +93,9 @@ class TestApplyAncEffs:
 
     def test_closure_leading(self):
         assert self.apply_anc_eff_helper(self.kd45closure__belief, SeparatedRMLTerm([self.bel_alice, self.des_bob], self.pred)) == [create_and([self.pbel_alice(self.des_bob(self.pred))])]
+
+    def test_closure_trailing(self):
+        assert self.apply_anc_eff_helper(self.kd45closure__belief, SeparatedRMLTerm([self.des_bob, self.bel_alice], self.pred)) == [create_and([self.des_bob(self.pbel_alice(self.pred))])]
+
+    def test_closure_middle(self):
+        assert self.apply_anc_eff_helper(self.kd45closure__belief, SeparatedRMLTerm([self.des_bob, self.bel_alice, self.pdes_bob], self.pred)) == [create_and([self.des_bob(self.pbel_alice(self.pdes_bob(self.pred)))])]

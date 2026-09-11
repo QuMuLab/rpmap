@@ -163,17 +163,17 @@ class ApplyAncEffs:
         else:
             raise PDDLValidationError(f"Unknown nt type {type(nt)}")
 
-    def get_positive_conds(self, raw_conds):
-        return [c for c in raw_conds if not isinstance(c, Not)]
+    def get_positive_conds(self):
+        return [c for c in self.raw_conds if not isinstance(c, Not)]
 
-    def get_negative_conds(self, raw_conds):
-        return [c for c in raw_conds if isinstance(c, Not)]
+    def get_negative_conds(self):
+        return [c for c in self.raw_conds if isinstance(c, Not)]
 
-    def get_pos_or_neg_conds(self, var: Variable, raw_conds):
+    def get_pos_or_neg_conds(self, var: Variable):
         if var == Variable("pos"):
-            return self.get_positive_conds(raw_conds)
+            return self.get_positive_conds()
         elif var == Variable("neg"):
-            return self.get_negative_conds(raw_conds)
+            return self.get_negative_conds()
         else:
             raise ValueError(f"Unknown variable {var}.")
 
@@ -185,6 +185,22 @@ class ApplyAncEffs:
             elif isinstance(n, MODLTermWNesting):
                 if isinstance(n.modl.agent.term, Variable):
                     n.modl.agent.term = self.agent_assignment[n.modl.agent.term]
+
+    @staticmethod
+    def terms_to_rml(terms: list[Nesting | NOT_MODL | Predicate]):
+        for i in range(len(terms) - 2, - 1, - 1):
+            terms[i] = terms[i](terms[i + 1])
+        return terms[0]
+
+    @staticmethod
+    def srt_to_rml(srt: SeparatedRMLTerm, existing_nestings: list[Nesting | NOT_MODL] = None):
+        rml_terms = [] if not existing_nestings else existing_nestings
+        if isinstance(srt, Not):
+            srt = srt.argument
+            rml_terms.append(NOT_MODL())
+        rml_terms.extend(srt.nestings)
+        rml_terms.append(srt.term)
+        return ApplyAncEffs.terms_to_rml(rml_terms)
 
     def apply_rml(self, new_rml: SeparatedRMLTerm):
         self.ground_nesting(new_rml)
@@ -214,37 +230,29 @@ class ApplyAncEffs:
             srt = self.r
         else:
             raise ValueError("No term set before attempting to apply an rml.")
-        if isinstance(srt, Not):
-            srt = srt.argument
-            rml_terms.append(NOT_MODL())
-        rml_terms.extend(srt.nestings)
-        rml_terms.append(srt.term)
-        for i in range(len(rml_terms) - 2, - 1, - 1):
-            rml_terms[i] = rml_terms[i](rml_terms[i + 1])
-        return rml_terms[0]
+        return ApplyAncEffs.srt_to_rml(srt, rml_terms)
 
-    def ground_cond_or_rml(self, descriptor):
-        if descriptor in [Variable("pos"), Variable("neg")]:
-            return self.get_pos_or_neg_conds(descriptor, self.raw_conds)
-        elif isinstance(descriptor, ListCompVar):
-            pos_or_neg_conds = self.get_pos_or_neg_conds(descriptor.var, self.raw_conds)
+    def ground_cond_or_rml(self, cond_or_rml):
+        if cond_or_rml in [Variable("pos"), Variable("neg")]:
+            return self.get_pos_or_neg_conds(cond_or_rml)
+        elif isinstance(cond_or_rml, ListCompVar):
+            pos_or_neg_conds = self.get_pos_or_neg_conds(cond_or_rml.var)
             for i in range(len(pos_or_neg_conds)):
                 self.r = pos_or_neg_conds[i]
-                pos_or_neg_conds[i] = self.apply_rml(descriptor.term)
+                pos_or_neg_conds[i] = self.apply_rml(cond_or_rml.term)
             return pos_or_neg_conds
-        elif isinstance(descriptor, ListCompAgents):
-            return [self.apply_rml(descriptor.term)]
-        elif isinstance(descriptor, SeparatedRMLTerm):
-            return [self.apply_rml(descriptor)]
+        elif isinstance(cond_or_rml, ListCompAgents):
+            return [self.apply_rml(cond_or_rml.term)]
+        elif isinstance(cond_or_rml, SeparatedRMLTerm):
+            return [self.apply_rml(cond_or_rml)]
         else:
-            raise ValueError(f"Unknown condition type {type(descriptor)}")
+            raise ValueError(f"Unknown condition type {type(cond_or_rml)}")
 
     def get_raw_conds(self, next_term):
-        return [self.get_raw_conds(o) for o in next_term.condition.operands] if isinstance(next_term, When) else []
+        return list(next_term.condition.operands) if isinstance(next_term, When) else []
 
     def get_conds(self, poscond, negcond, next_term):
-        raw_conds = self.get_raw_conds(next_term)
-        self.raw_conds = [raw_conds] if type(raw_conds) != list else raw_conds
+        self.raw_conds = self.get_raw_conds(next_term)
         conds = []
         if poscond:
             for c in poscond:
@@ -256,6 +264,8 @@ class ApplyAncEffs:
 
     def apply_anc_eff(self, anc_eff_cons: Consequent, next_term):
         conds = self.get_conds(anc_eff_cons.poscond, anc_eff_cons.negcond, next_term)
+        for i in range(len(conds)):
+            conds[i] = ApplyAncEffs.srt_to_rml(conds[i])
         eff = []
         for term in anc_eff_cons.rml: 
             for g_term in self.ground_cond_or_rml(term):
