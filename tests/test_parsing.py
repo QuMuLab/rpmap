@@ -769,6 +769,26 @@ class TestParsing:
         )
     )""", anceff)
 
+    def test_forall_var_agents(self):
+        anceff = deepcopy(self.anceff_template)
+        anceff.parameters.append(Variable("ag", ["agent"]))
+        anceff.consequent.poscond = None
+        anceff.consequent.negcond = [ListCompVarAgents(SeparatedRMLTerm([Nesting(GenericMODLType.BEL, Agent(Variable("ag", ["agent"])))], RTerm()), Variable("pos")), Variable("neg")]
+        self.valid_anceff_tester("""
+    (:anceff some-anceff
+        :antecedent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml {rml}
+            :type add
+        )
+        :consequent (
+            :negcond {[bel, ?ag]{r} for {r} in ?pos for ?ag in ?agents} + ?neg
+            :rml !{rml}
+            :type del
+        )
+    )""", anceff)
+
     def test_nesting_trailing(self):
         anceff = deepcopy(self.anceff_template)
         agent_var = Variable("a", ["agent"])
@@ -1128,6 +1148,24 @@ class TestParsing:
             :poscond ?pos
             :negcond ?neg
             :rml {nesting}<bel, ?a>{nesting}{rml}
+            :type del
+        )
+    )""", [VisitError, PDDLValidationError])
+
+    def test_mismatch_parameters(self):
+        self.error_tester_anceff("""
+    (:anceff some-anceff
+        :parameters (?a - agent)
+        :antecedent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml {rml}
+            :type add
+        )
+        :consequent (
+            :poscond ?pos
+            :negcond ?neg
+            :rml <bel, ?a>{rml}
             :type del
         )
     )""", [VisitError, PDDLValidationError])

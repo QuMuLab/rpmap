@@ -134,7 +134,6 @@
 
     ;; ; MUTUAL AWARENESS (BELIEF ONLY)
     (:anceff mutual-awareness-pos__belief
-        :parameters (?a - agent)
         :antecedent (
             :poscond ?pos
             :negcond ?neg
@@ -143,13 +142,12 @@
             :type add
         )
         :consequent (
-            :poscond {[bel, ?a]{r} for {r} in ?pos} + {![bel, ?a]{r} for {r} in ?neg}
-            :rml [bel, ?a]{rml}
+            :poscond {[bel, ?ag]{r} for {r} in ?pos for ?ag in ?agents} + {![bel, ?ag]{r} for {r} in ?neg for ?ag in ?agents}
+            :rml [bel, ?ag]{rml}
             :type add
         )
     )
     (:anceff mutual-awareness-neg__belief
-        :parameters (?a - agent)
         :antecedent (
             :poscond ?pos
             :negcond ?neg
@@ -158,8 +156,8 @@
             :type del
         )
         :consequent (
-            :poscond {[bel, ?a]{r} for {r} in ?pos} + {![bel, ?a]{r} for {r} in ?neg}
-            :rml ![bel, ?a]{rml}
+            :poscond {[bel, ?ag]{r} for {r} in ?pos for ?ag in ?agents} + {![bel, ?ag]{r} for {r} in ?neg for ?ag in ?agents}
+            :rml ![bel, ?ag]{rml}
             :type add
         )
     )

@@ -234,11 +234,14 @@ def negate_not(self):
 
 def eq_and(self, other):
     """Compare with another object."""
-    return isinstance(other, type(self)) and set(self.operands) == set(other.operands)
+    return (
+        isinstance(other, And) 
+        and set(self.operands) == set(other.operands)
+    )
 
 def hash_and(self):
     """Compute the hash of the object."""
-    return hash((type(self), frozenset(self.operands)))
+    return hash((And, frozenset(self.operands)))
 
 # ----- GRAMMAR CONSTRUCTION -----
 
@@ -253,7 +256,7 @@ def modify_domain_classes():
     pddl.logic.base.Not._negate = negate_not
     pddl.logic.base.Not.__repr__ = new_not_repr
     pddl.logic.base.And.__eq__ = eq_and
-    # pddl.logic.base.And.__hash__ = hash_and
+    pddl.logic.base.And.__hash__ = hash_and
     pddl.logic.predicates.Predicate.__str__ = new_predicate_str_rmls_str
     pddl.logic.predicates.Predicate.__repr__ = new_predicate_str_rmls_repr
     pddl.logic.predicates.Predicate.__eq__ = new_predicate_eq

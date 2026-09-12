@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 from .utils import create_valuations, cleaned_not, create_and
-from .core.anc_eff import ActionMODLType, PossibleActionMODLType, NOT_MODL, Agent, RMLOrPredTerm, ListCompVar, ListCompAgents, RML, Nesting, SeparatedRMLTerm
+from .core.anc_eff import ActionMODLType, PossibleActionMODLType, NOT_MODL, Agent, RMLOrPredTerm, ListCompVar, ListCompAgents, ListCompVarAgents, RML, Nesting, SeparatedRMLTerm
 from copy import deepcopy
 from pddl.action import Action
 from pddl.exceptions import PDDLValidationError
@@ -194,7 +194,7 @@ def create_itn_action_preds(operators, agents, problem, anc_effs):
         itn_preds.update(gather_itn_preds(a.effect.operands))
     for ae in anc_effs:
         for fo in ([ae.antecedent.rml] + ae.consequent.rml):
-            if isinstance(fo, ListCompVar) or isinstance(fo, ListCompAgents):
+            if isinstance(fo, ListCompVar) or isinstance(fo, ListCompAgents) or isinstance(fo, ListCompVarAgents):
                 itn_preds.update(gather_itn_preds([fo.term]))
             else:
                 itn_preds.update(gather_itn_preds([fo]))

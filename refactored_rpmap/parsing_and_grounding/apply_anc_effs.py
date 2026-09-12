@@ -178,6 +178,7 @@ class ApplyAncEffs:
             raise ValueError(f"Unknown variable {var}.")
 
     def ground_nesting(self, new_rml: SeparatedRMLTerm):
+        new_rml = deepcopy(new_rml)
         for n in new_rml.nestings:
             if isinstance(n, Nesting):
                 if isinstance(n.agent.term, Variable):
@@ -185,6 +186,7 @@ class ApplyAncEffs:
             elif isinstance(n, MODLTermWNesting):
                 if isinstance(n.modl.agent.term, Variable):
                     n.modl.agent.term = self.agent_assignment[n.modl.agent.term]
+        return new_rml
 
     @staticmethod
     def terms_to_rml(terms: list[Nesting | NOT_MODL | Predicate]):
@@ -203,7 +205,7 @@ class ApplyAncEffs:
         return ApplyAncEffs.terms_to_rml(rml_terms)
 
     def apply_rml(self, new_rml: SeparatedRMLTerm):
-        self.ground_nesting(new_rml)
+        new_rml = self.ground_nesting(new_rml)
         if self.nestings:
             rml_terms = []
             if isinstance(new_rml.nestings[0], LeadingNesting):
@@ -235,7 +237,7 @@ class ApplyAncEffs:
     def ground_cond_or_rml(self, cond_or_rml):
         if cond_or_rml in [Variable("pos"), Variable("neg")]:
             return [ApplyAncEffs.srt_to_rml(c) for c in self.get_pos_or_neg_conds(cond_or_rml)]
-        elif isinstance(cond_or_rml, ListCompVar):
+        elif isinstance(cond_or_rml, ListCompVar) or isinstance(cond_or_rml, ListCompVarAgents):
             pos_or_neg_conds = self.get_pos_or_neg_conds(cond_or_rml.var)
             for i in range(len(pos_or_neg_conds)):
                 self.r = pos_or_neg_conds[i]
@@ -271,14 +273,16 @@ class ApplyAncEffs:
         return When(create_and(conds), create_and(eff)) if conds else create_and(eff)
                 
     def set_assignment_apply_anc_eff(self, parameters: list[Variable], anc_eff_cons: Consequent, next_term):
-        anc_effs = []
+        anc_effs = set()
         # list comprehension across agents
-        if parameters and Variable("ag", ["agent"]) in parameters:
+        ag_var = Variable("ag", ["agent"])
+        if parameters and ag_var in parameters:
             for ag in self.domain._agents.values():
-                self.agent_assignment["ag"] = ag
-                anc_effs.append(self.apply_anc_eff(anc_eff_cons, next_term))
+                self.agent_assignment[ag_var] = ag
+                anc_effs.update(self.apply_anc_eff(anc_eff_cons, next_term).operands)
+            anc_effs = {create_and(list(anc_effs))}
         else:
-            anc_effs.append(self.apply_anc_eff(anc_eff_cons, next_term))
+            anc_effs.add(self.apply_anc_eff(anc_eff_cons, next_term))
         return anc_effs
                 
     def apply_anc_effs_to_action(self, o):
