@@ -87,7 +87,7 @@ class TestApplyAncEffsSingle:
 
     # ----- UNCERTAIN FIRING -----
 
-    # ----- CLOSURE (BELIEF) -----
+    # ----- CLOSURE -----
     def test_closure(self):
         assert self.apply_anc_eff_helper(self.kd45closure__belief, SeparatedRMLTerm([self.bel_alice], self.pred)) == [create_and([self.pbel_alice(self.pred)])]
 
@@ -99,3 +99,28 @@ class TestApplyAncEffsSingle:
 
     def test_closure_middle(self):
         assert self.apply_anc_eff_helper(self.kd45closure__belief, SeparatedRMLTerm([self.des_bob, self.bel_alice, self.pdes_bob], self.pred)) == [create_and([self.des_bob(self.pbel_alice(self.pdes_bob(self.pred)))])]
+        
+    def test_closure_double(self):
+        assert self.apply_anc_eff_helper(self.kd45closure__belief, SeparatedRMLTerm([self.bel_alice, self.bel_alice], self.pred)) == [create_and([self.pbel_alice(self.bel_alice(self.pred))])]
+
+    def test_closure_when(self):
+        assert self.apply_anc_eff_helper(self.kd45closure__belief, When(create_and([SeparatedRMLTerm([self.des_bob], self.pred)]), SeparatedRMLTerm([self.des_bob, self.bel_alice, self.pdes_bob], self.pred))) == [When(create_and([self.des_bob(self.pred)]), create_and([self.des_bob(self.pbel_alice(self.pdes_bob(self.pred)))]))]
+
+    # ----- UN-CLOSURE -----
+    def test_un_closure(self):
+        assert self.apply_anc_eff_helper(self.kd45_un_closure__belief, Not(SeparatedRMLTerm([self.pbel_alice], self.pred))) == [create_and([Not(self.bel_alice(self.pred))])]
+
+    def test_un_closure_leading(self):
+        assert self.apply_anc_eff_helper(self.kd45_un_closure__belief, Not(SeparatedRMLTerm([self.pbel_alice, self.des_bob], self.pred))) == [create_and([Not(self.bel_alice(self.des_bob(self.pred)))])]
+
+    def test_un_closure_trailing(self):
+        assert self.apply_anc_eff_helper(self.kd45_un_closure__belief, Not(SeparatedRMLTerm([self.des_bob, self.pbel_alice], self.pred))) == [create_and([Not(self.des_bob(self.bel_alice(self.pred)))])]
+
+    def test_un_closure_middle(self):
+        assert self.apply_anc_eff_helper(self.kd45_un_closure__belief, Not(SeparatedRMLTerm([self.des_bob, self.pbel_alice, self.pdes_bob], self.pred))) == [create_and([Not(self.des_bob(self.bel_alice(self.pdes_bob(self.pred))))])]
+        
+    def test_closure_double(self):
+        assert self.apply_anc_eff_helper(self.kd45_un_closure__belief, Not(SeparatedRMLTerm([self.pbel_alice, self.pbel_alice], self.pred))) == [create_and([Not(self.bel_alice(self.pbel_alice(self.pred)))])]
+
+    def test_closure_when(self):
+        assert self.apply_anc_eff_helper(self.kd45_un_closure__belief, When(create_and([SeparatedRMLTerm([self.des_bob], self.pred)]), Not(SeparatedRMLTerm([self.des_bob, self.pbel_alice, self.pdes_bob], self.pred)))) == [When(create_and([self.des_bob(self.pred)]), create_and([Not(self.des_bob(self.bel_alice(self.pdes_bob(self.pred))))]))]

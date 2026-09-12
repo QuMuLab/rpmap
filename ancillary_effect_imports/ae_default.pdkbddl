@@ -91,13 +91,13 @@
         :antecedent (
             :poscond ?pos
             :negcond ?neg
-            :rml <bel, ?a>{rml}
-            :type add
+            :rml {nesting}<bel, ?a>{nesting}{rml}
+            :type del
         )
         :consequent (
             :poscond ?pos
             :negcond ?neg
-            :rml [bel, ?a]{rml}
+            :rml {nesting}[bel, ?a]{nesting}{rml}
             :type del
         )
     )
@@ -106,13 +106,13 @@
         :antecedent (
             :poscond ?pos
             :negcond ?neg
-            :rml <des, ?a>{rml}
-            :type add
+            :rml {nesting}<des, ?a>{nesting}{rml}
+            :type del
         )
         :consequent (
             :poscond ?pos
             :negcond ?neg
-            :rml [des, ?a]{rml}
+            :rml {nesting}[des, ?a]{nesting}{rml}
             :type del
         )
     )
@@ -121,13 +121,13 @@
         :antecedent (
             :poscond ?pos
             :negcond ?neg
-            :rml <itn, ?a>{rml}
-            :type add
+            :rml {nesting}<itn, ?a>{nesting}{rml}
+            :type del
         )
         :consequent (
             :poscond ?pos
             :negcond ?neg
-            :rml [itn, ?a]{rml}
+            :rml {nesting}[itn, ?a]{nesting}{rml}
             :type del
         )
     )
