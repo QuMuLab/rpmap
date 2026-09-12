@@ -34,16 +34,8 @@ class TestApplyAncEffsSingle:
         request.cls.pdes_bob = Nesting(PossibleGenericMODLType.PDES, Agent(Constant("bob", "agent")))
         request.cls.pred = Predicate("secret")
         request.cls.srt = SeparatedRMLTerm(list(), request.cls.pred)
-        request.cls.pred_term = SeparatedRMLTerm(list(), PredTerm())
-        request.cls.pred_term_modality = SeparatedRMLTerm([self.bel_a], PredTerm())
-        request.cls.pred_term_negated = SeparatedRMLTerm(list(), PredTermNegated())
-        request.cls.rml_term = SeparatedRMLTerm(list(), RMLTerm())
-        request.cls.rml_term_modality = SeparatedRMLTerm([self.bel_a], RMLTerm())
-        request.cls.rml_term_negated = SeparatedRMLTerm(list(), RMLTermNegated())
-        request.cls.leading_nesting = SeparatedRMLTerm([LeadingNesting(self.bel_a)], RMLTerm())
-        request.cls.trailing_nesting = SeparatedRMLTerm([TrailingNesting(self.bel_a)], RMLTerm())
-        request.cls.leading_trailing_nesting = SeparatedRMLTerm([LeadingTrailingNesting(self.bel_a)], RMLTerm())
-        
+        request.cls.pred2 = Predicate("secret2")
+        request.cls.srt2 = SeparatedRMLTerm(list(), request.cls.pred2)
 
     @pytest.fixture(autouse=True)
     def reset_data(self):
@@ -87,6 +79,33 @@ class TestApplyAncEffsSingle:
 
     # ----- UNCERTAIN FIRING -----
 
+    def test_uncertain_firing(self):
+        p = deepcopy(self.pred)
+        p.negated = True
+        assert self.apply_anc_eff_helper(self.uncertain_firing, self.srt) == [create_and([cleaned_not(p)])]
+
+    def test_uncertain_firing_pos_condition(self):
+        p = deepcopy(self.pred)
+        p.negated = True
+        assert self.apply_anc_eff_helper(self.uncertain_firing, When(create_and([self.srt]), create_and([self.srt]))) == [When(create_and([cleaned_not(p)]), create_and([cleaned_not(p)]))]
+
+    def test_uncertain_firing_neg_condition(self):
+        p = deepcopy(self.pred)
+        p.negated = True
+        assert self.apply_anc_eff_helper(self.uncertain_firing, When(create_and([cleaned_not(self.srt)]), create_and([self.srt]))) == [When(create_and([cleaned_not(self.pred)]), create_and([cleaned_not(p)]))]
+
+    def test_uncertain_firing_pos_neg_cond(self):
+        p = deepcopy(self.pred)
+        p.negated = True
+        assert self.apply_anc_eff_helper(self.uncertain_firing, When(create_and([cleaned_not(self.srt), SeparatedRMLTerm([NOT_MODL()], self.pred2)]), create_and([self.srt]))) == [When(create_and([cleaned_not(self.pred), cleaned_not(self.pred2)]), create_and([cleaned_not(p)]))] 
+
+    def test_uncertain_firing_pos_neg_cond_always_known(self):
+        p = deepcopy(self.pred)
+        p.negated = True
+        p2 = deepcopy(self.pred2)
+        p2.always_known = True
+        assert self.apply_anc_eff_helper(self.uncertain_firing, When(create_and([cleaned_not(self.srt), SeparatedRMLTerm(list(), p2)]), create_and([self.srt]))) == [When(create_and([cleaned_not(self.pred), p2]), create_and([cleaned_not(p)]))] 
+
     # ----- CLOSURE -----
     def test_closure(self):
         assert self.apply_anc_eff_helper(self.kd45closure__belief, SeparatedRMLTerm([self.bel_alice], self.pred)) == [create_and([self.pbel_alice(self.pred)])]
@@ -108,19 +127,19 @@ class TestApplyAncEffsSingle:
 
     # ----- UN-CLOSURE -----
     def test_un_closure(self):
-        assert self.apply_anc_eff_helper(self.kd45_un_closure__belief, Not(SeparatedRMLTerm([self.pbel_alice], self.pred))) == [create_and([Not(self.bel_alice(self.pred))])]
+        assert self.apply_anc_eff_helper(self.kd45_un_closure__belief, cleaned_not(SeparatedRMLTerm([self.pbel_alice], self.pred))) == [create_and([cleaned_not(self.bel_alice(self.pred))])]
 
     def test_un_closure_leading(self):
-        assert self.apply_anc_eff_helper(self.kd45_un_closure__belief, Not(SeparatedRMLTerm([self.pbel_alice, self.des_bob], self.pred))) == [create_and([Not(self.bel_alice(self.des_bob(self.pred)))])]
+        assert self.apply_anc_eff_helper(self.kd45_un_closure__belief, cleaned_not(SeparatedRMLTerm([self.pbel_alice, self.des_bob], self.pred))) == [create_and([cleaned_not(self.bel_alice(self.des_bob(self.pred)))])]
 
     def test_un_closure_trailing(self):
-        assert self.apply_anc_eff_helper(self.kd45_un_closure__belief, Not(SeparatedRMLTerm([self.des_bob, self.pbel_alice], self.pred))) == [create_and([Not(self.des_bob(self.bel_alice(self.pred)))])]
+        assert self.apply_anc_eff_helper(self.kd45_un_closure__belief, cleaned_not(SeparatedRMLTerm([self.des_bob, self.pbel_alice], self.pred))) == [create_and([cleaned_not(self.des_bob(self.bel_alice(self.pred)))])]
 
     def test_un_closure_middle(self):
-        assert self.apply_anc_eff_helper(self.kd45_un_closure__belief, Not(SeparatedRMLTerm([self.des_bob, self.pbel_alice, self.pdes_bob], self.pred))) == [create_and([Not(self.des_bob(self.bel_alice(self.pdes_bob(self.pred))))])]
+        assert self.apply_anc_eff_helper(self.kd45_un_closure__belief, cleaned_not(SeparatedRMLTerm([self.des_bob, self.pbel_alice, self.pdes_bob], self.pred))) == [create_and([cleaned_not(self.des_bob(self.bel_alice(self.pdes_bob(self.pred))))])]
         
     def test_closure_double(self):
-        assert self.apply_anc_eff_helper(self.kd45_un_closure__belief, Not(SeparatedRMLTerm([self.pbel_alice, self.pbel_alice], self.pred))) == [create_and([Not(self.bel_alice(self.pbel_alice(self.pred)))])]
+        assert self.apply_anc_eff_helper(self.kd45_un_closure__belief, cleaned_not(SeparatedRMLTerm([self.pbel_alice, self.pbel_alice], self.pred))) == [create_and([cleaned_not(self.bel_alice(self.pbel_alice(self.pred)))])]
 
     def test_closure_when(self):
-        assert self.apply_anc_eff_helper(self.kd45_un_closure__belief, When(create_and([SeparatedRMLTerm([self.des_bob], self.pred)]), Not(SeparatedRMLTerm([self.des_bob, self.pbel_alice, self.pdes_bob], self.pred)))) == [When(create_and([self.des_bob(self.pred)]), create_and([Not(self.des_bob(self.bel_alice(self.pdes_bob(self.pred))))]))]
+        assert self.apply_anc_eff_helper(self.kd45_un_closure__belief, When(create_and([SeparatedRMLTerm([self.des_bob], self.pred)]), cleaned_not(SeparatedRMLTerm([self.des_bob, self.pbel_alice, self.pdes_bob], self.pred)))) == [When(create_and([self.des_bob(self.pred)]), create_and([cleaned_not(self.des_bob(self.bel_alice(self.pdes_bob(self.pred))))]))]

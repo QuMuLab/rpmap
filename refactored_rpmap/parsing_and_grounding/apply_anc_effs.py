@@ -167,7 +167,7 @@ class ApplyAncEffs:
         return [c for c in self.raw_conds if not isinstance(c, Not)]
 
     def get_negative_conds(self):
-        return [c for c in self.raw_conds if isinstance(c, Not)]
+        return [cleaned_not(c) for c in self.raw_conds if isinstance(c, Not)]
 
     def get_pos_or_neg_conds(self, var: Variable):
         if var == Variable("pos"):
@@ -197,7 +197,7 @@ class ApplyAncEffs:
         rml_terms = [] if not existing_nestings else existing_nestings
         if isinstance(srt, Not):
             srt = srt.argument
-            rml_terms.append(NOT_MODL())
+            rml_terms.append(Not)
         rml_terms.extend(srt.nestings)
         rml_terms.append(srt.term)
         return ApplyAncEffs.terms_to_rml(rml_terms)
@@ -234,7 +234,7 @@ class ApplyAncEffs:
 
     def ground_cond_or_rml(self, cond_or_rml):
         if cond_or_rml in [Variable("pos"), Variable("neg")]:
-            return self.get_pos_or_neg_conds(cond_or_rml)
+            return [ApplyAncEffs.srt_to_rml(c) for c in self.get_pos_or_neg_conds(cond_or_rml)]
         elif isinstance(cond_or_rml, ListCompVar):
             pos_or_neg_conds = self.get_pos_or_neg_conds(cond_or_rml.var)
             for i in range(len(pos_or_neg_conds)):
@@ -264,8 +264,6 @@ class ApplyAncEffs:
 
     def apply_anc_eff(self, anc_eff_cons: Consequent, next_term):
         conds = self.get_conds(anc_eff_cons.poscond, anc_eff_cons.negcond, next_term)
-        for i in range(len(conds)):
-            conds[i] = ApplyAncEffs.srt_to_rml(conds[i])
         eff = []
         for term in anc_eff_cons.rml: 
             for g_term in self.ground_cond_or_rml(term):
