@@ -142,8 +142,8 @@
             :type add
         )
         :consequent (
-            :poscond {[bel, ?ag]{r} for {r} in ?pos for ?ag in ?agents} + {![bel, ?ag]{r} for {r} in ?neg for ?ag in ?agents}
-            :rml [bel, ?ag]{rml}
+            :poscond {[bel, $agent$]{r} for {r} in ?pos} + {![bel, $agent$]{r} for {r} in ?neg}
+            :rml [bel, $agent$]{rml}
             :type add
         )
     )
@@ -156,8 +156,8 @@
             :type del
         )
         :consequent (
-            :poscond {[bel, ?ag]{r} for {r} in ?pos for ?ag in ?agents} + {![bel, ?ag]{r} for {r} in ?neg for ?ag in ?agents}
-            :rml ![bel, ?ag]{rml}
+            :poscond {[bel, $agent$]{r} for {r} in ?pos} + {![bel, $agent$]{r} for {r} in ?neg}
+            :rml ![bel, $agent$]{rml}
             :type add
         )
     )
