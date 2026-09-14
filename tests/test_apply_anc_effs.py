@@ -30,6 +30,7 @@ class TestApplyAncEffsSingle:
         request.cls.pdes_b = Nesting(PossibleGenericMODLType.PDES, Agent(Variable("b", ["agent"])))
         request.cls.bel_alice = Nesting(GenericMODLType.BEL, Agent(Constant("alice", "agent")))
         request.cls.pbel_alice = Nesting(PossibleGenericMODLType.PBEL, Agent(Constant("alice", "agent")))
+        request.cls.bel_bob = Nesting(GenericMODLType.BEL, Agent(Constant("bob", "agent")))
         request.cls.des_bob = Nesting(GenericMODLType.DES, Agent(Constant("bob", "agent")))
         request.cls.pdes_bob = Nesting(PossibleGenericMODLType.PDES, Agent(Constant("bob", "agent")))
         request.cls.pred = Predicate("secret")
@@ -43,9 +44,9 @@ class TestApplyAncEffsSingle:
         yield
         self.apply_anc_effs.reset()
 
-    def apply_anc_eff_helper(self, anc_eff, next_term):
-        if self.apply_anc_effs.check_ant_match(anc_eff.antecedent.rml, anc_eff.antecedent.anceff_type, next_term):
-            return self.apply_anc_effs.set_assignment_apply_anc_eff(anc_eff.parameters, anc_eff.consequent, next_term)
+    def apply_anc_eff_helper(self, anc_eff, next_term, awareness = False, derive_condition = "never"):
+        if self.apply_anc_effs.check_ant_match(anc_eff.antecedent.rml, anc_eff.antecedent.anceff_type, next_term, awareness, derive_condition):
+            return self.apply_anc_effs.set_assignment_apply_anc_eff(anc_eff.parameters, anc_eff.consequent, next_term, awareness, derive_condition)
 
     # ----- NEGATION REMOVAL -----
     def test_negation_removal(self):
@@ -147,4 +148,11 @@ class TestApplyAncEffsSingle:
 
     # ----- MUTUAL AWARENESS (POSITIVE) -----
     def test_mutual_awareness_pos(self):
-        assert sorted_and_when_str(self.apply_anc_eff_helper(self.mutual_awareness_pos__belief, self.srt)) == sorted_and_when_str(create_and([Nesting(GenericMODLType.BEL, a)(self.pred) for a in self.agents.values()]))
+        res = self.apply_anc_eff_helper(self.mutual_awareness_pos__belief, self.srt, awareness=True, derive_condition="always")
+        assert len(res) == 1
+        assert sorted_and_when_str(list(res)[0]) == sorted_and_when_str(create_and([Nesting(GenericMODLType.BEL, a)(self.pred) for a in self.agents.values()]))
+
+    def test_mutual_awareness_pos(self):
+        derive_condition = SeparatedRMLTerm([self.des_bob], self.pred)
+        derive_condition.assignment = {Variable("dlr_agent", ["agent"]): Constant("bob", "agent")}
+        assert sorted_and_when_str(self.apply_anc_eff_helper(self.mutual_awareness_pos__belief, self.srt, awareness=True, derive_condition=derive_condition)) == sorted_and_when_str(When(create_and([self.des_bob(self.pred)]), create_and([self.bel_bob(self.pred)])))

@@ -87,7 +87,7 @@ def terminal_predicate(self, args):
     return SeparatedRMLTerm([NOT_MODL()], pred) if negated else SeparatedRMLTerm(list(), pred)
 
 def dollar_term_transformer(self, args):
-    return Variable(f"dlr_{args[1].value}")
+    return Variable("dlr_agent", ["agent"])
 
 def return_token_val(self, args):
     return args.value
@@ -232,17 +232,6 @@ def negate_predicate(self):
 def negate_not(self):
     return deepcopy(self.argument)
 
-def eq_and(self, other):
-    """Compare with another object."""
-    return (
-        isinstance(other, And) 
-        and set(self.operands) == set(other.operands)
-    )
-
-def hash_and(self):
-    """Compute the hash of the object."""
-    return hash((And, frozenset(self.operands)))
-
 # ----- GRAMMAR CONSTRUCTION -----
 
 def inject_domain_grammar(label, rule, function, grammar_file=GRAMMAR_FILE):
@@ -255,8 +244,6 @@ def inject_domain_grammar(label, rule, function, grammar_file=GRAMMAR_FILE):
 def modify_domain_classes():
     pddl.logic.base.Not._negate = negate_not
     pddl.logic.base.Not.__repr__ = new_not_repr
-    pddl.logic.base.And.__eq__ = eq_and
-    pddl.logic.base.And.__hash__ = hash_and
     pddl.logic.predicates.Predicate.__str__ = new_predicate_str_rmls_str
     pddl.logic.predicates.Predicate.__repr__ = new_predicate_str_rmls_repr
     pddl.logic.predicates.Predicate.__eq__ = new_predicate_eq
@@ -298,7 +285,7 @@ def construct_domain_grammar():
         ""
     )
     inject_domain_grammar("atomic_formula_skeleton", "[AK] LPAR NAME typed_list_variable RPAR", atomic_formula_skeleton)
-    inject_domain_grammar("dollar_term", "DLR NAME DLR", dollar_term_transformer)
+    inject_domain_grammar("dollar_term", "DLR agent DLR", dollar_term_transformer)
     inject_domain_grammar("DLR", "\"$\"", basic_token_transformer)
     inject_domain_grammar("derived_term", "const_or_var_term | dollar_term", return_option)
     inject_domain_grammar("ALWAYS", "\"always\"", return_token_val)
@@ -312,7 +299,7 @@ def construct_domain_grammar():
         "action_def:        LPAR ACTION NAME PARAMETERS action_parameters action_body_def RPAR",
         ""
     )
-    inject_domain_grammar("action_def", "LPAR ACTION NAME [DERIVE_CONDITION derived_conditions] PARAMETERS action_parameters action_body_def RPAR", action_transformer)
+    inject_domain_grammar("action_def", "LPAR ACTION NAME DERIVE_CONDITION derived_conditions PARAMETERS action_parameters action_body_def RPAR", action_transformer)
     replace_in_grammar(
         "atomic_formula_term:   LPAR predicate term* RPAR",
         ""

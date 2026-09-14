@@ -51,7 +51,10 @@ def ground_formula(formula: Sequence, assignment, domain, problem):
             else:
                 terms = list(fo.terms)
                 for i in range(len(terms)):
-                    terms[i] = Constant(assignment[terms[i].name]) if isinstance(terms[i], Variable) else terms[i]
+                    if isinstance(terms[i], Variable):
+                        if terms[i].name not in assignment:
+                            raise PDDLValidationError(f"Variable {terms[i].name} not defined; cannot ground.")
+                        terms[i] = Constant(assignment[terms[i].name]) 
                 p = Predicate(fo.name, *terms)
                 p.negated = fo.negated
                 p.always_known = fo.always_known
@@ -150,7 +153,11 @@ def create_grounded_operators(domain, problem):
                 )
             new_a.assignment = assignment
             if a.derive_condition:
-                new_a.derive_condition = a.derive_condition if type(a.derive_condition) is str else list(ground_formula([a.derive_condition], assignment, domain, problem))[0]
+                if type(a.derive_condition) is str:
+                    new_a.derive_condition = a.derive_condition 
+                else:
+                    new_a.derive_condition = list(ground_formula([a.derive_condition], assignment, domain, problem))[0]
+                    new_a.derive_condition.assignment = {var: val for var, val in zip(vars, valuation)}
             operators.add(new_a)
     return operators
 

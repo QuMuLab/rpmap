@@ -751,7 +751,6 @@ class TestParsing:
 
     def test_forall_agents(self):
         anceff = deepcopy(self.anceff_template)
-        anceff.parameters.append(Variable("ag", ["agent"]))
         anceff.consequent.poscond = None
         anceff.consequent.negcond = [ListCompAgents(SeparatedRMLTerm([Nesting(GenericMODLType.BEL, Agent(Variable("ag", ["agent"])))], RMLTerm())), Variable("pos")]
         self.valid_anceff_tester("""
@@ -771,7 +770,6 @@ class TestParsing:
 
     def test_forall_var_agents(self):
         anceff = deepcopy(self.anceff_template)
-        anceff.parameters.append(Variable("ag", ["agent"]))
         anceff.consequent.poscond = None
         anceff.consequent.negcond = [ListCompVarAgents(SeparatedRMLTerm([Nesting(GenericMODLType.BEL, Agent(Variable("ag", ["agent"])))], RTerm()), Variable("pos")), Variable("neg")]
         self.valid_anceff_tester("""

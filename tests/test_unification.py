@@ -653,6 +653,26 @@ class TestUnification:
         assert not self.apply_anc_effs.check_ant_match(self.leading_trailing_nesting, "del", cleaned_not(srt))
         assert self.apply_anc_effs.nestings is None
 
+    # ----- derived condition testing -----
+
+    def test_derived_cond_always(self):
+        assert self.apply_anc_effs.check_ant_match(self.pred_term, "add", When(And(), self.srt), awareness=True, derive_condition="always")
+
+    def test_derived_cond_always_no_awareness(self):
+        assert self.apply_anc_effs.check_ant_match(self.pred_term, "add", When(And(), self.srt), awareness=False, derive_condition="always")
+
+    def test_derived_cond_never(self):
+        assert not self.apply_anc_effs.check_ant_match(self.pred_term, "add", When(And(), self.srt), awareness=True, derive_condition="never")
+
+    def test_derived_cond_never_no_awareness(self):
+        assert self.apply_anc_effs.check_ant_match(self.pred_term, "add", When(And(), self.srt), awareness=False, derive_condition="never")
+
+    def test_derived_cond_srt_awareness(self):
+        assert self.apply_anc_effs.check_ant_match(self.rml_term, "add", When(And(), SeparatedRMLTerm([self.bel], self.pred)), awareness=True, derive_condition=SeparatedRMLTerm([self.bel], self.pred))
+
+    def test_derived_cond_srt_no_awareness(self):
+        assert self.apply_anc_effs.check_ant_match(self.rml_term, "add", When(And(), SeparatedRMLTerm([self.bel], self.pred)), awareness=False, derive_condition=SeparatedRMLTerm([self.bel], self.pred))
+
     # ----- When formula testing -----
 
     def test_add_pred_when(self):

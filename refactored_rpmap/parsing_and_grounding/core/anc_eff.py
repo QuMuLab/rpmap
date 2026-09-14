@@ -399,11 +399,14 @@ class AncEff:
                 cons_agents.update(self.get_agents(r))
         for r in consequent.rml:
             cons_agents.update(self.get_agents(r))
+        agents_to_ignore = {Variable("ag", ["agent"]), Variable("dlr_agent", ["agent"])}    
         for a in ant_agents | cons_agents:
-            if not (a in self.parameters if self.parameters else False):
+            if a in agents_to_ignore:
+                continue
+            if not self.parameters or a not in self.parameters:
                 raise PDDLValidationError(f"Agent {a} not in the ancillary effect {self.name} parameters, {self.parameters}.")
         diff = cons_agents - ant_agents
-        if diff not in [set(), {Variable("ag", ["agent"])}]:
+        if diff != set() and diff not in [{a} for a in agents_to_ignore]:
             raise PDDLValidationError(f"The consequent in the ancillary effect {name} contains agent variables {diff} not referenced in the antecedent.")
         ant_terms_w_nesting_types = {type(term) for term in antecedent.rml.nestings if isinstance(term, MODLTermWNesting)}
         cons_terms_w_nesting_types = {type(term) for rml in consequent.rml if isinstance(rml, SeparatedRMLTerm) for term in rml.nestings if isinstance(term, MODLTermWNesting)}
@@ -424,7 +427,6 @@ class AncEff:
             for n in rml.term.nestings:
                 agents.update(self.get_agents(n))
         elif isinstance(rml, ListCompAgents) or isinstance(rml, ListCompVarAgents):
-            self.parameters.append(Variable("ag", ["agent"]))
             for n in rml.term.nestings:
                 agents.update(self.get_agents(n))
         elif isinstance(rml, SeparatedRMLTerm):
