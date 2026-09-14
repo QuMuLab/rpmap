@@ -273,17 +273,16 @@ class ApplyAncEffs:
         return When(create_and(conds), create_and(eff)) if conds else create_and(eff)
                 
     def set_assignment_apply_anc_eff(self, parameters: list[Variable], anc_eff_cons: Consequent, next_term):
-        anc_effs = set()
         # list comprehension across agents
         ag_var = Variable("ag", ["agent"])
         if parameters and ag_var in parameters:
+            anc_effs = set()
             for ag in self.domain._agents.values():
                 self.agent_assignment[ag_var] = ag
                 anc_effs.update(self.apply_anc_eff(anc_eff_cons, next_term).operands)
-            anc_effs = {create_and(list(anc_effs))}
+            return create_and(anc_effs)
         else:
-            anc_effs.add(self.apply_anc_eff(anc_eff_cons, next_term))
-        return anc_effs
+            return self.apply_anc_eff(anc_eff_cons, next_term)
                 
     def apply_anc_effs_to_action(self, o):
         o.id = ApplyAncEffs.gen_id(o)

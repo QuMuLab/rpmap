@@ -4,6 +4,7 @@ from typing import Sequence
 from lark.lexer import Token
 from pddl.logic.base import Not, And
 from pddl.logic.terms import Variable
+from pddl.logic.effects import When
 from pddl.parser import GRAMMAR_FILE
 
 
@@ -91,3 +92,13 @@ def create_and(operands):
     and_ = And(*[])
     and_._operands = operands
     return and_
+
+def sort_operands(term: And):
+    return create_and(sorted(term.operands, key=lambda x: repr(x)))
+
+def sorted_and_when_str(term: And | When):
+    """Return the operands sorted by their string representation."""
+    if isinstance(term, And):
+        return repr(sort_operands(term))
+    elif isinstance(term, When):
+        return repr(When(sort_operands(term.condition), sort_operands(term.effect)))
