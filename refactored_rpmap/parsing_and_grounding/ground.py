@@ -157,7 +157,9 @@ def create_grounded_operators(domain, problem):
                     new_a.derive_condition = a.derive_condition 
                 else:
                     new_a.derive_condition = list(ground_formula([a.derive_condition], assignment, domain, problem))[0]
-                    new_a.derive_condition.assignment = {var: val for var, val in zip(vars, valuation)}
+                    # store the assignment so we know what the derive condition variable $agent$ was grounded to
+                    # we need this when applying ancillary effects, as the ancillary effect can reference the derive condition variable
+                    new_a.derive_condition.assignment = {var: val for var, val in zip(vars, valuation) if var == Variable("dlr_agent", ["agent"])}
             operators.add(new_a)
     return operators
 

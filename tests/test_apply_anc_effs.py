@@ -147,12 +147,81 @@ class TestApplyAncEffsSingle:
         assert sorted_and_when_str(self.apply_anc_eff_helper(self.kd45_un_closure__belief, When(create_and([SeparatedRMLTerm([self.des_bob], self.pred)]), cleaned_not(SeparatedRMLTerm([self.des_bob, self.pbel_alice, self.pdes_bob], self.pred))))) == sorted_and_when_str(When(create_and([self.des_bob(self.pred)]), create_and([cleaned_not(self.des_bob(self.bel_alice(self.pdes_bob(self.pred))))])))
 
     # ----- MUTUAL AWARENESS (POSITIVE) -----
-    def test_mutual_awareness_pos(self):
-        res = self.apply_anc_eff_helper(self.mutual_awareness_pos__belief, self.srt, awareness=True, derive_condition="always")
-        assert len(res) == 1
-        assert sorted_and_when_str(list(res)[0]) == sorted_and_when_str(create_and([Nesting(GenericMODLType.BEL, a)(self.pred) for a in self.agents.values()]))
-
-    def test_mutual_awareness_pos(self):
+    def test_mutual_awareness_pos_dc_srt(self):
+        # NOTE: the derive condition gets grounded with the rest of the domain, and the assignment to the derive condition variable $agent$ is stored then
         derive_condition = SeparatedRMLTerm([self.des_bob], self.pred)
         derive_condition.assignment = {Variable("dlr_agent", ["agent"]): Constant("bob", "agent")}
         assert sorted_and_when_str(self.apply_anc_eff_helper(self.mutual_awareness_pos__belief, self.srt, awareness=True, derive_condition=derive_condition)) == sorted_and_when_str(When(create_and([self.des_bob(self.pred)]), create_and([self.bel_bob(self.pred)])))
+
+    # ----- FORALL AGENTS -----
+    def test_forall_agents(self):
+        test_anc_eff = AncEff(
+            name="test",
+            parameters=None,
+            antecedent=Antecedent(False, SeparatedRMLTerm(list(), RMLTerm()), "add"),
+            consequent=Consequent(
+                [ListCompAgents(SeparatedRMLTerm([Nesting(GenericMODLType.BEL, Agent(Variable("ag", ["agent"])))], self.pred))],
+                None,
+                [SeparatedRMLTerm(list(), RMLTerm())],
+                "add"
+            )
+        )
+        assert sorted_and_when_str(self.apply_anc_eff_helper(test_anc_eff, self.srt)) == sorted_and_when_str(When(create_and([Nesting(GenericMODLType.BEL, a)(self.pred) for a in self.agents]), create_and([self.pred])))
+
+    def test_forall_var_agents(self):
+        test_anc_eff = AncEff(
+            name="test",
+            parameters=None,
+            antecedent=Antecedent(False, SeparatedRMLTerm(list(), RMLTerm()), "add"),
+            consequent=Consequent(
+                [ListCompVarAgents(SeparatedRMLTerm([Nesting(GenericMODLType.BEL, Agent(Variable("ag", ["agent"])))], RTerm()), Variable("pos"))],
+                None,
+                [SeparatedRMLTerm(list(), RMLTerm())],
+                "add"
+            )
+        )
+        assert sorted_and_when_str(self.apply_anc_eff_helper(test_anc_eff, When(create_and([self.srt2]), create_and([self.srt])))) == sorted_and_when_str(When(create_and([Nesting(GenericMODLType.BEL, a)(self.pred2) for a in self.agents]), create_and([self.pred])))
+
+    def test_forall_var_agents_2(self):
+        test_anc_eff = AncEff(
+            name="test",
+            parameters=None,
+            antecedent=Antecedent(False, SeparatedRMLTerm(list(), RMLTerm()), "add"),
+            consequent=Consequent(
+                [ListCompVarAgents(SeparatedRMLTerm([Nesting(GenericMODLType.BEL, Agent(Variable("ag", ["agent"])))], RTerm()), Variable("pos"))],
+                None,
+                [SeparatedRMLTerm(list(), RMLTerm())],
+                "add"
+            )
+        )
+        res = sorted_and_when_str(self.apply_anc_eff_helper(test_anc_eff, When(create_and([SeparatedRMLTerm([self.bel_alice, self.des_bob], self.pred2)]), create_and([self.srt])))) 
+        expected = sorted_and_when_str(
+            When(
+                create_and([Nesting(GenericMODLType.BEL, a)(self.bel_alice(self.des_bob(self.pred2))) for a in self.agents]),
+                create_and([self.pred])
+            )
+        )
+        assert res == expected
+
+    def test_forall_var_agents_2_derive_condition(self):
+        derive_condition = SeparatedRMLTerm([self.des_bob], Predicate("secret3"))
+        derive_condition.assignment = {Variable("dlr_agent", ["agent"]): Constant("bob", "agent")}
+        test_anc_eff = AncEff(
+            name="test",
+            parameters=None,
+            antecedent=Antecedent(True, SeparatedRMLTerm(list(), RMLTerm()), "add"),
+            consequent=Consequent(
+                [ListCompVarAgents(SeparatedRMLTerm([Nesting(GenericMODLType.BEL, Agent(Variable("ag", ["agent"])))], RTerm()), Variable("pos"))],
+                None,
+                [SeparatedRMLTerm(list(), RMLTerm())],
+                "add"
+            )
+        )
+        res = sorted_and_when_str(self.apply_anc_eff_helper(test_anc_eff, When(create_and([SeparatedRMLTerm([self.bel_alice, self.des_bob], self.pred2)]), create_and([self.srt])), True, derive_condition)) 
+        expected = sorted_and_when_str(
+            When(
+                create_and([Nesting(GenericMODLType.BEL, a)(self.bel_alice(self.des_bob(self.pred2))) for a in self.agents] + [self.des_bob(Predicate("secret3"))]),
+                create_and([self.pred])
+            )
+        )
+        assert res == expected

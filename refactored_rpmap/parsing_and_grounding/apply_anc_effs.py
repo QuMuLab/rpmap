@@ -183,35 +183,16 @@ class ApplyAncEffs:
         else:
             raise ValueError(f"Unknown variable {var}.")
 
-    def ground_nesting_helper(self, term: Variable):
-        if term == Variable("ag", ["agent"]):
-            return list(self.domain._agents.values())
-        else:
-            return [self.assignment[term]]
-
     def ground_nesting(self, new_rml: SeparatedRMLTerm):
-        grounded_assignment = {}
-        new_rmls = set()
+        new_rml = deepcopy(new_rml)
         for n in new_rml.nestings:
             if isinstance(n, Nesting):
                 if isinstance(n.agent.term, Variable):
-                    grounded_assignment[n.agent.term] = self.ground_nesting_helper(n.agent.term)
+                    n.agent.term = self.assignment[n.agent.term]
             elif isinstance(n, MODLTermWNesting):
                 if isinstance(n.modl.agent.term, Variable):
-                    grounded_assignment[n.modl.agent.term] = self.ground_nesting_helper(n.modl.agent.term)
-        # return new rmls with all combinations of grounded assignments
-        for assignment in itertools.product(*grounded_assignment.values()):
-            new_rml_copy = deepcopy(new_rml)
-            for i, var in enumerate(grounded_assignment.keys()):
-                for n in new_rml_copy.nestings:
-                    if isinstance(n, Nesting):
-                        if n.agent.term == var:
-                            n.agent.term = assignment[i]
-                    elif isinstance(n, MODLTermWNesting):
-                        if n.modl.agent.term == var:
-                            n.modl.agent.term = assignment[i]
-            new_rmls.add(new_rml_copy)
-        return new_rmls
+                    n.modl.agent.term = self.assignment[n.modl.agent.term]
+        return new_rml
 
     @staticmethod
     def terms_to_rml(terms: list[Nesting | NOT_MODL | Predicate]):
@@ -230,8 +211,7 @@ class ApplyAncEffs:
         return ApplyAncEffs.terms_to_rml(rml_terms)
 
     def apply_rml(self, new_rml: SeparatedRMLTerm):
-        # TODO: UPDATE THIS TO BE ABLE TO HANDLE SETS OF RMLS AS A RESULT OF LIST COMPREHENSION ACROSS AGENTS
-        new_rml = list(self.ground_nesting(new_rml))[0]
+        new_rml = self.ground_nesting(new_rml)
         if self.nestings:
             rml_terms = []
             if isinstance(new_rml.nestings[0], LeadingNesting):
@@ -256,21 +236,36 @@ class ApplyAncEffs:
             srt = self.pred
         elif isinstance(new_rml.term, RTerm) or isinstance(new_rml.term, RTermNegated):
             srt = self.r
+        elif isinstance(new_rml.term, Predicate):
+            srt = SeparatedRMLTerm(list(), new_rml.term)
         else:
-            raise ValueError("No term set before attempting to apply an rml.")
+            raise ValueError(f"Unknown term type {type(new_rml.term)}.")
         return ApplyAncEffs.srt_to_rml(srt, rml_terms)
 
     def ground_cond_or_rml(self, cond_or_rml):
         if cond_or_rml in [Variable("pos"), Variable("neg")]:
             return [ApplyAncEffs.srt_to_rml(c) for c in self.get_pos_or_neg_conds(cond_or_rml)]
-        elif isinstance(cond_or_rml, ListCompVar) or isinstance(cond_or_rml, ListCompVarAgents):
+        elif isinstance(cond_or_rml, ListCompVar):
             pos_or_neg_conds = self.get_pos_or_neg_conds(cond_or_rml.var)
             for i in range(len(pos_or_neg_conds)):
                 self.r = pos_or_neg_conds[i]
                 pos_or_neg_conds[i] = self.apply_rml(cond_or_rml.term)
             return pos_or_neg_conds
         elif isinstance(cond_or_rml, ListCompAgents):
-            return [self.apply_rml(cond_or_rml.term)]
+            rmls = []
+            for ag in self.agents:
+                self.assignment[Variable("ag", ["agent"])] = ag
+                rmls.append(self.apply_rml(cond_or_rml.term))
+            return rmls
+        elif isinstance(cond_or_rml, ListCompVarAgents):
+            rmls = []
+            pos_or_neg_conds = self.get_pos_or_neg_conds(cond_or_rml.var)
+            for ag in self.agents:
+                self.assignment[Variable("ag", ["agent"])] = ag
+                for c in pos_or_neg_conds:
+                    self.r = c
+                    rmls.append(self.apply_rml(cond_or_rml.term))
+            return rmls
         elif isinstance(cond_or_rml, SeparatedRMLTerm):
             return [self.apply_rml(cond_or_rml)]
         else:
@@ -280,7 +275,7 @@ class ApplyAncEffs:
         return list(next_term.condition.operands) if isinstance(next_term, When) else []
 
     def get_conds(self, poscond, negcond, next_term):
-        self.raw_conds = self.get_raw_conds(next_term)
+        self.raw_conds = deepcopy(self.get_raw_conds(next_term))
         conds = []
         if poscond:
             for c in poscond:
