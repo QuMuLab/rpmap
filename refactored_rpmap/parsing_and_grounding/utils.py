@@ -1,10 +1,10 @@
 import itertools
-import re
 from typing import Sequence
 from lark.lexer import Token
 from pddl.logic.base import Not, And
-from pddl.logic.terms import Variable
 from pddl.logic.effects import When
+from pddl.logic.terms import Variable
+from pddl.logic.predicates import Predicate
 from pddl.parser import GRAMMAR_FILE
 
 
@@ -102,3 +102,9 @@ def sorted_and_when_str(term: And | When):
         return repr(sort_operands(term))
     elif isinstance(term, When):
         return repr(When(sort_operands(term.condition), sort_operands(term.effect)))
+    elif isinstance(term, Not):
+        return repr(Not(sort_operands(term.argument)))
+    elif isinstance(term, Predicate):
+        return repr(term)
+    else:
+        raise ValueError(f"Invalid term type: {type(term)}")

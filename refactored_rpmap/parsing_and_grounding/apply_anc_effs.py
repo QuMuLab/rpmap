@@ -1,5 +1,5 @@
 from .core.anc_eff import *
-from .utils import cleaned_not, create_and
+from .utils import cleaned_not, create_and, sorted_and_when_str
 from pddl.core import Domain, Problem
 from pddl.exceptions import PDDLValidationError
 from pddl.logic.base import Not, And
@@ -197,18 +197,34 @@ class ApplyAncEffs:
     @staticmethod
     def terms_to_rml(terms: list[Nesting | NOT_MODL | Predicate]):
         for i in range(len(terms) - 2, - 1, - 1):
-            terms[i] = terms[i](terms[i + 1])
+            terms[i] = cleaned_not(terms[i + 1]) if terms[i] == Not else terms[i](terms[i + 1])
         return terms[0]
 
     @staticmethod
-    def srt_to_rml(srt: SeparatedRMLTerm, existing_nestings: list[Nesting | NOT_MODL] = None):
-        rml_terms = [] if not existing_nestings else existing_nestings
+    def extend_srt_terms(srt: SeparatedRMLTerm | Not, existing_nestings: list[Nesting | NOT_MODL] = None):
+        rml_terms = list() if not existing_nestings else existing_nestings
         if isinstance(srt, Not):
             srt = srt.argument
             rml_terms.append(Not)
         rml_terms.extend(srt.nestings)
-        rml_terms.append(srt.term)
+        return (rml_terms, srt.term)
+
+    @staticmethod
+    def srt_to_rml(srt: SeparatedRMLTerm | Not, existing_nestings: list[Nesting | NOT_MODL] = None):
+        rml_terms, term = ApplyAncEffs.extend_srt_terms(srt, existing_nestings)
+        rml_terms.append(term)
         return ApplyAncEffs.terms_to_rml(rml_terms)
+
+    @staticmethod
+    def and_or_when_or_srt_to_rml(and_or_when_or_srt: And | When | SeparatedRMLTerm | Not, existing_nestings: list[Nesting | NOT_MODL] = None):
+        if isinstance(and_or_when_or_srt, SeparatedRMLTerm) or isinstance(and_or_when_or_srt, Not):
+            return ApplyAncEffs.srt_to_rml(and_or_when_or_srt, existing_nestings)
+        elif isinstance(and_or_when_or_srt, And):
+            return create_and([ApplyAncEffs.and_or_when_or_srt_to_rml(o, existing_nestings) for o in and_or_when_or_srt.operands])
+        elif isinstance(and_or_when_or_srt, When):
+            return When(ApplyAncEffs.and_or_when_or_srt_to_rml(and_or_when_or_srt.condition, existing_nestings), ApplyAncEffs.and_or_when_or_srt_to_rml(and_or_when_or_srt.effect, existing_nestings))
+        else:
+            raise ValueError(f"Invalid term type: {type(and_or_when_or_srt)}")
 
     def apply_rml(self, new_rml: SeparatedRMLTerm):
         new_rml = self.ground_nesting(new_rml)
@@ -240,11 +256,12 @@ class ApplyAncEffs:
             srt = SeparatedRMLTerm(list(), new_rml.term)
         else:
             raise ValueError(f"Unknown term type {type(new_rml.term)}.")
-        return ApplyAncEffs.srt_to_rml(srt, rml_terms)
+        rml_terms, term = ApplyAncEffs.extend_srt_terms(srt, rml_terms)
+        return SeparatedRMLTerm(rml_terms, term)
 
     def ground_cond_or_rml(self, cond_or_rml):
         if cond_or_rml in [Variable("pos"), Variable("neg")]:
-            return [ApplyAncEffs.srt_to_rml(c) for c in self.get_pos_or_neg_conds(cond_or_rml)]
+            return self.get_pos_or_neg_conds(cond_or_rml)
         elif isinstance(cond_or_rml, ListCompVar):
             pos_or_neg_conds = self.get_pos_or_neg_conds(cond_or_rml.var)
             for i in range(len(pos_or_neg_conds)):
@@ -289,32 +306,37 @@ class ApplyAncEffs:
         conds = self.get_conds(anc_eff_cons.poscond, anc_eff_cons.negcond, next_term)
         # the derive condition is specified in the domain as part of the action and is already grounded
         if awareness and isinstance(derive_condition, SeparatedRMLTerm):
-            conds.append(ApplyAncEffs.srt_to_rml(derive_condition))
+            conds.append(derive_condition)
         eff = []
         for term in anc_eff_cons.rml: 
             for g_term in self.ground_cond_or_rml(term):
                 eff.append(g_term if anc_eff_cons.anceff_type == "add" else cleaned_not(g_term))
         return When(create_and(conds), create_and(eff)) if conds else create_and(eff)
                 
-    def set_assignment_apply_anc_eff(self, parameters: list[Variable], anc_eff_cons: Consequent, next_term, awareness: bool = False, derive_condition: str | SeparatedRMLTerm = "never"):
-        return self.apply_anc_eff(anc_eff_cons, next_term, awareness, derive_condition)
-                
-    def apply_anc_effs_to_action(self, o):
-        o.id = ApplyAncEffs.gen_id(o)
-        o.parent = None
-        condleft = [o]
-        processed_conds = set()
+    def apply_anc_effs_to_action(self, next_term, derive_condition, anc_effs = None):
+        self.anc_effs = anc_effs if anc_effs else self.anc_effs 
+        next_term.id = ApplyAncEffs.gen_id(next_term)
+        next_term.parent = None
+        condleft = [next_term]
+        processed_conds = dict()
         
         while condleft:
             next_term = condleft.pop(0)
-            if next_term not in processed_conds:
-                processed_conds.add(next_term)
+            next_term_rep = sorted_and_when_str(ApplyAncEffs.and_or_when_or_srt_to_rml(next_term))
+            if next_term_rep not in processed_conds:
+                processed_conds[next_term_rep] = next_term
                 for anc_eff in self.anc_effs:
-                    if self.check_ant_match(anc_eff.antecedent, anc_eff.type, next_term, anc_eff.antecedent.awareness, o.derive_condition):
-                        self.set_assignment_apply_anc_eff(anc_eff.parameters, anc_eff.consequent, next_term, anc_eff.antecedent.awareness, o.derive_condition)
+                    if self.check_ant_match(anc_eff.antecedent.rml, anc_eff.antecedent.anceff_type, next_term, anc_eff.antecedent.awareness, derive_condition):
+                        new_term = self.apply_anc_eff(anc_eff.consequent, next_term, anc_eff.antecedent.awareness, derive_condition)
+                        if sorted_and_when_str(new_term) not in processed_conds:
+                            condleft.append(new_term)
                     self.reset()
+        return list(processed_conds.values())
 
     def apply_anc_effs(self):
         for action in self.domain.actions:
             for o in action.effect.operands:
-                new_rmls = self.apply_anc_effs_to_action(o)
+                new_terms = self.apply_anc_effs_to_action(o)
+                if new_terms:
+                    action.effect._operands.extend(new_terms)
+        return self.domain, self.problem
