@@ -153,6 +153,43 @@ class TestApplyAncEffsSingle:
         derive_condition.assignment = {Variable("dlr_agent", ["agent"]): Constant("bob", "agent")}
         assert sorted_and_when_str(self.apply_anc_eff_helper(self.mutual_awareness_pos__belief, self.srt, awareness=True, derive_condition=derive_condition)) == sorted_and_when_str(When(create_and([self.des_bob(self.pred)]), create_and([self.bel_bob(self.pred)])))
 
+    def test_mutual_awareness_pos_poscond_dc_srt(self):
+        derive_condition = SeparatedRMLTerm([self.des_bob], self.pred)
+        derive_condition.assignment = {Variable("dlr_agent", ["agent"]): Constant("bob", "agent")}
+        assert sorted_and_when_str(self.apply_anc_eff_helper(self.mutual_awareness_pos__belief, When(create_and([self.srt2]), create_and([self.srt])), awareness=True, derive_condition=derive_condition)) == sorted_and_when_str(When(create_and([self.des_bob(self.pred), self.bel_bob(self.pred2)]), create_and([self.bel_bob(self.pred)])))
+
+    def test_mutual_awareness_pos_negcond_dc_srt(self):
+        derive_condition = SeparatedRMLTerm([self.des_bob], self.pred)
+        derive_condition.assignment = {Variable("dlr_agent", ["agent"]): Constant("bob", "agent")}
+        assert sorted_and_when_str(self.apply_anc_eff_helper(self.mutual_awareness_pos__belief, When(create_and([cleaned_not(self.srt2)]), create_and([self.srt])), awareness=True, derive_condition=derive_condition)) == sorted_and_when_str(When(create_and([self.des_bob(self.pred), NOT_MODL()(self.bel_bob(self.pred2))]), create_and([self.bel_bob(self.pred)])))
+
+    def test_mutual_awareness_pos_poscond_negcond_dc_srt(self):
+        derive_condition = SeparatedRMLTerm([self.des_bob], self.pred)
+        derive_condition.assignment = {Variable("dlr_agent", ["agent"]): Constant("bob", "agent")}
+        assert sorted_and_when_str(self.apply_anc_eff_helper(self.mutual_awareness_pos__belief, When(create_and([cleaned_not(self.srt2), self.srt]), create_and([self.srt])), awareness=True, derive_condition=derive_condition)) == sorted_and_when_str(When(create_and([self.des_bob(self.pred), NOT_MODL()(self.bel_bob(self.pred2)), self.bel_bob(self.pred)]), create_and([self.bel_bob(self.pred)])))
+
+    # ----- MUTUAL AWARENESS (NEGATIVE) -----
+    def test_mutual_awareness_neg_dc_srt(self):
+        # NOTE: the derive condition gets grounded with the rest of the domain, and the assignment to the derive condition variable $agent$ is stored then
+        derive_condition = SeparatedRMLTerm([self.des_bob], self.pred)
+        derive_condition.assignment = {Variable("dlr_agent", ["agent"]): Constant("bob", "agent")}
+        assert sorted_and_when_str(self.apply_anc_eff_helper(self.mutual_awareness_neg__belief, cleaned_not(self.srt), awareness=True, derive_condition=derive_condition)) == sorted_and_when_str(When(create_and([self.des_bob(self.pred)]), create_and([NOT_MODL()(self.bel_bob(self.pred))])))
+
+    def test_mutual_awareness_neg_poscond_dc_srt(self):
+        derive_condition = SeparatedRMLTerm([self.des_bob], self.pred)
+        derive_condition.assignment = {Variable("dlr_agent", ["agent"]): Constant("bob", "agent")}
+        assert sorted_and_when_str(self.apply_anc_eff_helper(self.mutual_awareness_neg__belief, When(create_and([self.srt2]), create_and([cleaned_not(self.srt)])), awareness=True, derive_condition=derive_condition)) == sorted_and_when_str(When(create_and([self.des_bob(self.pred), self.bel_bob(self.pred2)]), create_and([NOT_MODL()(self.bel_bob(self.pred))])))
+
+    def test_mutual_awareness_neg_negcond_dc_srt(self):
+        derive_condition = SeparatedRMLTerm([self.des_bob], self.pred)
+        derive_condition.assignment = {Variable("dlr_agent", ["agent"]): Constant("bob", "agent")}
+        assert sorted_and_when_str(self.apply_anc_eff_helper(self.mutual_awareness_neg__belief, When(create_and([cleaned_not(self.srt2)]), create_and([cleaned_not(self.srt)])), awareness=True, derive_condition=derive_condition)) == sorted_and_when_str(When(create_and([self.des_bob(self.pred), NOT_MODL()(self.bel_bob(self.pred2))]), create_and([NOT_MODL()(self.bel_bob(self.pred))])))
+
+    def test_mutual_awareness_neg_poscond_negcond_dc_srt(self):
+        derive_condition = SeparatedRMLTerm([self.des_bob], self.pred)
+        derive_condition.assignment = {Variable("dlr_agent", ["agent"]): Constant("bob", "agent")}
+        assert sorted_and_when_str(self.apply_anc_eff_helper(self.mutual_awareness_neg__belief, When(create_and([cleaned_not(self.srt2), self.srt]), create_and([cleaned_not(self.srt)])), awareness=True, derive_condition=derive_condition)) == sorted_and_when_str(When(create_and([self.des_bob(self.pred), NOT_MODL()(self.bel_bob(self.pred2)), self.bel_bob(self.pred)]), create_and([NOT_MODL()(self.bel_bob(self.pred))])))
+
     # ----- FORALL AGENTS -----
     def test_forall_agents(self):
         test_anc_eff = AncEff(
