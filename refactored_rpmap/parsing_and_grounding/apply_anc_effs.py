@@ -21,7 +21,8 @@ class ApplyAncEffs:
         self.agents = set(domain._agents.keys())
         self.rml: SeparatedRMLTerm = None
         self.pred: Predicate = None
-        self.nestings: list[list[Nesting]] = None
+        self.nestings: list[list[list[Nesting]]] = None
+        self.current_nestings: list[list[Nesting]] = None
         self.raw_conds: list[Not | SeparatedRMLTerm | Predicate] = None
         self.assignment: dict[Variable, str] = {}
         self.max_depth_detected = 0
@@ -30,6 +31,7 @@ class ApplyAncEffs:
         self.rml = None
         self.pred = None
         self.nestings = None
+        self.current_nestings = None
         self.assignment = {}
         self.raw_conds = None
         self.max_depth_detected = 0
@@ -56,6 +58,7 @@ class ApplyAncEffs:
                     nesting_terms = deepcopy(cond.nestings[1:]) if len(cond.nestings) > 1 else list()
                     self.nestings.append([])
                     self.nestings.append(nesting_terms)
+                    self.nestings = [self.nestings]
                     self.assignment[nesting_term.modl.agent.term] = cond.nestings[0].agent.term
                     return True
                 self.nestings = None
@@ -65,26 +68,23 @@ class ApplyAncEffs:
                     nesting_terms = deepcopy(cond.nestings[:-1]) if len(cond.nestings) > 1 else list()
                     self.nestings.append(nesting_terms)
                     self.nestings.append([])
+                    self.nestings = [self.nestings]
                     self.assignment[nesting_term.modl.agent.term] = cond.nestings[-1].agent.term
                     return True
                 self.nestings = None
                 return False
             elif isinstance(nesting_term, LeadingTrailingNesting):
-                found = False
-                nesting_terms = []
-                for n in cond.nestings:
-                    if n.mod_type == nesting_term.modl.mod_type and not found:
-                        self.assignment[nesting_term.modl.agent.term] = n.agent.term
-                        found = True
-                        self.nestings.append(nesting_terms)
-                        nesting_terms = []
-                    else:
-                        nesting_terms.append(deepcopy(n))
-                if not found:
+                found_idxs = [i for i in range(len(cond.nestings)) if cond.nestings[i].mod_type == nesting_term.modl.mod_type]
+                if not found_idxs:
                     self.nestings = None
-                else:
+                    return False
+                self.assignment[nesting_term.modl.agent.term] = list()
+                for i in found_idxs:
+                    nesting_terms = [cond.nestings[:i]]
+                    nesting_terms.append(cond.nestings[i + 1:]  if i < len(cond.nestings) - 1 else [])
                     self.nestings.append(nesting_terms)
-                return found
+                    self.assignment[nesting_term.modl.agent.term].append(cond.nestings[i].agent.term)
+                return True
             else:
                 raise PDDLValidationError("Unknown {nesting} term type " + str(type(nesting_term)))
         else:
@@ -342,6 +342,21 @@ class ApplyAncEffs:
                 eff.append(g_term if anc_eff_cons.anceff_type == "add" else cleaned_not(g_term))
         return self.squash_simplify_and_check_depth(When(create_and(conds), create_and(eff))) if conds else self.squash_simplify_and_check_depth(create_and(eff))
                 
+    def apply_anc_eff_all_nestings(self, anc_eff_cons: Consequent, next_term, awareness: bool, derive_condition: str | SeparatedRMLTerm):
+        if self.nestings:
+            all_nestings = deepcopy(self.nestings)
+            all_nesting_assignments = deepcopy(self.assignment)
+            results = []
+            for n in self.nestings:
+                self.nestings = all_nestings.pop(0)
+                for var in all_nesting_assignments:
+                    if type(all_nesting_assignments[var]) == list:
+                        self.assignment[var] = all_nesting_assignments[var].pop(0)
+                results.extend(self.apply_anc_eff(anc_eff_cons, next_term, awareness, derive_condition))
+            return results
+        else:
+            return self.apply_anc_eff(anc_eff_cons, next_term, awareness, derive_condition)
+
     @staticmethod
     def sort_operands(term: And):
         return create_and(sorted(term.operands, key=lambda x: repr(x)))
@@ -373,14 +388,14 @@ class ApplyAncEffs:
                 processed_conds[next_term_rep] = next_term
                 for anc_eff in self.anc_effs:
                     if self.check_ant_match(anc_eff.antecedent.rml, anc_eff.antecedent.anceff_type, next_term, anc_eff.antecedent.awareness, derive_condition):
-                        new_terms = self.apply_anc_eff(anc_eff.consequent, next_term, anc_eff.antecedent.awareness, derive_condition)
+                        new_terms = self.apply_anc_eff_all_nestings(anc_eff.consequent, next_term, anc_eff.antecedent.awareness, derive_condition)
                         if self.max_depth_detected > self.problem.depth:
                             continue
                         for new_term in new_terms:
                             if ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(new_term)) not in processed_conds:
                                 condleft.append(new_term)
                     self.reset()
-        return list(processed_conds.values())
+        return list(processed_conds.values())[1:]
 
     def apply_anc_effs(self):
         for action in self.domain.actions:

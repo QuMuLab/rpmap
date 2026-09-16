@@ -31,6 +31,7 @@ class TestApplyAncEffsSingle:
         request.cls.bel_alice = Nesting(GenericMODLType.BEL, Agent(Constant("alice", "agent")))
         request.cls.pbel_alice = Nesting(PossibleGenericMODLType.PBEL, Agent(Constant("alice", "agent")))
         request.cls.bel_bob = Nesting(GenericMODLType.BEL, Agent(Constant("bob", "agent")))
+        request.cls.pbel_bob = Nesting(PossibleGenericMODLType.PBEL, Agent(Constant("bob", "agent")))
         request.cls.des_bob = Nesting(GenericMODLType.DES, Agent(Constant("bob", "agent")))
         request.cls.pdes_bob = Nesting(PossibleGenericMODLType.PDES, Agent(Constant("bob", "agent")))
         request.cls.pred = Predicate("secret")
@@ -46,7 +47,7 @@ class TestApplyAncEffsSingle:
 
     def apply_anc_eff_helper(self, anc_eff, next_term, awareness = False, derive_condition = "never"):
         if self.apply_anc_effs.check_ant_match(anc_eff.antecedent.rml, anc_eff.antecedent.anceff_type, next_term, awareness, derive_condition):
-            return [self.apply_anc_effs.sorted_str(self.apply_anc_effs.term_to_rml(term)) for term in self.apply_anc_effs.apply_anc_eff(anc_eff.consequent, next_term, awareness, derive_condition)]
+            return [self.apply_anc_effs.sorted_str(self.apply_anc_effs.term_to_rml(term)) for term in self.apply_anc_effs.apply_anc_eff_all_nestings(anc_eff.consequent, next_term, awareness, derive_condition)]
 
     def apply_anc_effs_helper(self, next_term, derive_condition = "never", anc_effs = None):
         return [self.apply_anc_effs.sorted_str(self.apply_anc_effs.term_to_rml(term)) for term in self.apply_anc_effs.apply_anc_effs_to_action(next_term, derive_condition, anc_effs)]
@@ -125,7 +126,7 @@ class TestApplyAncEffsSingle:
         assert self.apply_anc_eff_helper(self.kd45closure__belief, SeparatedRMLTerm([self.des_bob, self.bel_alice, self.pdes_bob], self.pred)) == [self.apply_anc_effs.sorted_str(self.des_bob(self.pbel_alice(self.pdes_bob(self.pred))))]
 
     def test_closure_double(self):
-        assert self.apply_anc_eff_helper(self.kd45closure__belief, SeparatedRMLTerm([self.bel_alice, self.bel_alice], self.pred)) == [self.apply_anc_effs.sorted_str(self.pbel_alice(self.bel_alice(self.pred)))]
+        assert self.apply_anc_eff_helper(self.kd45closure__belief, SeparatedRMLTerm([self.bel_alice, self.bel_bob], self.pred)) == [self.apply_anc_effs.sorted_str(self.pbel_alice(self.bel_alice(self.pred)))]
 
     def test_closure_when(self):
         assert self.apply_anc_eff_helper(self.kd45closure__belief, When(create_and([SeparatedRMLTerm([self.des_bob], self.pred)]), SeparatedRMLTerm([self.des_bob, self.bel_alice, self.pdes_bob], self.pred))) == [self.apply_anc_effs.sorted_str(When(create_and([self.des_bob(self.pred)]), create_and([self.des_bob(self.pbel_alice(self.pdes_bob(self.pred)))])))]
@@ -143,7 +144,7 @@ class TestApplyAncEffsSingle:
     def test_un_closure_middle(self):
         assert self.apply_anc_eff_helper(self.kd45_un_closure__belief, cleaned_not(SeparatedRMLTerm([self.des_bob, self.pbel_alice, self.pdes_bob], self.pred))) == [self.apply_anc_effs.sorted_str(cleaned_not(self.des_bob(self.bel_alice(self.pdes_bob(self.pred)))))]
         
-    def test_closure_double(self):
+    def test_un_closure_double(self):
         assert self.apply_anc_eff_helper(self.kd45_un_closure__belief, cleaned_not(SeparatedRMLTerm([self.pbel_alice, self.pbel_alice], self.pred))) == [self.apply_anc_effs.sorted_str(cleaned_not(self.bel_alice(self.pbel_alice(self.pred))))]
 
     def test_closure_when(self):
@@ -267,13 +268,10 @@ class TestApplyAncEffsSingle:
         assert res == [expected]
 
     # ----- RECURSIVE TESTS -----
-    # def test_recursive_anc_effs_closure(self):
-    #     test = self.apply_anc_effs_helper(SeparatedRMLTerm([self.bel_alice, self.bel_bob], self.pred), anc_effs=[self.kd45closure__belief])
-    #     print()
-        # hope = self.apply_anc_effs.sorted_str(When(create_and([self.bel_bob(self.des_bob(Predicate("secret3")))]), create_and([(self.pbel_bob(self.pred))])))
-        # assert self.apply_anc_effs.sorted_str(self.apply_anc_effs_helper(self.srt, derive_condition=derive_condition, anc_effs=[self.mutual_awareness_pos__belief, self.kd45closure__belief])) == self.apply_anc_effs.sorted_str(create_and([self.bel_bob(self.pred), self.pbel_bob(self.pred)]))
-
-
+    def test_recursive_anc_effs_closure(self):
+        self.apply_anc_effs_helper(SeparatedRMLTerm([self.bel_alice, self.bel_bob], self.pred), anc_effs=[self.kd45closure__belief]) == \
+            [self.apply_anc_effs.sorted_str(term) for term in [self.pbel_alice(self.bel_bob(self.pred)), self.bel_alice(self.pbel_bob(self.pred)), self.pbel_alice(self.pbel_bob(self.pred))]]
+    
     # def test_recursive_anc_effs(self):
     #     derive_condition = SeparatedRMLTerm([self.des_bob], Predicate("secret3"))
     #     derive_condition.assignment = {Variable("dlr_agent", ["agent"]): Constant("bob", "agent")}

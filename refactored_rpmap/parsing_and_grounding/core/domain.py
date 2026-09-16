@@ -147,7 +147,7 @@ def new_not_repr(self):
 def new_and_repr(self):
     and_repr = "(and "
     for o in self.operands:
-        and_repr += repr(o)
+        and_repr += f"{repr(o)} "
     and_repr += ")"
     return and_repr
 
