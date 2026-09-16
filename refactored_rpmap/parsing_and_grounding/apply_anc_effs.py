@@ -1,5 +1,5 @@
 from .core.anc_eff import *
-from .utils import cleaned_not, create_and, sorted_and_when_str
+from .utils import cleaned_not, create_and
 from pddl.core import Domain, Problem
 from pddl.exceptions import PDDLValidationError
 from pddl.logic.base import Not, And
@@ -24,6 +24,7 @@ class ApplyAncEffs:
         self.nestings: list[list[Nesting]] = None
         self.raw_conds: list[Not | SeparatedRMLTerm | Predicate] = None
         self.assignment: dict[Variable, str] = {}
+        self.max_depth_detected = 0
 
     def reset(self):
         self.rml = None
@@ -31,6 +32,7 @@ class ApplyAncEffs:
         self.nestings = None
         self.assignment = {}
         self.raw_conds = None
+        self.max_depth_detected = 0
 
     @staticmethod
     def gen_id(cond):
@@ -52,6 +54,7 @@ class ApplyAncEffs:
             if isinstance(nesting_term, TrailingNesting):
                 if cond.nestings[0].mod_type == nesting_term.modl.mod_type:
                     nesting_terms = deepcopy(cond.nestings[1:]) if len(cond.nestings) > 1 else list()
+                    self.nestings.append([])
                     self.nestings.append(nesting_terms)
                     self.assignment[nesting_term.modl.agent.term] = cond.nestings[0].agent.term
                     return True
@@ -61,6 +64,7 @@ class ApplyAncEffs:
                 if cond.nestings[-1].mod_type == nesting_term.modl.mod_type:
                     nesting_terms = deepcopy(cond.nestings[:-1]) if len(cond.nestings) > 1 else list()
                     self.nestings.append(nesting_terms)
+                    self.nestings.append([])
                     self.assignment[nesting_term.modl.agent.term] = cond.nestings[-1].agent.term
                     return True
                 self.nestings = None
@@ -216,13 +220,13 @@ class ApplyAncEffs:
         return ApplyAncEffs.terms_to_rml(rml_terms)
 
     @staticmethod
-    def and_or_when_or_srt_to_rml(and_or_when_or_srt: And | When | SeparatedRMLTerm | Not, existing_nestings: list[Nesting | NOT_MODL] = None):
+    def term_to_rml(and_or_when_or_srt: And | When | SeparatedRMLTerm | Not, existing_nestings: list[Nesting | NOT_MODL] = None):
         if isinstance(and_or_when_or_srt, SeparatedRMLTerm) or isinstance(and_or_when_or_srt, Not):
             return ApplyAncEffs.srt_to_rml(and_or_when_or_srt, existing_nestings)
         elif isinstance(and_or_when_or_srt, And):
-            return create_and([ApplyAncEffs.and_or_when_or_srt_to_rml(o, existing_nestings) for o in and_or_when_or_srt.operands])
+            return create_and([ApplyAncEffs.term_to_rml(o, existing_nestings) for o in and_or_when_or_srt.operands])
         elif isinstance(and_or_when_or_srt, When):
-            return When(ApplyAncEffs.and_or_when_or_srt_to_rml(and_or_when_or_srt.condition, existing_nestings), ApplyAncEffs.and_or_when_or_srt_to_rml(and_or_when_or_srt.effect, existing_nestings))
+            return When(ApplyAncEffs.term_to_rml(and_or_when_or_srt.condition, existing_nestings), ApplyAncEffs.term_to_rml(and_or_when_or_srt.effect, existing_nestings))
         else:
             raise ValueError(f"Invalid term type: {type(and_or_when_or_srt)}")
 
@@ -302,6 +306,31 @@ class ApplyAncEffs:
                 conds.extend([cleaned_not(gc) for gc in self.ground_cond_or_rml(c)])
         return conds
 
+    def squash_simplify_and_check_depth(self, term: When | And | Not | SeparatedRMLTerm):
+        if isinstance(term, Predicate):
+            return term
+        elif isinstance(term, SeparatedRMLTerm):
+            if len(term.nestings) <= 1:
+                return term
+            new_nestings = [term.nestings[0]]
+            for n in term.nestings[1:]:
+                if n == new_nestings[-1] and not isinstance(n, NOT_MODL):
+                    continue
+                new_nestings.append(n)
+            self.max_depth_detected = max(self.max_depth_detected, len(new_nestings))
+            return SeparatedRMLTerm(new_nestings, term.term)
+        elif isinstance(term, Not):
+            return cleaned_not(self.squash_simplify_and_check_depth(term.argument))
+        elif isinstance(term, And):
+            return [self.squash_simplify_and_check_depth(o) for o in term.operands]
+        elif isinstance(term, When):
+            when = When(create_and(self.squash_simplify_and_check_depth(term.condition)), create_and(self.squash_simplify_and_check_depth(term.effect)))
+            if len(when.effect.operands) > 1:
+                return [When(when.condition, create_and(e)) for e in when.effect.operands]
+            return [when]
+        else:
+            raise ValueError(f"Unknown type {type(term)}.")
+
     def apply_anc_eff(self, anc_eff_cons: Consequent, next_term, awareness: bool, derive_condition: str | SeparatedRMLTerm):
         conds = self.get_conds(anc_eff_cons.poscond, anc_eff_cons.negcond, next_term)
         # the derive condition is specified in the domain as part of the action and is already grounded
@@ -311,8 +340,25 @@ class ApplyAncEffs:
         for term in anc_eff_cons.rml: 
             for g_term in self.ground_cond_or_rml(term):
                 eff.append(g_term if anc_eff_cons.anceff_type == "add" else cleaned_not(g_term))
-        return When(create_and(conds), create_and(eff)) if conds else create_and(eff)
+        return self.squash_simplify_and_check_depth(When(create_and(conds), create_and(eff))) if conds else self.squash_simplify_and_check_depth(create_and(eff))
                 
+    @staticmethod
+    def sort_operands(term: And):
+        return create_and(sorted(term.operands, key=lambda x: repr(x)))
+
+    @staticmethod
+    def sorted_str(term: Predicate | RML | SeparatedRMLTerm | Not | And | When):
+        """Return the operands sorted by their string representation."""
+        # note that Not can only be applied to an RML/Predicate/SeparatedRMLTerm
+        if isinstance(term, Predicate) or isinstance(term, RML) or isinstance(term, SeparatedRMLTerm) or isinstance(term, Not):
+            return repr(term)
+        elif isinstance(term, And):
+            return repr(ApplyAncEffs.sort_operands(term))
+        elif isinstance(term, When):
+            return repr(When(ApplyAncEffs.sort_operands(term.condition), ApplyAncEffs.sort_operands(term.effect)))
+        else:
+            raise ValueError(f"Invalid term type: {type(term)}")
+
     def apply_anc_effs_to_action(self, next_term, derive_condition, anc_effs = None):
         self.anc_effs = anc_effs if anc_effs else self.anc_effs 
         next_term.id = ApplyAncEffs.gen_id(next_term)
@@ -322,14 +368,17 @@ class ApplyAncEffs:
         
         while condleft:
             next_term = condleft.pop(0)
-            next_term_rep = sorted_and_when_str(ApplyAncEffs.and_or_when_or_srt_to_rml(next_term))
+            next_term_rep = ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(next_term))
             if next_term_rep not in processed_conds:
                 processed_conds[next_term_rep] = next_term
                 for anc_eff in self.anc_effs:
                     if self.check_ant_match(anc_eff.antecedent.rml, anc_eff.antecedent.anceff_type, next_term, anc_eff.antecedent.awareness, derive_condition):
-                        new_term = self.apply_anc_eff(anc_eff.consequent, next_term, anc_eff.antecedent.awareness, derive_condition)
-                        if sorted_and_when_str(new_term) not in processed_conds:
-                            condleft.append(new_term)
+                        new_terms = self.apply_anc_eff(anc_eff.consequent, next_term, anc_eff.antecedent.awareness, derive_condition)
+                        if self.max_depth_detected > self.problem.depth:
+                            continue
+                        for new_term in new_terms:
+                            if ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(new_term)) not in processed_conds:
+                                condleft.append(new_term)
                     self.reset()
         return list(processed_conds.values())
 

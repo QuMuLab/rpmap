@@ -92,19 +92,3 @@ def create_and(operands):
     and_ = And(*[])
     and_._operands = operands
     return and_
-
-def sort_operands(term: And):
-    return create_and(sorted(term.operands, key=lambda x: repr(x)))
-
-def sorted_and_when_str(term: And | When):
-    """Return the operands sorted by their string representation."""
-    if isinstance(term, And):
-        return repr(sort_operands(term))
-    elif isinstance(term, When):
-        return repr(When(sort_operands(term.condition), sort_operands(term.effect)))
-    elif isinstance(term, Not):
-        return repr(Not(sort_operands(term.argument)))
-    elif isinstance(term, Predicate):
-        return repr(term)
-    else:
-        raise ValueError(f"Invalid term type: {type(term)}")

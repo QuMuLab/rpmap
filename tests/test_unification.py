@@ -477,12 +477,12 @@ class TestUnification:
     def test_add_leading_nesting(self):
         srt = SeparatedRMLTerm([self.bel], self.pred)
         assert self.apply_anc_effs.check_ant_match(self.leading_nesting, "add", srt)
-        assert self.apply_anc_effs.nestings == [[]]
+        assert self.apply_anc_effs.nestings == [[], []]
 
     def test_add_leading_nesting_extra_nesting(self):
         srt = SeparatedRMLTerm([self.des, self.bel], self.pred)
         assert self.apply_anc_effs.check_ant_match(self.leading_nesting, "add", srt)
-        assert self.apply_anc_effs.nestings == [[self.des]]
+        assert self.apply_anc_effs.nestings == [[self.des], []]
 
     def test_add_leading_nesting_no_cond_nesting(self):
         srt = SeparatedRMLTerm(list(), self.pred)
@@ -502,12 +502,12 @@ class TestUnification:
     def test_del_leading_nesting(self):
         srt = SeparatedRMLTerm([self.bel], self.pred)
         assert self.apply_anc_effs.check_ant_match(self.leading_nesting, "del", cleaned_not(srt))
-        assert self.apply_anc_effs.nestings == [[]]
+        assert self.apply_anc_effs.nestings == [[], []]
 
     def test_del_leading_nesting_extra_nesting(self):
         srt = SeparatedRMLTerm([self.des, self.bel], self.pred)
         assert self.apply_anc_effs.check_ant_match(self.leading_nesting, "del", cleaned_not(srt))
-        assert self.apply_anc_effs.nestings == [[self.des]]
+        assert self.apply_anc_effs.nestings == [[self.des], []]
 
     def test_del_leading_nesting_wrong_pos(self):
         srt = SeparatedRMLTerm([self.bel, self.des], self.pred)
@@ -524,7 +524,7 @@ class TestUnification:
     def test_add_trailing_nesting(self):
         srt = SeparatedRMLTerm([self.bel], self.pred)
         assert self.apply_anc_effs.check_ant_match(self.trailing_nesting, "add", srt)
-        assert self.apply_anc_effs.nestings == [[]]
+        assert self.apply_anc_effs.nestings == [[], []]
 
     def test_add_trailing_nesting_no_cond_nesting(self):
         srt = SeparatedRMLTerm(list(), self.pred)
@@ -534,7 +534,7 @@ class TestUnification:
     def test_add_trailing_nesting_extra_nesting(self):
         srt = SeparatedRMLTerm([self.bel, self.des], self.pred)
         assert self.apply_anc_effs.check_ant_match(self.trailing_nesting, "add", srt)
-        assert self.apply_anc_effs.nestings == [[self.des]]
+        assert self.apply_anc_effs.nestings == [[], [self.des]]
 
     def test_add_trailing_nesting_wrong_pos(self):
         srt = SeparatedRMLTerm([self.des, self.bel], self.pred)
@@ -549,12 +549,12 @@ class TestUnification:
     def test_del_trailing_nesting(self):
         srt = SeparatedRMLTerm([self.bel], self.pred)
         assert self.apply_anc_effs.check_ant_match(self.trailing_nesting, "del", cleaned_not(srt))
-        assert self.apply_anc_effs.nestings == [[]]
+        assert self.apply_anc_effs.nestings == [[], []]
 
     def test_del_trailing_nesting_extra_nesting(self):
         srt = SeparatedRMLTerm([self.bel, self.des], self.pred)
         assert self.apply_anc_effs.check_ant_match(self.trailing_nesting, "del", cleaned_not(srt))
-        assert self.apply_anc_effs.nestings == [[self.des]]
+        assert self.apply_anc_effs.nestings == [[], [self.des]]
 
     def test_del_trailing_nesting_wrong_pos(self):
         srt = SeparatedRMLTerm([self.des, self.bel], self.pred)
