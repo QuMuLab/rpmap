@@ -70,7 +70,7 @@ def ground_formula(formula: Sequence, assignment, domain, problem):
             variables = {v for v in fo.variables}
             val_generator = create_valuations(domain._agents.keys(), domain.gathered_constants, variables)
             for valuation in val_generator:
-                var_names = [v.name for v in vars]
+                var_names = [v.name for v in variables]
                 for var_name, val in zip(var_names, valuation):
                     assignment[var_name] = val
                 grounded_formulas.extend(ground_formula([fo.condition], assignment, domain, problem))
@@ -114,8 +114,8 @@ def create_grounded_fluents(domain, problem):
     formulas = set()
     for p in domain.predicates:
         val_generator = create_valuations(domain._agents.keys(), domain.gathered_constants, p.terms)
-        vars = p.terms if isinstance(p, Predicate) else p._get_predicate().terms
-        var_names = [v.name for v in vars]
+        variables = p.terms if isinstance(p, Predicate) else p._get_predicate().terms
+        var_names = [v.name for v in variables]
         for valuation in val_generator:
             assignment = {var_name: val for var_name, val in zip(var_names, valuation)}
             formulas.update(ground_formula([p], assignment, domain, problem))
@@ -124,16 +124,16 @@ def create_grounded_fluents(domain, problem):
 def create_grounded_operators(domain, problem):
     operators = set()
     for a in domain.actions:
-        vars = set(a.parameters)
+        variables = set(a.parameters)
         if a.derive_condition and not isinstance(a.derive_condition, str):
             if not isinstance(a.derive_condition, SeparatedRMLTerm):
                 raise PDDLValidationError(f"Unknown type {type(a.derive_condition)}.")
             dc_pred = a.derive_condition.term
-            vars.update(dc_pred.terms)
+            variables.update(dc_pred.terms)
             for n in a.derive_condition.nestings:
-                vars.add(n.agent.term)
-        var_names = [v.name for v in vars]
-        val_generator = create_valuations(domain._agents.keys(), domain.gathered_constants, vars)
+                variables.add(n.agent.term)
+        var_names = [v.name for v in variables]
+        val_generator = create_valuations(domain._agents.keys(), domain.gathered_constants, variables)
         for valuation in val_generator:
             assignment = {var_name: val for var_name, val in zip(var_names, valuation)}
             op_name_suffix = "_".join([assignment[var.name] for var in a.parameters])
@@ -159,7 +159,7 @@ def create_grounded_operators(domain, problem):
                     new_a.derive_condition = list(ground_formula([a.derive_condition], assignment, domain, problem))[0]
                     # store the assignment so we know what the derive condition variable $agent$ was grounded to
                     # we need this when applying ancillary effects, as the ancillary effect can reference the derive condition variable
-                    new_a.derive_condition.assignment = {var: val for var, val in zip(vars, valuation) if var == Variable("dlr_agent", ["agent"])}
+                    new_a.derive_condition.assignment = {var: val for var, val in zip(variables, valuation) if var == Variable("dlr_agent", ["agent"])}
             operators.add(new_a)
     return operators
 

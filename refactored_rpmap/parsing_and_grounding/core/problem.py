@@ -19,12 +19,11 @@ from textwrap import indent
 def projection_transformer(self, args):
     """Transformer for the problem depth."""
     args = basic_tokens_transformer(self, args)
-    return ("projection", args)
+    return ("projection", "")
 
 def depth_transformer(self, args):
     """Transformer for the problem depth."""
-    args = basic_tokens_transformer(self, args)
-    return ("depth", args)
+    return ("depth", int(args[2].value))
 
 def goal_transformer(self, args):
     """Transformer for the problem goal."""
@@ -33,7 +32,7 @@ def goal_transformer(self, args):
 def init_type_transformer(self, args):
     """Transformer for the problem init type."""
     args = basic_tokens_transformer(self, args)
-    return ("init_type", args) 
+    return ("init_type", args[2].value) 
 
 def plan_transformer(self, args):
 #     """Transformer for the problem plan."""
@@ -42,15 +41,12 @@ def plan_transformer(self, args):
 def task_transformer(self, args):
     """Transformer for the problem task."""
     args = basic_tokens_transformer(self, args)
-    return ("task", args)
+    return ("task", args[2].value)
 
 def problem_forall(self, args):
     """Transformer for foralls, adapted from the pddl.parser.domain.c_effect method."""
     variables = [Variable(var_name, tags) for var_name, tags in args[3]]
     return Forall(effect=args[-2], variables=variables)
-
-# def problem__gd_and(self, args):
-#     return self._domain_transformer.gd_and(args)
 
 # ----- STRING AND PRINT FUNCTIONS -----
 def pprint_pddl_collection(prefix, collection,):
@@ -64,14 +60,14 @@ def new_problem_str(self):
     body += sort_and_print_collection("(:requirements ", self.requirements, ")\n")
     if self.objects:
         body += print_constants("(:objects", self.objects, ")\n")
-    # body += f"(:projection )\n"
-    # body += f"(:depth {self.depth})\n"
-    # body += f"(:task {self.task})\n"
-    # body += f"(:init-type {self.init_type})\n"
+    body += f"(:projection )\n"
+    body += f"(:depth {self.depth})\n"
+    body += f"(:task {self.task})\n"
+    body += f"(:init-type {self.init_type})\n"
     body += pprint_pddl_collection("(:init", self.init)
     body += pprint_pddl_collection("(:goal", self.goal)
     body += f"{'(:metric ' + str(self.metric) + ')'}\n" if self.metric else ""
-    # body += pprint_pddl_collection("(:plan", self.plan)
+    body += pprint_pddl_collection("(:plan", self.plan)
     result = result + "\n" + indent(body, "\t") + "\n)"
     result = remove_empty_lines(result)
     return result
