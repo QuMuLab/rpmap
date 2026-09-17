@@ -12,13 +12,13 @@ class ApplyAncEffs:
     def __init__(self, anc_effs: list[AncEff], domain: Domain, problem: Problem, effs_to_apply: list[str] = None):
         anc_effs = {a.name: a for a in anc_effs}
         self.anc_effs = (
-            [anc_effs[a] for a in anc_effs if a in effs_to_apply]
+            {a: anc_effs[a] for a in anc_effs if a in effs_to_apply}
             if effs_to_apply
-            else list(anc_effs.values())
+            else anc_effs
         )
         self.domain = domain
         self.problem = problem
-        self.agents = set(domain._agents.keys())
+        self.agents = domain._agents
         self.rml: SeparatedRMLTerm = None
         self.pred: Predicate = None
         self.nestings: list[list[list[Nesting]]] = None
@@ -103,7 +103,7 @@ class ApplyAncEffs:
                     self.assignment[ant_rml.nestings[i].agent.term] = cond.nestings[i].agent.term
             return True
 
-    def check_ant_match(self, ant_rml: SeparatedRMLTerm, ant_rml_type: str, next_term: Not | When | SeparatedRMLTerm, awareness: bool = False, derive_condition: str | SeparatedRMLTerm = "never"):
+    def check_ant_match(self, ant_rml: SeparatedRMLTerm, ant_rml_type: str, next_term: Not | When | SeparatedRMLTerm, awareness: bool = False, derive_condition: str | SeparatedRMLTerm = "never", anc_eff_agents: set[Agent] = set()):
         nt = deepcopy(next_term)
         # if dealing with a When statement, we need to compare against the When effect.
         if isinstance(nt, When):
@@ -120,9 +120,14 @@ class ApplyAncEffs:
         if awareness:
             if derive_condition == "never":
                 return False
+            elif derive_condition == "always":
+                if Variable("dlr_agent", ["agent"]) in anc_eff_agents:
+                    return False
             elif isinstance(derive_condition, SeparatedRMLTerm):
                 if hasattr(derive_condition, "assignment"): 
                     self.assignment.update(derive_condition.assignment)
+            else:
+                raise ValueError(f"Unknown derived condition type {type(derive_condition)}.")
         if isinstance(nt, SeparatedRMLTerm):
             if isinstance(ant_rml.term, RMLTerm):
                 if ant_rml.nestings:
@@ -220,15 +225,17 @@ class ApplyAncEffs:
         return ApplyAncEffs.terms_to_rml(rml_terms)
 
     @staticmethod
-    def term_to_rml(and_or_when_or_srt: And | When | SeparatedRMLTerm | Not, existing_nestings: list[Nesting | NOT_MODL] = None):
-        if isinstance(and_or_when_or_srt, SeparatedRMLTerm) or isinstance(and_or_when_or_srt, Not):
-            return ApplyAncEffs.srt_to_rml(and_or_when_or_srt, existing_nestings)
-        elif isinstance(and_or_when_or_srt, And):
-            return create_and([ApplyAncEffs.term_to_rml(o, existing_nestings) for o in and_or_when_or_srt.operands])
-        elif isinstance(and_or_when_or_srt, When):
-            return When(ApplyAncEffs.term_to_rml(and_or_when_or_srt.condition, existing_nestings), ApplyAncEffs.term_to_rml(and_or_when_or_srt.effect, existing_nestings))
+    def term_to_rml(term: And | When | SeparatedRMLTerm | Not | Predicate, existing_nestings: list[Nesting | NOT_MODL] = None):
+        if isinstance(term, Predicate):
+            return term
+        elif isinstance(term, SeparatedRMLTerm) or isinstance(term, Not):
+            return ApplyAncEffs.srt_to_rml(term, existing_nestings)
+        elif isinstance(term, And):
+            return create_and([ApplyAncEffs.term_to_rml(o, existing_nestings) for o in term.operands])
+        elif isinstance(term, When):
+            return When(ApplyAncEffs.term_to_rml(term.condition, existing_nestings), ApplyAncEffs.term_to_rml(term.effect, existing_nestings))
         else:
-            raise ValueError(f"Invalid term type: {type(and_or_when_or_srt)}")
+            raise ValueError(f"Invalid term type: {type(term)}")
 
     def apply_rml(self, new_rml: SeparatedRMLTerm):
         new_rml = self.ground_nesting(new_rml)
@@ -274,14 +281,14 @@ class ApplyAncEffs:
             return pos_or_neg_conds
         elif isinstance(cond_or_rml, ListCompAgents):
             rmls = []
-            for ag in self.agents:
+            for ag in self.agents.keys():
                 self.assignment[Variable("ag", ["agent"])] = ag
                 rmls.append(self.apply_rml(cond_or_rml.term))
             return rmls
         elif isinstance(cond_or_rml, ListCompVarAgents):
             rmls = []
             pos_or_neg_conds = self.get_pos_or_neg_conds(cond_or_rml.var)
-            for ag in self.agents:
+            for ag in self.agents.keys():
                 self.assignment[Variable("ag", ["agent"])] = ag
                 for c in pos_or_neg_conds:
                     self.r = c
@@ -310,13 +317,21 @@ class ApplyAncEffs:
         if isinstance(term, Predicate):
             return term
         elif isinstance(term, SeparatedRMLTerm):
-            self.max_depth_detected = max(self.max_depth_detected, len(term.nestings))
+            self.max_depth_detected = max(self.max_depth_detected, len([t for t in term.nestings if not isinstance(t, NOT_MODL)]))
             return term
         elif isinstance(term, Not):
             return cleaned_not(self.simplify_and_check_depth(term.argument))
         elif isinstance(term, And):
+            if len(term.operands) > len(set(term.operands)):
+                print()
+                test = [self.simplify_and_check_depth(o) for o in set(term.operands)]
+                test_set = set(test)
             return list(set([self.simplify_and_check_depth(o) for o in set(term.operands)]))
         elif isinstance(term, When):
+            if len(term.effect.operands) > len(set(term.effect.operands)):
+                print()
+            cond = self.simplify_and_check_depth(term.condition)
+            eff = self.simplify_and_check_depth(term.effect)
             when = When(create_and(self.simplify_and_check_depth(term.condition)), create_and(self.simplify_and_check_depth(term.effect)))
             if len(when.effect.operands) > 1:
                 return [When(when.condition, create_and(e)) for e in when.effect.operands]
@@ -368,7 +383,7 @@ class ApplyAncEffs:
             raise ValueError(f"Invalid term type: {type(term)}")
 
     def apply_anc_effs_to_action(self, next_term, derive_condition, anc_effs = None):
-        self.anc_effs = anc_effs if anc_effs else self.anc_effs 
+        anc_effs = {a: self.anc_effs[a] for a in anc_effs} if anc_effs else self.anc_effs 
         next_term.id = ApplyAncEffs.gen_id(next_term)
         next_term.parent = None
         condleft = [next_term]
@@ -379,8 +394,8 @@ class ApplyAncEffs:
             next_term_rep = ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(next_term))
             if next_term_rep not in processed_conds:
                 processed_conds[next_term_rep] = next_term
-                for anc_eff in self.anc_effs:
-                    if self.check_ant_match(anc_eff.antecedent.rml, anc_eff.antecedent.anceff_type, next_term, anc_eff.antecedent.awareness, derive_condition):
+                for anc_eff in anc_effs.values():
+                    if self.check_ant_match(anc_eff.antecedent.rml, anc_eff.antecedent.anceff_type, next_term, anc_eff.antecedent.awareness, derive_condition, anc_eff.agents):
                         new_terms = self.apply_anc_eff_all_nestings(anc_eff.consequent, next_term, anc_eff.antecedent.awareness, derive_condition)
                         if self.max_depth_detected > self.problem.depth:
                             continue
@@ -390,10 +405,71 @@ class ApplyAncEffs:
                     self.reset()
         return list(processed_conds.values())[1:]
 
+    def generate_all_rmls(self):
+        curr = deepcopy(self.domain.predicates)
+        variants = {ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(p)): SeparatedRMLTerm(list(), p) for p in curr}
+        for depth in range(1, self.problem.depth + 1):
+            for p in curr:
+                if not p.always_known:
+                    for negation_status in (list(), [NOT_MODL()]):
+                        for generic_modl_permutation in list(itertools.product({*GenericMODLType, *PossibleGenericMODLType}, repeat=depth)):
+                            for agent_permutation in list(itertools.product(self.agents.values(), repeat=depth)):
+                                variant_nestings = deepcopy(negation_status)
+                                variant_nestings.extend([Nesting(generic_modl_permutation[i], Agent(Constant(agent_permutation[i], "agent"))) for i in range(depth)])
+                                srt_variant = SeparatedRMLTerm(variant_nestings, p)
+                                variants[ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(srt_variant))] = srt_variant
+                                if depth + 1 < self.problem.depth:
+                                    for action_modl in {*ActionMODLType, *PossibleActionMODLType}:
+                                        for agent in self.agents.values():
+                                            am_variant_nestings = deepcopy(variant_nestings)
+                                            am_variant_nestings.append(Nesting(action_modl, agent))
+                                            srt_variant = SeparatedRMLTerm(am_variant_nestings, p)
+                                            variants[ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(srt_variant))] = srt_variant
+        return variants
+
     def apply_anc_effs(self):
+        # all_predicates = self.generate_all_rmls()
+        # self.domain._predicates = [ApplyAncEffs.term_to_rml(p) for p in all_predicates.values()]
         for action in self.domain.actions:
             for o in action.effect.operands:
-                new_terms = self.apply_anc_effs_to_action(o)
+                new_terms = self.apply_anc_effs_to_action(o, action.derive_condition)
                 if new_terms:
                     action.effect._operands.extend(new_terms)
+        # if self.problem.init_type == "complete":
+        #     init_strs = [ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(init_rml)) for init_rml in self.problem.init]
+        #     all_except_init = {all_predicates[p] for p in all_predicates if p not in init_strs}
+        #     # create the negated (planning agent belief) version of everything NOT in the initial state
+        #     # add that to the initial state            
+        #     self.problem._init = list(self.problem.init)
+        #     for srt in all_except_init:
+        #         srt_neg = SeparatedRMLTerm([NOT_MODL()] + deepcopy(srt.nestings), srt.term)
+        #         if ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(srt_neg)) not in init_strs:
+        #             self.problem._init.append(srt_neg)
+        # # apply closure to everything in the initial state and goal
+        # closure_anc_effs = ["kd45closure__belief", "kd45closure__desire", "kd45closure__intention"]
+        # init_closure = []
+        # for init_rml in self.problem.init:
+        #     init_closure.extend(self.apply_anc_effs_to_action(init_rml, "never", closure_anc_effs))
+        # self.problem._init.extend(init_closure)
+        # goal_closure = []
+        # for goal_rml in self.problem.goal:
+        #     goal_closure.extend(self.apply_anc_effs_to_action(goal_rml, "never", closure_anc_effs))
+        # self.problem._goal.extend(goal_closure)
+
+        # now we need to convert everything to RMLs
+
+        for action in self.domain.actions:
+            action.derive_condition = ApplyAncEffs.term_to_rml(action.derive_condition) if isinstance(action.derive_condition, SeparatedRMLTerm) else action.derive_condition
+            for i in range(len(action.precondition._operands)):
+                action.precondition._operands[i] = ApplyAncEffs.term_to_rml(action.precondition._operands[i])
+            for i in range(len(action.effect._operands)):
+                action.effect._operands[i] = ApplyAncEffs.term_to_rml(action.effect._operands[i])
+        # self.problem._init = list(self.problem.init)
+        # self.problem._goal = list(self.problem.goal)
+        # for i in range(len(self.problem.init)):
+        #     self.problem._init[i] = ApplyAncEffs.term_to_rml(self.problem.init[i])
+        # for i in range(len(self.problem.goal)):
+        #     self.problem._goal[i] = ApplyAncEffs.term_to_rml(self.problem.goal[i])
+        # self.problem._init = frozenset(self.problem.init)
+        # self.problem._goal = frozenset(self.problem.goal)
         return self.domain, self.problem

@@ -16,14 +16,14 @@ from ..utils import return_option, basic_tokens_transformer
 class GenericMODLType(Enum):
     BEL = 1
     DES = 2
-    DSD = 3
-    LOV = 4
+    # DSD = 3
+    # LOV = 4
 
 class PossibleGenericMODLType(Enum):
     PBEL = 1
     PDES = 2
-    PDSD = 3
-    PLOV = 4
+    # PDSD = 3
+    # PLOV = 4
 
 class ActionMODLType(Enum):
     ITN = 1
@@ -428,6 +428,7 @@ class AncEff:
             raise PDDLValidationError(f"The antecedent and consequent of the {self.name} ancillary effect feature different" + "{nesting} term types.")
         self.antecedent = antecedent
         self.consequent = consequent
+        self.agents = ant_agents | cons_agents
 
     def get_agents(self, rml: SeparatedRMLTerm | MODLTermWNesting | Nesting | NOT_MODL):
         agents = set()

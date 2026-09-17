@@ -73,7 +73,7 @@ def ground_formula(formula: Sequence, assignment, domain, problem):
                 var_names = [v.name for v in variables]
                 for var_name, val in zip(var_names, valuation):
                     assignment[var_name] = val
-                grounded_formulas.extend(ground_formula([fo.condition], assignment, domain, problem))
+                grounded_formulas.extend(ground_formula(fo.condition.operands if isinstance(fo.condition, And) else [fo.condition], assignment, domain, problem))
             assignment = {}
         elif isinstance(fo, Forall):
             var_names = [v.name for v in fo.variables]
@@ -82,7 +82,7 @@ def ground_formula(formula: Sequence, assignment, domain, problem):
                 # need to add onto the existing assignment so we retain knowledge of outer variables
                 for var_name, val in zip(var_names, valuation):
                     assignment[var_name] = val
-                grounded_formulas.extend(ground_formula([fo.effect], assignment, domain, problem))
+                grounded_formulas.extend(ground_formula(fo.effect.operands if isinstance(fo.effect, And) else [fo.effect], assignment, domain, problem))
             assignment = {}
         elif isinstance(fo, And):
             for o in fo.operands:
@@ -90,13 +90,13 @@ def ground_formula(formula: Sequence, assignment, domain, problem):
         elif isinstance(fo, Not):
             if not isinstance(fo.argument, RML) and not isinstance(fo.argument, Predicate) and not isinstance(fo.argument, SeparatedRMLTerm):
                 raise PDDLValidationError(f"'Not' was applied to {type(fo.argument)}. 'Not' can only be applied to an RML or Predicate.")
-            grounded_formulas.append(cleaned_not(list(ground_formula([fo.argument], assignment, domain, problem))[0]))
+            grounded_formulas.append(cleaned_not(list(ground_formula(fo.argument.operands if isinstance(fo.argument, And) else [fo.argument], assignment, domain, problem))[0]))
         elif isinstance(fo, When):
             cond = ground_formula([fo.condition], assignment, domain, problem)
             # for formatting/consistency reasons, we want to force this into being an "And"
             eff = ground_formula([fo.effect], assignment, domain, problem)
             for e in eff:
-                grounded_formulas.append(When(create_and([cond]), create_and([e])))
+                grounded_formulas.append(When(create_and(cond), create_and([e])))
         elif isinstance(fo, SeparatedRMLTerm):
             grounded_formulas.append(SeparatedRMLTerm(list(ground_formula(fo.nestings, assignment, domain, problem)), list(ground_formula([fo.term], assignment, domain, problem))[0]))
         elif isinstance(fo, Nesting):
@@ -138,11 +138,10 @@ def create_grounded_operators(domain, problem):
             assignment = {var_name: val for var_name, val in zip(var_names, valuation)}
             op_name_suffix = "_".join([assignment[var.name] for var in a.parameters])
             op_name = a.name + "_" + op_name_suffix if op_name_suffix else a.name
-            pass_pre = a.precondition.operands if type(a.precondition) is And else [a.precondition]
-            precondition = ground_formula(pass_pre, assignment, domain, problem)
+            precondition = ground_formula(a.precondition.operands if isinstance(a.precondition, And) else [a.precondition], assignment, domain, problem)
             if not isinstance(precondition, And):
                 precondition = create_and(precondition)
-            effect = ground_formula([a.effect], assignment, domain, problem) 
+            effect = ground_formula(a.effect.operands if isinstance(a.effect, And) else [a.effect], assignment, domain, problem) 
             if not isinstance(effect, And):
                 effect = create_and(effect)
             new_a = Action(
@@ -151,7 +150,6 @@ def create_grounded_operators(domain, problem):
                     precondition,
                     effect
                 )
-            new_a.assignment = assignment
             if a.derive_condition:
                 if type(a.derive_condition) is str:
                     new_a.derive_condition = a.derive_condition 
@@ -159,7 +157,7 @@ def create_grounded_operators(domain, problem):
                     new_a.derive_condition = list(ground_formula([a.derive_condition], assignment, domain, problem))[0]
                     # store the assignment so we know what the derive condition variable $agent$ was grounded to
                     # we need this when applying ancillary effects, as the ancillary effect can reference the derive condition variable
-                    new_a.derive_condition.assignment = {var: val for var, val in zip(variables, valuation) if var == Variable("dlr_agent", ["agent"])}
+                    new_a.derive_condition.assignment = {var: domain._agents[val] for var, val in zip(variables, valuation) if var == Variable("dlr_agent", ["agent"])}
             operators.add(new_a)
     return operators
 

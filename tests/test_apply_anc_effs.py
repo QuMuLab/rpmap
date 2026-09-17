@@ -270,11 +270,11 @@ class TestApplyAncEffsSingle:
 
     # ----- RECURSIVE TESTS -----
     def test_recursive_anc_effs_closure(self):
-        self.apply_anc_effs_helper(SeparatedRMLTerm([self.bel_alice, self.bel_bob], self.pred), anc_effs=[self.kd45closure__belief]) == \
+        self.apply_anc_effs_helper(SeparatedRMLTerm([self.bel_alice, self.bel_bob], self.pred), anc_effs=["kd45closure__belief"]) == \
             [self.apply_anc_effs.sorted_str(term) for term in [self.pbel_alice(self.bel_bob(self.pred)), self.bel_alice(self.pbel_bob(self.pred)), self.pbel_alice(self.pbel_bob(self.pred))]]
 
     def test_recursive_anc_effs_closure_belief_desire(self):
-        self.apply_anc_effs_helper(SeparatedRMLTerm([self.bel_alice, self.des_bob], self.pred), anc_effs=[self.kd45closure__belief, self.kd45closure__desire]) == \
+        self.apply_anc_effs_helper(SeparatedRMLTerm([self.bel_alice, self.des_bob], self.pred), anc_effs=["kd45closure__belief", "kd45closure__desire"]) == \
             [self.apply_anc_effs.sorted_str(term) for term in [self.pbel_bob(self.des_bob(self.pred)), self.bel_bob(self.pdes_bob(self.pred)), self.pbel_bob(self.pdes_bob(self.pred)), self.bel_bob(self.pdes_bob(self.pred))]]
     
     
@@ -282,14 +282,14 @@ class TestApplyAncEffsSingle:
         pred3 = Predicate("secret3")
         derive_condition = SeparatedRMLTerm([self.des_bob], pred3)
         derive_condition.assignment = {Variable("dlr_agent", ["agent"]): Constant("bob", "agent")}
-        assert self.apply_anc_effs_helper(self.srt, derive_condition=derive_condition, anc_effs=[self.kd45closure__belief, self.mutual_awareness_pos__belief]) == \
+        assert self.apply_anc_effs_helper(self.srt, derive_condition=derive_condition, anc_effs=["kd45closure__belief", "mutual-awareness-pos__belief"]) == \
         [self.apply_anc_effs.sorted_str(term) for term in [
             When(create_and([self.des_bob(pred3)]), create_and([(self.bel_bob(self.pred))])),
             When(create_and([self.des_bob(pred3)]), create_and([(self.pbel_bob(self.pred))])),
             When(create_and([self.bel_bob(self.des_bob(pred3)), self.des_bob(pred3)]), create_and([(self.bel_bob(self.pred))])),
             When(create_and([self.bel_bob(self.des_bob(pred3)), self.des_bob(pred3)]), create_and([(self.pbel_bob(self.pred))]))
         ]]
-        assert self.apply_anc_effs_helper(self.srt, derive_condition=derive_condition, anc_effs=[self.mutual_awareness_pos__belief, self.kd45closure__belief]) == \
+        assert self.apply_anc_effs_helper(self.srt, derive_condition=derive_condition, anc_effs=["mutual-awareness-pos__belief", "kd45closure__belief"]) == \
         [self.apply_anc_effs.sorted_str(term) for term in [
             When(create_and([self.des_bob(pred3)]), create_and([(self.bel_bob(self.pred))])),
             When(create_and([self.bel_bob(self.des_bob(pred3)), self.des_bob(pred3)]), create_and([(self.bel_bob(self.pred))])),
@@ -298,7 +298,7 @@ class TestApplyAncEffsSingle:
         ]]
 
     def test_recursive_anc_effs_negation_removal_un_closure(self):
-        assert self.apply_anc_effs_helper(SeparatedRMLTerm([self.bel_alice], self.pred), anc_effs=[self.negation_removal, self.kd45_un_closure__belief]) == \
+        assert self.apply_anc_effs_helper(SeparatedRMLTerm([self.bel_alice], self.pred), anc_effs=["negation-removal", "kd45-un-closure__belief"]) == \
             [
                 self.apply_anc_effs.sorted_str(term) for term in [
                     Not(NOT_MODL()(self.bel_alice(self.pred))),
