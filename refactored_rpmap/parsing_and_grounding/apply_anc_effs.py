@@ -306,25 +306,18 @@ class ApplyAncEffs:
                 conds.extend([cleaned_not(gc) for gc in self.ground_cond_or_rml(c)])
         return conds
 
-    def squash_simplify_and_check_depth(self, term: When | And | Not | SeparatedRMLTerm):
+    def simplify_and_check_depth(self, term: When | And | Not | SeparatedRMLTerm):
         if isinstance(term, Predicate):
             return term
         elif isinstance(term, SeparatedRMLTerm):
-            if len(term.nestings) <= 1:
-                return term
-            new_nestings = [term.nestings[0]]
-            for n in term.nestings[1:]:
-                if n == new_nestings[-1] and not isinstance(n, NOT_MODL):
-                    continue
-                new_nestings.append(n)
-            self.max_depth_detected = max(self.max_depth_detected, len(new_nestings))
-            return SeparatedRMLTerm(new_nestings, term.term)
+            self.max_depth_detected = max(self.max_depth_detected, len(term.nestings))
+            return term
         elif isinstance(term, Not):
-            return cleaned_not(self.squash_simplify_and_check_depth(term.argument))
+            return cleaned_not(self.simplify_and_check_depth(term.argument))
         elif isinstance(term, And):
-            return [self.squash_simplify_and_check_depth(o) for o in term.operands]
+            return list(set([self.simplify_and_check_depth(o) for o in set(term.operands)]))
         elif isinstance(term, When):
-            when = When(create_and(self.squash_simplify_and_check_depth(term.condition)), create_and(self.squash_simplify_and_check_depth(term.effect)))
+            when = When(create_and(self.simplify_and_check_depth(term.condition)), create_and(self.simplify_and_check_depth(term.effect)))
             if len(when.effect.operands) > 1:
                 return [When(when.condition, create_and(e)) for e in when.effect.operands]
             return [when]
@@ -340,7 +333,7 @@ class ApplyAncEffs:
         for term in anc_eff_cons.rml: 
             for g_term in self.ground_cond_or_rml(term):
                 eff.append(g_term if anc_eff_cons.anceff_type == "add" else cleaned_not(g_term))
-        return self.squash_simplify_and_check_depth(When(create_and(conds), create_and(eff))) if conds else self.squash_simplify_and_check_depth(create_and(eff))
+        return self.simplify_and_check_depth(When(create_and(conds), create_and(eff))) if conds else self.simplify_and_check_depth(create_and(eff))
                 
     def apply_anc_eff_all_nestings(self, anc_eff_cons: Consequent, next_term, awareness: bool, derive_condition: str | SeparatedRMLTerm):
         if self.nestings:

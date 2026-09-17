@@ -15,6 +15,7 @@ from pddl.helpers.base import _typed_parameters
 from pddl.logic.base import Not
 from pddl.logic.predicates import Predicate
 from pddl.logic.terms import Variable, Constant
+from pddl.logic.effects import When
 from pddl.parser import domain, GRAMMAR_FILE
 from pddl._validation import Types, TypeChecker
 from textwrap import indent
@@ -145,12 +146,15 @@ def new_not_repr(self):
     return f"(not {repr(self.argument)})"
 
 def new_and_repr(self):
-    and_repr = "(and "
+    and_repr = "(and"
     for o in self.operands:
-        and_repr += f"{repr(o)} "
+        and_repr += f" {repr(o)}"
     and_repr += ")"
     return and_repr
 
+def new_when_repr(self):
+    return f"(when {repr(self.condition)} {repr(self.effect)})"
+    
 def new_domain_str(self):
     """New domain string adapted from the pddl.core.Domain.__str__ method."""
     # adapted from the PDDL Domain class __str__ method
@@ -252,6 +256,7 @@ def modify_domain_classes():
     pddl.logic.base.Not._negate = negate_not
     pddl.logic.base.Not.__repr__ = new_not_repr
     pddl.logic.base.And.__repr__ = new_and_repr
+    pddl.logic.effects.When.__repr__ = new_when_repr
     pddl.logic.predicates.Predicate.__str__ = new_predicate_str_rmls_str
     pddl.logic.predicates.Predicate.__repr__ = new_predicate_str_rmls_repr
     pddl.logic.predicates.Predicate.__eq__ = new_predicate_eq

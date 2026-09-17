@@ -83,11 +83,19 @@ class Nesting(GeneralRML):
         self.child: Nesting | RML | Predicate
 
     def __call__(self, arg):
-        if isinstance(arg, Nesting) or isinstance(arg, NOT_MODL) or isinstance(arg, Not):
+        if isinstance(arg, NOT_MODL) or isinstance(arg, Not):
+            new_base = deepcopy(self)
+            new_base.set_child(deepcopy(arg))
+            return new_base
+        elif isinstance(arg, Nesting):
+            if (arg.mod_type == self.mod_type or self.mod_type == Nesting._get_counterpart_modl(arg.mod_type)) and arg.agent == self.agent:
+                return arg
             new_base = deepcopy(self)
             new_base.set_child(deepcopy(arg))
             return new_base
         elif isinstance(arg, RML):
+            if (arg.mod_type == self.mod_type or self.mod_type == Nesting._get_counterpart_modl(arg.mod_type)) and arg.agent == self.agent:
+                return arg
             return RML(self.mod_type, self.agent, deepcopy(arg))
         elif isinstance(arg, Predicate):
             if arg.always_known:
@@ -99,15 +107,21 @@ class Nesting(GeneralRML):
         else:
             raise PDDLValidationError(f"A Nesting can only be applied to another Nesting or an RML, not {type(arg)}.")
 
-    def _negate(self):
-        if self.mod_type in GenericMODLType:
-            new_base = Nesting(list(PossibleGenericMODLType)[list(GenericMODLType).index(self.mod_type)], self.agent)
-        elif self.mod_type in PossibleGenericMODLType:
-            new_base = Nesting(list(GenericMODLType)[list(PossibleGenericMODLType).index(self.mod_type)], self.agent)
-        elif self.mod_type in ActionMODLType:
-            new_base = Nesting(list(PossibleActionMODLType)[list(ActionMODLType).index(self.mod_type)], self.agent)
+    @staticmethod
+    def _get_counterpart_modl(mod_type: GenericMODLType | PossibleGenericMODLType | ActionMODLType | PossibleActionMODLType):
+        if mod_type in GenericMODLType:
+            return list(PossibleGenericMODLType)[list(GenericMODLType).index(mod_type)]
+        elif mod_type in PossibleGenericMODLType:
+            return list(GenericMODLType)[list(PossibleGenericMODLType).index(mod_type)]
+        elif mod_type in ActionMODLType:
+            return list(PossibleActionMODLType)[list(ActionMODLType).index(mod_type)]
+        elif mod_type in PossibleActionMODLType:
+            return list(ActionMODLType)[list(PossibleActionMODLType).index(mod_type)]
         else:
-            new_base = Nesting(list(ActionMODLType)[list(PossibleActionMODLType).index(self.mod_type)], self.agent)
+            raise PDDLValidationError(f"Unknown modl type {mod_type}")
+
+    def _negate(self):
+        new_base = Nesting(Nesting._get_counterpart_modl(self.mod_type), self.agent)
         if self.child:
             return new_base(self.child._negate())
         return new_base
