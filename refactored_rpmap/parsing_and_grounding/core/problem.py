@@ -60,14 +60,14 @@ def new_problem_str(self):
     body += sort_and_print_collection("(:requirements ", self.requirements, ")\n")
     if self.objects:
         body += print_constants("(:objects", self.objects, ")\n")
-    body += f"(:projection )\n"
-    body += f"(:depth {self.depth})\n"
-    body += f"(:task {self.task})\n"
-    body += f"(:init-type {self.init_type})\n"
+    # body += f"(:projection )\n"
+    # body += f"(:depth {self.depth})\n"
+    # body += f"(:task {self.task})\n"
+    # body += f"(:init-type {self.init_type})\n"
     body += pprint_pddl_collection("(:init", self.init)
     body += pprint_pddl_collection("(:goal", self.goal)
-    body += f"{'(:metric ' + str(self.metric) + ')'}\n" if self.metric else ""
-    body += pprint_pddl_collection("(:plan", self.plan)
+    # body += f"{'(:metric ' + str(self.metric) + ')'}\n" if self.metric else ""
+    # body += pprint_pddl_collection("(:plan", self.plan)
     result = result + "\n" + indent(body, "\t") + "\n)"
     result = remove_empty_lines(result)
     return result

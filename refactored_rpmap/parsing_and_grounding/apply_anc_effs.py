@@ -416,6 +416,7 @@ class ApplyAncEffs:
     def generate_all_rmls(self):
         curr = deepcopy(self.domain.predicates)
         variants = {ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(p)): SeparatedRMLTerm(list(), p) for p in curr}
+        variants.update({ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(NOT_MODL()(p))): SeparatedRMLTerm([NOT_MODL()], p) for p in curr if not p.always_known})
         for depth in range(1, self.problem.depth + 1):
             for p in curr:
                 if not p.always_known:
@@ -459,10 +460,6 @@ class ApplyAncEffs:
         for init_rml in self.problem.init:
             init_closure.extend(self.apply_anc_effs_to_action(init_rml, "never", closure_anc_effs))
         self.problem._init.extend(init_closure)
-        goal_closure = []
-        for goal_rml in self.problem.goal:
-            goal_closure.extend(self.apply_anc_effs_to_action(goal_rml, "never", closure_anc_effs))
-        self.problem._goal.extend(goal_closure)
 
         # now we need to convert everything to RMLs
 
@@ -481,5 +478,5 @@ class ApplyAncEffs:
         for i in range(len(self.problem.goal)):
             self.problem._goal[i] = ApplyAncEffs.term_to_rml(self.problem.goal[i])
         self.problem._init = frozenset(self.problem.init)
-        self.problem._goal = frozenset(self.problem.goal)
+        self.problem._goal = [create_and(self.problem.goal)]
         return self.domain, self.problem

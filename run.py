@@ -5,6 +5,7 @@ from refactored_rpmap.parsing_and_grounding.core.problem import construct_proble
 from refactored_rpmap.parsing_and_grounding.utils import write
 from refactored_rpmap.parsing_and_grounding.apply_anc_effs import ApplyAncEffs
 from pddl.parser import GRAMMAR_FILE
+import pddl
 import os
 
 def create_updated_grammar_file():
@@ -45,6 +46,8 @@ def test_parse(pdkbddl_str):
     base_path = os.path.join("refactored_rpmap", "test_files")
     grounded_dom_path = os.path.join(base_path, "pdkb-domain.pddl")
     grounded_prob_path = os.path.join(base_path, "pdkb-problem.pddl")
+    pddl.core.Domain.grounded_print = True
+    pddl.core.Action.grounded_print = True
     write(grounded_dom_path, str(domain))
     write(grounded_prob_path, str(problem))
 
