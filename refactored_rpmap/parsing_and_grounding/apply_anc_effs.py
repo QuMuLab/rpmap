@@ -415,7 +415,11 @@ class ApplyAncEffs:
 
     def generate_all_rmls(self):
         curr = deepcopy(self.domain.predicates)
-        variants = {ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(p)): SeparatedRMLTerm(list(), p) for p in curr}
+        pos_predicates = {ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(p)): SeparatedRMLTerm(list(), p) for p in curr}
+        variants_pos_only = {}
+        variants_pos_only.update(pos_predicates)
+        variants = {}
+        variants.update(pos_predicates)
         variants.update({ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(NOT_MODL()(p))): SeparatedRMLTerm([NOT_MODL()], p) for p in curr if not p.always_known})
         for depth in range(1, self.problem.depth + 1):
             for p in curr:
@@ -427,6 +431,8 @@ class ApplyAncEffs:
                                 variant_nestings.extend([Nesting(generic_modl_permutation[i], Agent(Constant(agent_permutation[i], "agent"))) for i in range(depth)])
                                 srt_variant = SeparatedRMLTerm(variant_nestings, p)
                                 variants[ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(srt_variant))] = srt_variant
+                                if not negation_status:
+                                    variants_pos_only[ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(srt_variant))] = srt_variant
                                 if depth + 1 < self.problem.depth:
                                     for action_modl in {*ActionMODLType, *PossibleActionMODLType}:
                                         for agent in self.agents.values():
@@ -434,26 +440,28 @@ class ApplyAncEffs:
                                             am_variant_nestings.append(Nesting(action_modl, agent))
                                             srt_variant = SeparatedRMLTerm(am_variant_nestings, p)
                                             variants[ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(srt_variant))] = srt_variant
-        return variants
+                                            if not negation_status:
+                                                variants_pos_only[ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(srt_variant))] = srt_variant
+        return variants, variants_pos_only
 
     def apply_anc_effs(self):
-        all_predicates = self.generate_all_rmls()
-        self.domain._predicates = [ApplyAncEffs.term_to_rml(p) for p in all_predicates.values()]
+        all_rmls, all_rmls_pos_only = self.generate_all_rmls()
+        self.domain._predicates = [ApplyAncEffs.term_to_rml(p) for p in all_rmls.values()]
         for action in self.domain.actions:
             for o in action.effect.operands:
                 new_terms = self.apply_anc_effs_to_action(o, action.derive_condition)
                 if new_terms:
                     action.effect._operands.extend(new_terms)
         if self.problem.init_type == "complete":
-            init_strs = [ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(init_rml)) for init_rml in self.problem.init]
-            all_except_init = {all_predicates[p] for p in all_predicates if p not in init_strs and not all_predicates[p].term.always_known}
-            # create the negated (planning agent belief) version of everything NOT in the initial state
-            # add that to the initial state            
             self.problem._init = list(self.problem.init)
-            for srt in all_except_init:
-                srt_neg = SeparatedRMLTerm([NOT_MODL()] + deepcopy(srt.nestings), srt.term)
-                if ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(srt_neg)) not in init_strs:
-                    self.problem._init.append(srt_neg)
+            init_strs = [ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(init_rml)) for init_rml in self.problem.init]
+            # create the negated (planning agent belief) version of everything NOT in the initial state
+            # add that to the initial state  
+            for rml_str, rml in all_rmls_pos_only.items():
+                neg_rml = SeparatedRMLTerm([NOT_MODL()] + deepcopy(rml.nestings), rml.term)
+                if not rml.term.always_known and rml_str not in init_strs and ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(neg_rml)) not in init_strs:
+                    self.problem._init.append(neg_rml)
+
         # apply closure to everything in the initial state and goal
         closure_anc_effs = ["kd45closure__belief", "kd45closure__desire", "kd45closure__intention"]
         init_closure = []
