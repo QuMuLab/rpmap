@@ -53,7 +53,11 @@ class GeneralRML:
         self.child: GeneralRML | Predicate = None
 
     def __str__(self):
+        if self.child:
+            print()
         child = f"_{str(self.child)[1:-1]}" if self.child else ""
+        if f"({self.mod_type.name}_{self.agent}{child})" == "(PBEL_bob_not (at_alice_l1))":
+            print()
         return f"({self.mod_type.name}_{self.agent}{child})"
 
     def __repr__(self):
@@ -83,7 +87,7 @@ class Nesting(GeneralRML):
         self.child: Nesting | RML | Predicate
 
     def __call__(self, arg):
-        if isinstance(arg, NOT_MODL) or isinstance(arg, Not):
+        if isinstance(arg, NOT_MODL): #TODO: remove Not from possibilities here
             new_base = deepcopy(self)
             new_base.set_child(deepcopy(arg))
             return new_base

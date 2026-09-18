@@ -211,7 +211,7 @@ class ApplyAncEffs:
 
     @staticmethod
     def extend_srt_terms(srt: SeparatedRMLTerm | Not, existing_nestings: list[Nesting | NOT_MODL] = None):
-        rml_terms = list() if not existing_nestings else existing_nestings
+        rml_terms = list() if not existing_nestings else deepcopy(existing_nestings)
         if isinstance(srt, Not):
             srt = srt.argument
             rml_terms.append(Not)
@@ -313,23 +313,29 @@ class ApplyAncEffs:
                 conds.extend([cleaned_not(gc) for gc in self.ground_cond_or_rml(c)])
         return conds
 
+    @staticmethod
+    def simplify_always_known(operand_term: SeparatedRMLTerm | Not):
+        operand_term = deepcopy(operand_term)
+        if isinstance(operand_term, SeparatedRMLTerm):
+            if operand_term.term.always_known and operand_term.nestings:
+                operand_term.nestings = [n for n in operand_term.nestings if isinstance(n, NOT_MODL)]
+            return operand_term
+        elif isinstance(operand_term, Not):
+            return Not(ApplyAncEffs.simplify_always_known(operand_term.argument))
+        else:
+            raise ValueError(f"Unknown term type type(term)")
+
     def simplify_and_check_depth(self, term: When | And | Not | SeparatedRMLTerm):
-        if isinstance(term, Predicate):
+        if isinstance(term, Predicate) or isinstance(term, Not):
             return term
         elif isinstance(term, SeparatedRMLTerm):
             self.max_depth_detected = max(self.max_depth_detected, len([t for t in term.nestings if not isinstance(t, NOT_MODL)]))
             return term
-        elif isinstance(term, Not):
-            return cleaned_not(self.simplify_and_check_depth(term.argument))
         elif isinstance(term, And):
-            if len(term.operands) > len(set(term.operands)):
-                print()
-                test = [self.simplify_and_check_depth(o) for o in set(term.operands)]
-                test_set = set(test)
-            return list(set([self.simplify_and_check_depth(o) for o in set(term.operands)]))
+            for i in range(len(term.operands)):
+                term._operands[i] = ApplyAncEffs.simplify_always_known(term.operands[i])
+            return list({ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(t)): self.simplify_and_check_depth(t) for t in term.operands}.values())
         elif isinstance(term, When):
-            if len(term.effect.operands) > len(set(term.effect.operands)):
-                print()
             cond = self.simplify_and_check_depth(term.condition)
             eff = self.simplify_and_check_depth(term.effect)
             when = When(create_and(self.simplify_and_check_depth(term.condition)), create_and(self.simplify_and_check_depth(term.effect)))
@@ -401,6 +407,8 @@ class ApplyAncEffs:
                             continue
                         for new_term in new_terms:
                             if ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(new_term)) not in processed_conds:
+                                new_term.id = ApplyAncEffs.gen_id(new_term)
+                                new_term.comment = anc_eff.name + f" id({new_term.id}) / parent({next_term.id})"
                                 condleft.append(new_term)
                     self.reset()
         return list(processed_conds.values())[1:]
@@ -463,7 +471,9 @@ class ApplyAncEffs:
             for i in range(len(action.precondition._operands)):
                 action.precondition._operands[i] = ApplyAncEffs.term_to_rml(action.precondition._operands[i])
             for i in range(len(action.effect._operands)):
+                comment = action.effect._operands[i].comment if hasattr(action.effect._operands[i], "comment") else None
                 action.effect._operands[i] = ApplyAncEffs.term_to_rml(action.effect._operands[i])
+                action.effect._operands[i].comment = comment
         # self.problem._init = list(self.problem.init)
         # self.problem._goal = list(self.problem.goal)
         # for i in range(len(self.problem.init)):

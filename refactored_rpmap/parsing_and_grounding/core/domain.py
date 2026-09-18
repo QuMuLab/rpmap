@@ -108,7 +108,7 @@ def new_action_str(self):
         operator_str += f"    :effect ({self.effect.SYMBOL}{NL_AND_TABS}"
         for o in self.effect.operands:
             operator_str += f"{NL_AND_TABS}{o}"
-            if hasattr(o, "comment"):
+            if o.comment:
                 operator_str += f"; {o.comment}"
         operator_str += f"{NL_AND_TAB})" + "\n"
     operator_str += ")"
@@ -141,6 +141,9 @@ def new_predicate_str_rmls_repr(self):
     else:
         p_str = f"({p_str}"
     return p_str   
+
+def new_not_str(self):
+    return f"(not {str(self.argument)})"
 
 def new_not_repr(self):
     return f"(not {repr(self.argument)})"
@@ -255,6 +258,7 @@ def inject_domain_grammar(label, rule, function, grammar_file=GRAMMAR_FILE):
 def modify_domain_classes():
     pddl.logic.base.Not._negate = negate_not
     pddl.logic.base.Not.__repr__ = new_not_repr
+    pddl.logic.base.Not.__str__ = new_not_str
     pddl.logic.base.And.__repr__ = new_and_repr
     pddl.logic.effects.When.__repr__ = new_when_repr
     pddl.logic.predicates.Predicate.__str__ = new_predicate_str_rmls_str

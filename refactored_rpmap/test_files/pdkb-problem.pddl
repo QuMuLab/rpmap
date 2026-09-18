@@ -7,12 +7,12 @@
 	(:task valid_generation)
 	(:init-type complete)
 	(:init 
-		[] >> (at_alice_l1)
+		[] >> (connected_l1_l2)
 		[[BEL, bob]] >> (secret_bob)
 		[[BEL, alice]] >> (secret_alice)
-		[] >> (connected_l1_l2)
-		[] >> (connected_l2_l1)
+		[] >> (at_alice_l1)
 		[] >> (at_bob_l2)
+		[] >> (connected_l2_l1)
 	)
 	(:goal 
 		[[BEL, alice]] >> (secret_bob)
