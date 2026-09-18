@@ -46,7 +46,7 @@ class TestModalityConstruction:
             p = deepcopy(pred)
             p.always_known = True
             NOT(BEL(p))
-        with pytest.warns(Warning):
+        with pytest.raises(PDDLValidationError):
             p = deepcopy(pred)
             p.always_known = True
             BEL(NOT(p))
@@ -54,7 +54,7 @@ class TestModalityConstruction:
             p = deepcopy(pred)
             p.always_known = True
             NOT(NOT(NOT(p)))
-        with pytest.warns(Warning):
+        with pytest.raises(PDDLValidationError):
             p = deepcopy(pred)
             p.always_known = True
             NOT(BEL(NOT(DES(NOT(ITN(p))))))

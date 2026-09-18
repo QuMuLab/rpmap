@@ -436,33 +436,33 @@ class ApplyAncEffs:
         return variants
 
     def apply_anc_effs(self):
-        # all_predicates = self.generate_all_rmls()
-        # self.domain._predicates = [ApplyAncEffs.term_to_rml(p) for p in all_predicates.values()]
+        all_predicates = self.generate_all_rmls()
+        self.domain._predicates = [ApplyAncEffs.term_to_rml(p) for p in all_predicates.values()]
         for action in self.domain.actions:
             for o in action.effect.operands:
                 new_terms = self.apply_anc_effs_to_action(o, action.derive_condition)
                 if new_terms:
                     action.effect._operands.extend(new_terms)
-        # if self.problem.init_type == "complete":
-        #     init_strs = [ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(init_rml)) for init_rml in self.problem.init]
-        #     all_except_init = {all_predicates[p] for p in all_predicates if p not in init_strs}
-        #     # create the negated (planning agent belief) version of everything NOT in the initial state
-        #     # add that to the initial state            
-        #     self.problem._init = list(self.problem.init)
-        #     for srt in all_except_init:
-        #         srt_neg = SeparatedRMLTerm([NOT_MODL()] + deepcopy(srt.nestings), srt.term)
-        #         if ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(srt_neg)) not in init_strs:
-        #             self.problem._init.append(srt_neg)
-        # # apply closure to everything in the initial state and goal
-        # closure_anc_effs = ["kd45closure__belief", "kd45closure__desire", "kd45closure__intention"]
-        # init_closure = []
-        # for init_rml in self.problem.init:
-        #     init_closure.extend(self.apply_anc_effs_to_action(init_rml, "never", closure_anc_effs))
-        # self.problem._init.extend(init_closure)
-        # goal_closure = []
-        # for goal_rml in self.problem.goal:
-        #     goal_closure.extend(self.apply_anc_effs_to_action(goal_rml, "never", closure_anc_effs))
-        # self.problem._goal.extend(goal_closure)
+        if self.problem.init_type == "complete":
+            init_strs = [ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(init_rml)) for init_rml in self.problem.init]
+            all_except_init = {all_predicates[p] for p in all_predicates if p not in init_strs and not all_predicates[p].term.always_known}
+            # create the negated (planning agent belief) version of everything NOT in the initial state
+            # add that to the initial state            
+            self.problem._init = list(self.problem.init)
+            for srt in all_except_init:
+                srt_neg = SeparatedRMLTerm([NOT_MODL()] + deepcopy(srt.nestings), srt.term)
+                if ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(srt_neg)) not in init_strs:
+                    self.problem._init.append(srt_neg)
+        # apply closure to everything in the initial state and goal
+        closure_anc_effs = ["kd45closure__belief", "kd45closure__desire", "kd45closure__intention"]
+        init_closure = []
+        for init_rml in self.problem.init:
+            init_closure.extend(self.apply_anc_effs_to_action(init_rml, "never", closure_anc_effs))
+        self.problem._init.extend(init_closure)
+        goal_closure = []
+        for goal_rml in self.problem.goal:
+            goal_closure.extend(self.apply_anc_effs_to_action(goal_rml, "never", closure_anc_effs))
+        self.problem._goal.extend(goal_closure)
 
         # now we need to convert everything to RMLs
 
@@ -474,12 +474,12 @@ class ApplyAncEffs:
                 comment = action.effect._operands[i].comment if hasattr(action.effect._operands[i], "comment") else None
                 action.effect._operands[i] = ApplyAncEffs.term_to_rml(action.effect._operands[i])
                 action.effect._operands[i].comment = comment
-        # self.problem._init = list(self.problem.init)
-        # self.problem._goal = list(self.problem.goal)
-        # for i in range(len(self.problem.init)):
-        #     self.problem._init[i] = ApplyAncEffs.term_to_rml(self.problem.init[i])
-        # for i in range(len(self.problem.goal)):
-        #     self.problem._goal[i] = ApplyAncEffs.term_to_rml(self.problem.goal[i])
-        # self.problem._init = frozenset(self.problem.init)
-        # self.problem._goal = frozenset(self.problem.goal)
+        self.problem._init = list(self.problem.init)
+        self.problem._goal = list(self.problem.goal)
+        for i in range(len(self.problem.init)):
+            self.problem._init[i] = ApplyAncEffs.term_to_rml(self.problem.init[i])
+        for i in range(len(self.problem.goal)):
+            self.problem._goal[i] = ApplyAncEffs.term_to_rml(self.problem.goal[i])
+        self.problem._init = frozenset(self.problem.init)
+        self.problem._goal = frozenset(self.problem.goal)
         return self.domain, self.problem
