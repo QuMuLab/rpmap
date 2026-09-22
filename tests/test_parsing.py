@@ -12,7 +12,7 @@ from refactored_rpmap.parsing_and_grounding.core.anc_eff import *
 from refactored_rpmap.parsing_and_grounding.parser_setup import read_pdkbddl_file
 from refactored_rpmap.parsing_and_grounding.apply_anc_effs import ApplyAncEffs
 from refactored_rpmap.parsing_and_grounding.utils import cleaned_not
-from run import parse, get_parsing_result
+from evaluate_updated import parse, get_parsing_result
 from copy import deepcopy
 from enum import Enum
 import pytest

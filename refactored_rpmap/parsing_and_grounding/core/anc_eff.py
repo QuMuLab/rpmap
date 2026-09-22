@@ -53,11 +53,7 @@ class GeneralRML:
         self.child: GeneralRML | Predicate = None
 
     def __str__(self):
-        if self.child:
-            print()
         child = f"_{str(self.child)[1:-1]}" if self.child else ""
-        if f"({self.mod_type.name}_{self.agent}{child})" == "(PBEL_bob_not (at_alice_l1))":
-            print()
         return f"({self.mod_type.name}_{self.agent}{child})"
 
     def __repr__(self):
@@ -407,16 +403,16 @@ class AncEff:
     def __init__(self, name: str, parameters: list[Variable], antecedent: Antecedent, consequent: Consequent):
         self.name = name
         self.parameters = parameters if parameters else list()
-        ant_agents = self.get_agents(antecedent.rml)
+        ant_agents = AncEff._get_agents(antecedent.rml)
         cons_agents = set()
         if consequent.poscond:
             for r in consequent.poscond:
-                cons_agents.update(self.get_agents(r))
+                cons_agents.update(AncEff._get_agents(r))
         if consequent.negcond:
             for r in consequent.negcond:
-                cons_agents.update(self.get_agents(r))
+                cons_agents.update(AncEff._get_agents(r))
         for r in consequent.rml:
-            cons_agents.update(self.get_agents(r))
+            cons_agents.update(AncEff._get_agents(r))
         agents_to_ignore = {Variable("ag", ["agent"]), Variable("dlr_agent", ["agent"])}    
         for a in ant_agents | cons_agents:
             if a in agents_to_ignore:
@@ -434,7 +430,8 @@ class AncEff:
         self.consequent = consequent
         self.agents = ant_agents | cons_agents
 
-    def get_agents(self, rml: SeparatedRMLTerm | MODLTermWNesting | Nesting | NOT_MODL):
+    @staticmethod
+    def _get_agents(rml: SeparatedRMLTerm | MODLTermWNesting | Nesting | NOT_MODL):
         agents = set()
         if isinstance(rml, NOT_MODL) or isinstance(rml, Variable):
             return agents
@@ -444,18 +441,17 @@ class AncEff:
             agents.add(rml.agent.term)
         elif isinstance(rml, ListCompVar):
             for n in rml.term.nestings:
-                agents.update(self.get_agents(n))
+                agents.update(AncEff._get_agents(n))
         elif isinstance(rml, ListCompAgents) or isinstance(rml, ListCompVarAgents):
             for n in rml.term.nestings:
-                agents.update(self.get_agents(n))
+                agents.update(AncEff._get_agents(n))
         elif isinstance(rml, SeparatedRMLTerm):
             for n in rml.nestings:
-                agents.update(self.get_agents(n))
+                agents.update(AncEff._get_agents(n))
         else:
             raise ValueError(f"Unexpected type {type(rml)}.")
         return agents
                 
-
     def __eq__(self, other):
         return (isinstance(other, AncEff) and 
                 other.name == self.name and
@@ -469,7 +465,7 @@ class AncEff:
 
 # ----- TRANSFORMER FUNCTIONS -----
 
-def atomic_formula_term(self, args):
+def atomic_formula_term(self, args): 
     all_nestings = []
     term = None
     for a in args[:-1]:

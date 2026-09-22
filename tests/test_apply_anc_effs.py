@@ -6,7 +6,7 @@ from refactored_rpmap.parsing_and_grounding.core.anc_eff import *
 from refactored_rpmap.parsing_and_grounding.apply_anc_effs import ApplyAncEffs
 from refactored_rpmap.parsing_and_grounding.parser_setup import read_pdkbddl_file
 from refactored_rpmap.parsing_and_grounding.utils import cleaned_not, create_and
-from run import parse, ground
+from evaluate_updated import parse, ground
 import pytest
 import os
 
@@ -33,7 +33,8 @@ class TestApplyAncEffsSingle:
         request.cls.bel_bob = Nesting(GenericMODLType.BEL, Agent(Constant("bob", "agent")))
         request.cls.pbel_bob = Nesting(PossibleGenericMODLType.PBEL, Agent(Constant("bob", "agent")))
         request.cls.des_bob = Nesting(GenericMODLType.DES, Agent(Constant("bob", "agent")))
-        request.cls.pdes_bob = Nesting(PossibleGenericMODLType.PDES, Agent(Constant("bob", "agent")))
+        request.cls.pdes_bob = Nesting(PossibleGenericMODLType.PDES, Agent(Constant("bob", "agent"))) 
+        request.cls.bel_cindy = Nesting(GenericMODLType.BEL, Agent(Constant("cindy", "agent")))
         request.cls.pred = Predicate("secret")
         request.cls.srt = SeparatedRMLTerm(list(), request.cls.pred)
         request.cls.pred2 = Predicate("secret2")
@@ -154,9 +155,8 @@ class TestApplyAncEffsSingle:
     def test_mutual_awareness_pos_dc_srt(self):
         # NOTE: the derive condition gets grounded with the rest of the domain, and the assignment to the derive condition variable $agent$ is stored then
         derive_condition = SeparatedRMLTerm([self.des_bob], self.pred)
-        derive_condition.assignment = {Variable("dlr_agent", ["agent"]): Constant("bob", "agent")}
-        assert self.apply_anc_eff_helper(self.mutual_awareness_pos__belief, self.srt, awareness=self.mutual_awareness_pos__belief.antecedent.awareness, derive_condition=derive_condition) == [self.apply_anc_effs.sorted_str(When(create_and([self.des_bob(self.pred)]), create_and([self.bel_bob(self.pred)])))
-]
+        assert set(self.apply_anc_eff_helper(self.mutual_awareness_pos__belief, self.srt, awareness=self.mutual_awareness_pos__belief.antecedent.awareness, derive_condition=derive_condition)) == set([self.apply_anc_effs.sorted_str(term) for term in [When(create_and([self.des_bob(self.pred)]), create_and([self.bel_alice(self.pred)])), When(create_and([self.des_bob(self.pred)]), create_and([self.bel_bob(self.pred)])), When(create_and([self.des_bob(self.pred)]), create_and([self.bel_cindy(self.pred)]))]])
+
     def test_mutual_awareness_pos_poscond_dc_srt(self):
         derive_condition = SeparatedRMLTerm([self.des_bob], self.pred)
         derive_condition.assignment = {Variable("dlr_agent", ["agent"]): Constant("bob", "agent")}

@@ -6,7 +6,7 @@ from refactored_rpmap.parsing_and_grounding.core.anc_eff import *
 from refactored_rpmap.parsing_and_grounding.apply_anc_effs import ApplyAncEffs
 from refactored_rpmap.parsing_and_grounding.parser_setup import read_pdkbddl_file
 from refactored_rpmap.parsing_and_grounding.utils import cleaned_not, create_and
-from run import parse, ground
+from evaluate_updated import parse, ground
 import pytest
 import os
 

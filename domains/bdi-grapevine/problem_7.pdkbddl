@@ -1,5 +1,5 @@
-{include:ancillary_effects.pdkbddl}
 {include:domain.pdkbddl}
+{include:ae_default.pdkbddl}
 
 (define (problem depth_2_agents_3)
 
@@ -23,13 +23,13 @@
         (at bob l2)
         (at cindy l3)
 
-        [b, alice](secret alice)
-        ![b, cindy](secret alice)
+        [bel, alice](secret alice)
+        ![bel, cindy](secret alice)
     )
     (:goal
         (and
-            [b, cindy](secret alice)
-            <b, cindy>(secret alice)
+            [bel, cindy](secret alice)
+            <bel, cindy>(secret alice)
         )  
     )
     (:plan )

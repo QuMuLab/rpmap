@@ -51,7 +51,7 @@ def ground_formula(formula: Sequence, assignment, domain, problem):
             else:
                 terms = list(fo.terms)
                 for i in range(len(terms)):
-                    if isinstance(terms[i], Variable):
+                    if isinstance(terms[i], Variable) and terms[i] != Variable("dlr_agent", ["agent"]):
                         if terms[i].name not in assignment:
                             raise PDDLValidationError(f"Variable {terms[i].name} not defined; cannot ground.")
                         terms[i] = Constant(assignment[terms[i].name]) 
@@ -121,6 +121,31 @@ def create_grounded_fluents(domain, problem):
             formulas.update(ground_formula([p], assignment, domain, problem))
     return formulas
 
+def ground_action(a, domain, problem, assignment):
+    op_name_suffix = "_".join([assignment[var.name] for var in a.parameters])
+    op_name = a.name + "_" + op_name_suffix if op_name_suffix else a.name
+    precondition = ground_formula(a.precondition.operands if isinstance(a.precondition, And) else [a.precondition], assignment, domain, problem)
+    if not isinstance(precondition, And):
+        precondition = create_and(precondition)
+    effect = ground_formula(a.effect.operands if isinstance(a.effect, And) else [a.effect], assignment, domain, problem) 
+    if not isinstance(effect, And):
+        effect = create_and(effect)
+    new_a = Action(
+            op_name,
+            None,
+            precondition,
+            effect
+        )
+    if a.derive_condition:
+        if type(a.derive_condition) is str:
+            new_a.derive_condition = a.derive_condition 
+        else:
+            new_a.derive_condition = list(ground_formula([a.derive_condition], assignment, domain, problem))[0]
+            # store the assignment so we know what the derive condition variable $agent$ was grounded to
+            # we need this when applying ancillary effects, as the ancillary effect can reference the derive condition variable
+            # new_a.derive_condition.dlr_var = list(domain._agents.values()) if Variable("dlr_agent", ["agent"]) in a.derive_condition.term.terms else None
+    return new_a
+
 def create_grounded_operators(domain, problem):
     operators = set()
     for a in domain.actions:
@@ -136,29 +161,7 @@ def create_grounded_operators(domain, problem):
         val_generator = create_valuations(domain._agents.keys(), domain.gathered_constants, variables)
         for valuation in val_generator:
             assignment = {var_name: val for var_name, val in zip(var_names, valuation)}
-            op_name_suffix = "_".join([assignment[var.name] for var in a.parameters])
-            op_name = a.name + "_" + op_name_suffix if op_name_suffix else a.name
-            precondition = ground_formula(a.precondition.operands if isinstance(a.precondition, And) else [a.precondition], assignment, domain, problem)
-            if not isinstance(precondition, And):
-                precondition = create_and(precondition)
-            effect = ground_formula(a.effect.operands if isinstance(a.effect, And) else [a.effect], assignment, domain, problem) 
-            if not isinstance(effect, And):
-                effect = create_and(effect)
-            new_a = Action(
-                    op_name,
-                    None,
-                    precondition,
-                    effect
-                )
-            if a.derive_condition:
-                if type(a.derive_condition) is str:
-                    new_a.derive_condition = a.derive_condition 
-                else:
-                    new_a.derive_condition = list(ground_formula([a.derive_condition], assignment, domain, problem))[0]
-                    # store the assignment so we know what the derive condition variable $agent$ was grounded to
-                    # we need this when applying ancillary effects, as the ancillary effect can reference the derive condition variable
-                    new_a.derive_condition.assignment = {var: domain._agents[val] for var, val in zip(variables, valuation) if var == Variable("dlr_agent", ["agent"])}
-            operators.add(new_a)
+            operators.add(ground_action(a, domain, problem, assignment))
     return operators
 
 def gather_itn_preds(formula):
@@ -186,7 +189,6 @@ def gather_itn_preds(formula):
         elif isinstance(fo, SeparatedRMLTerm):
             continue
         else:
-            print()
             raise NotImplementedError("Unknown formula type: " + str(type(fo)))
     return itn_preds
 
