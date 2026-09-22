@@ -10,5 +10,5 @@
 (hide_alice_cindy_l2_l1 )
 (move_cindy_l1_l2 )
 (move_alice_l2_l1 )
-(capture-win_alice_l1 )
+(capture-and-win_alice_l1 )
 ; cost = 13 (unit cost)

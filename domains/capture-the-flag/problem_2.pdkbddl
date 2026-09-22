@@ -1,6 +1,6 @@
-{include:ancillary_effects.pdkbddl}
-{include:ancillary_effects__belief-desire-2.pdkbddl}
 {include:domain.pdkbddl}
+{include:ae_default.pdkbddl}
+{include:ancillary_effects__belief-desire-2.pdkbddl}
 
 (define (problem paper2)
 
@@ -31,7 +31,7 @@
     )
 
     (:goal 
-        (capture-win)
+        (and (capture-win))
     )
 
     (:plan

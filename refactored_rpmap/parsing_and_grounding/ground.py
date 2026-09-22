@@ -186,6 +186,8 @@ def gather_itn_preds(formula):
         elif isinstance(fo, When):
             itn_preds.update(gather_itn_preds([fo.condition]))
             itn_preds.update(gather_itn_preds([fo.effect]))
+        elif isinstance(fo, ListCompVar) or isinstance(fo, ListCompAgents) or isinstance(fo, ListCompVarAgents):
+            itn_preds.update(gather_itn_preds([fo.term]))
         elif isinstance(fo, SeparatedRMLTerm):
             continue
         else:
@@ -203,10 +205,7 @@ def create_itn_action_preds(operators, agents, problem, anc_effs):
         itn_preds.update(gather_itn_preds(a.effect.operands))
     for ae in anc_effs:
         for fo in ([ae.antecedent.rml] + ae.consequent.rml):
-            if isinstance(fo, ListCompVar) or isinstance(fo, ListCompAgents) or isinstance(fo, ListCompVarAgents):
-                itn_preds.update(gather_itn_preds([fo.term]))
-            else:
-                itn_preds.update(gather_itn_preds([fo]))
+            itn_preds.update(gather_itn_preds([fo]))
     itn_preds_strs = [str(p) for p in itn_preds]
     action_intention_f = set()
     for i in range(len(operators)):

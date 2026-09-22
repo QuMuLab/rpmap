@@ -104,7 +104,7 @@ class ApplyAncEffs:
                     self.assignment[ant_rml.nestings[i].agent.term] = cond.nestings[i].agent.term
             return True
 
-    def check_ant_match(self, ant_rml: SeparatedRMLTerm, ant_rml_type: str, next_term: Not | When | SeparatedRMLTerm, awareness: bool = False, derive_condition: str | SeparatedRMLTerm = "never", anc_eff_agents: set[Agent] = set()):
+    def check_ant_match(self, ant_rml: SeparatedRMLTerm, ant_rml_type: str, next_term: Not | When | SeparatedRMLTerm, awareness: bool = False, derive_condition: str | SeparatedRMLTerm = "never"):
         nt = deepcopy(next_term)
         # if dealing with a When statement, we need to compare against the When effect.
         if isinstance(nt, When):
@@ -174,6 +174,18 @@ class ApplyAncEffs:
                         return False
                 self.pred = deepcopy(nt.term)
                 return True
+            elif isinstance(ant_rml.term, Predicate):
+                if ant_rml.nestings:
+                    if not self.check_ant_rml_nestings(ant_rml, nt, soft_check=False):
+                        return False
+                else:
+                    if nt.nestings:
+                        return False
+                if ant_rml.term.name == nt.term.name and ant_rml.term.arity == nt.term.arity:
+                    for i in range(len(ant_rml.term.terms)):
+                        self.assignment[ant_rml.term.terms[i]] = nt.term.terms[i]
+                    return True
+                return False
             else:
                 raise PDDLValidationError(f"Unknown Antecedent term type {type(ant_rml.term)}")
         else:
@@ -307,6 +319,8 @@ class ApplyAncEffs:
             return rmls
         elif isinstance(cond_or_rml, SeparatedRMLTerm):
             return [self.apply_rml(cond_or_rml)]
+        elif isinstance(cond_or_rml, Not):
+            return [cleaned_not(self.ground_cond_or_rml(cond_or_rml.argument)[0])]
         else:
             raise ValueError(f"Unknown condition type {type(cond_or_rml)}")
 
@@ -426,9 +440,9 @@ class ApplyAncEffs:
                 #     print()
                 processed_conds[next_term_rep] = next_term
                 for anc_eff in anc_effs.values():
-                    if self.check_ant_match(anc_eff.antecedent.rml, anc_eff.antecedent.anceff_type, next_term, anc_eff.antecedent.awareness, derive_condition, anc_eff.agents):
-                        # if anc_eff.name == "kd45closure__belief":
-                        #     print()
+                    # if anc_eff.name == "mutual-awareness-pos__belief":
+                    #     print()
+                    if self.check_ant_match(anc_eff.antecedent.rml, anc_eff.antecedent.anceff_type, next_term, anc_eff.antecedent.awareness, derive_condition):
                         new_terms = self.apply_anc_eff_all_dlr_agent(anc_eff, next_term, anc_eff.antecedent.awareness, derive_condition)
                         if self.max_depth_detected > self.problem.depth:
                             self.reset()
@@ -465,7 +479,7 @@ class ApplyAncEffs:
                                     for action_modl in {*ActionMODLType, *PossibleActionMODLType}:
                                         for agent in self.agents.values():
                                             am_variant_nestings = deepcopy(variant_nestings)
-                                            am_variant_nestings.append(Nesting(action_modl, agent))
+                                            am_variant_nestings.append(Nesting(action_modl, Agent(agent)))
                                             srt_variant = SeparatedRMLTerm(am_variant_nestings, p)
                                             variants[ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(srt_variant))] = srt_variant
                                             if not negation_status:
@@ -478,7 +492,7 @@ class ApplyAncEffs:
         all_rmls, all_rmls_pos_only = self.generate_all_rmls()
         self.domain._predicates = [ApplyAncEffs.term_to_rml(p) for p in all_rmls.values()]
         for action in self.domain.actions:
-            # if action.name == "share_alice_alice_l1":
+            # if action.name == "move_bob_l2_l3":
             #     print()
             for o in action.effect.operands:
                 new_terms = self.apply_anc_effs_to_action(o, action.derive_condition)

@@ -73,7 +73,7 @@ class GeneralRML:
 
     def set_child(self, arg):
         if arg:
-            if (self.mod_type in ActionMODLType or self.mod_type in PossibleActionMODLType) and not isinstance(arg, Predicate):
+            if (self.mod_type in ActionMODLType or self.mod_type in PossibleActionMODLType) and not isinstance(arg, Predicate) and not isinstance(arg, NOT_MODL):
                 raise PDDLValidationError("Cannot apply an Action MODL to another MODL.")
         self.child = arg
 
@@ -403,54 +403,58 @@ class AncEff:
     def __init__(self, name: str, parameters: list[Variable], antecedent: Antecedent, consequent: Consequent):
         self.name = name
         self.parameters = parameters if parameters else list()
-        ant_agents = AncEff._get_agents(antecedent.rml)
-        cons_agents = set()
+        ant_vars = AncEff._get_vars(antecedent.rml)
+        cons_vars = set()
         if consequent.poscond:
             for r in consequent.poscond:
-                cons_agents.update(AncEff._get_agents(r))
+                cons_vars.update(AncEff._get_vars(r))
         if consequent.negcond:
             for r in consequent.negcond:
-                cons_agents.update(AncEff._get_agents(r))
+                cons_vars.update(AncEff._get_vars(r))
         for r in consequent.rml:
-            cons_agents.update(AncEff._get_agents(r))
-        agents_to_ignore = {Variable("ag", ["agent"]), Variable("dlr_agent", ["agent"])}    
-        for a in ant_agents | cons_agents:
-            if a in agents_to_ignore:
+            cons_vars.update(AncEff._get_vars(r))
+        vars_to_ignore = {Variable("ag", ["agent"]), Variable("dlr_agent", ["agent"])}    
+        for a in ant_vars | cons_vars:
+            if a in vars_to_ignore:
                 continue
             if not self.parameters or a not in self.parameters:
-                raise PDDLValidationError(f"Agent {a} not in the ancillary effect {self.name} parameters, {self.parameters}.")
-        diff = cons_agents - ant_agents
-        if diff != set() and diff not in [{a} for a in agents_to_ignore]:
-            raise PDDLValidationError(f"The consequent in the ancillary effect {name} contains agent variables {diff} not referenced in the antecedent.")
+                raise PDDLValidationError(f"Variable {a} not in the ancillary effect {self.name} parameters, {self.parameters}.")
+        diff = cons_vars - ant_vars
+        if diff != set() and diff not in [{a} for a in vars_to_ignore]:
+            raise PDDLValidationError(f"The consequent in the ancillary effect {name} contains variables {diff} not referenced in the antecedent.")
         ant_terms_w_nesting_types = {type(term) for term in antecedent.rml.nestings if isinstance(term, MODLTermWNesting)}
         cons_terms_w_nesting_types = {type(term) for rml in consequent.rml if isinstance(rml, SeparatedRMLTerm) for term in rml.nestings if isinstance(term, MODLTermWNesting)}
         if ant_terms_w_nesting_types != cons_terms_w_nesting_types:
             raise PDDLValidationError(f"The antecedent and consequent of the {self.name} ancillary effect feature different" + "{nesting} term types.")
         self.antecedent = antecedent
         self.consequent = consequent
-        self.agents = ant_agents | cons_agents
+        self.agents = {a for a in ant_vars | cons_vars if "agent" in a.type_tags}
 
     @staticmethod
-    def _get_agents(rml: SeparatedRMLTerm | MODLTermWNesting | Nesting | NOT_MODL):
-        agents = set()
+    def _get_vars(rml: SeparatedRMLTerm | MODLTermWNesting | Nesting | NOT_MODL):
+        variables = set()
         if isinstance(rml, NOT_MODL) or isinstance(rml, Variable):
-            return agents
+            return variables
         elif isinstance(rml, MODLTermWNesting):
-            agents.add(rml.modl.agent.term)
+            variables.add(rml.modl.agent.term)
         elif isinstance(rml, Nesting):
-            agents.add(rml.agent.term)
+            variables.add(rml.agent.term)
         elif isinstance(rml, ListCompVar):
             for n in rml.term.nestings:
-                agents.update(AncEff._get_agents(n))
+                variables.update(AncEff._get_vars(n))
         elif isinstance(rml, ListCompAgents) or isinstance(rml, ListCompVarAgents):
             for n in rml.term.nestings:
-                agents.update(AncEff._get_agents(n))
+                variables.update(AncEff._get_vars(n))
         elif isinstance(rml, SeparatedRMLTerm):
             for n in rml.nestings:
-                agents.update(AncEff._get_agents(n))
+                variables.update(AncEff._get_vars(n))
+            if isinstance(rml.term, Predicate):
+                variables.update(rml.term.terms)
+        elif isinstance(rml, Not):
+            variables.update(AncEff._get_vars(rml.argument))
         else:
             raise ValueError(f"Unexpected type {type(rml)}.")
-        return agents
+        return deepcopy(variables)
                 
     def __eq__(self, other):
         return (isinstance(other, AncEff) and 
@@ -629,6 +633,9 @@ def return_wildcard_nesting(self, args):
 def pos_or_neg_var(self, args):
     return Variable(args.value[1:])
 
+def not_derived_atomic_formula_term(self, args):
+    return Not(args[2])
+
 # ----- ANCILLARY EFFECT TRANSFORMER -----
 
 class AncEffTransformer(Transformer):
@@ -647,6 +654,7 @@ class AncEffTransformer(Transformer):
         setattr(AncEffTransformer, "atomic_formula_term_r", atomic_formula_term)
         setattr(AncEffTransformer, "atomic_formula_term_nesting_term", atomic_formula_term_anceff)
         setattr(AncEffTransformer, "atomic_formula_term_anceff", return_option)
+        setattr(AncEffTransformer, "not_derived_atomic_formula_term", not_derived_atomic_formula_term)
         setattr(AncEffTransformer, "r_term", r_term)
         setattr(AncEffTransformer, "rml_term", rml_term)
         setattr(AncEffTransformer, "pred_term", pred_term)

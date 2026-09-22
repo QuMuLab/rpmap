@@ -1,6 +1,6 @@
-{include:ancillary_effects.pdkbddl}
-{include:ancillary_effects__belief-desire-2.pdkbddl}
 {include:domain.pdkbddl}
+{include:ae_default.pdkbddl}
+{include:ancillary_effects__belief-desire-2.pdkbddl}
 
 (define (problem paper2)
 
@@ -36,8 +36,10 @@
     )
 
     (:goal 
-        (capture-win)
-        [b, alice](hiding-spot-at l3)
+        (and 
+            (capture-win)
+            [bel, alice](hiding-spot-at l3)
+        )
     )
 
     (:plan
