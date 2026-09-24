@@ -1,6 +1,6 @@
-{include:ancillary_effects.pdkbddl}
-{include:ancillary_effects__belief-desire.pdkbddl}
 {include:domain.pdkbddl}
+{include:ae_default.pdkbddl}
+{include:ancillary_effects__belief-desire.pdkbddl}
 
 (define (problem depth_2_agents_2)
 
@@ -27,8 +27,10 @@
     )
 
     (:goal 
-        [b, bob][b, alice](book-teachings)
-        [b, bob](book-teachings)
+        (and
+            [bel, bob][bel, alice](book-teachings)
+            [bel, bob](book-teachings)
+        )
     )
 
     (:plan

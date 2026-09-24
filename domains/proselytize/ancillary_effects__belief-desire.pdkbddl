@@ -4,13 +4,13 @@
         :antecedent (
             :poscond ?pos
             :negcond ?neg
-            :rml [b, ?a1][b, ?a2](rml)
+            :rml [bel, ?a1][bel, ?a2]{rml}
             :type add
         )
         :consequent (
             :poscond ?pos + (follower ?a1 ?a2)
             :negcond ?neg
-            :rml [b, ?a1](rml) + {[d, ?a1][b, ?ag](rml) for ?ag in agents}
+            :rml [bel, ?a1]{rml} + {[des, ?a1][bel, ?ag]{rml} for ?ag in ?agents}
             :type add
         )
     )
@@ -19,13 +19,13 @@
         :antecedent (
             :poscond ?pos
             :negcond ?neg
-            :rml [b, ?a1][b, ?a2](rml)
+            :rml [bel, ?a1][bel, ?a2]{rml}
             :type add
         )
         :consequent (
             :poscond ?pos + (skeptical ?a1 ?a2)
             :negcond ?neg
-            :rml {[d, ?a1][b, ?ag](!rml) for ?ag in agents}
+            :rml {[des, ?a1][bel, ?ag]!{rml} for ?ag in ?agents}
             :type add
         )
     )

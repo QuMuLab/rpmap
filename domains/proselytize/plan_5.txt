@@ -1,6 +1,0 @@
-(move_cindy_l2_l1 )
-(move_alice_l1_l2 )
-(adopt-belief_alice_l2 )
-(move_cindy_l1_l2 )
-(proselytize_alice_cindy_l2 )
-; cost = 5 (unit cost)

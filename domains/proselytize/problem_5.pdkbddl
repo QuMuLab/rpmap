@@ -1,6 +1,6 @@
-{include:ancillary_effects.pdkbddl}
-{include:ancillary_effects__belief-desire.pdkbddl}
 {include:domain.pdkbddl}
+{include:ae_default.pdkbddl}
+{include:ancillary_effects__belief-desire.pdkbddl}
 
 (define (problem depth_2_agents_3)
 
@@ -25,11 +25,11 @@
         (leader alice)
         (book-at l2)
         (follower bob alice)
-        <b, cindy>(book-teachings)
+        <bel, cindy>(book-teachings)
     )
 
     (:goal 
-        (follower cindy alice)
+        (and (follower cindy alice))
     )
 
     (:plan

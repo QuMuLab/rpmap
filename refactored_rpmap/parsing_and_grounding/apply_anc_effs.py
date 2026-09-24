@@ -439,12 +439,16 @@ class ApplyAncEffs:
                 # if next_term_rep == "(when (and (at_bob_l1)) (and [BEL, bob](secret_alice)))":
                 #     print()
                 processed_conds[next_term_rep] = next_term
+                if len(processed_conds) > 1000:
+                    exit()
+                print("anceffs for action: ", len(processed_conds))
                 for anc_eff in anc_effs.values():
-                    # if anc_eff.name == "mutual-awareness-pos__belief":
-                    #     print()
                     if self.check_ant_match(anc_eff.antecedent.rml, anc_eff.antecedent.anceff_type, next_term, anc_eff.antecedent.awareness, derive_condition):
                         new_terms = self.apply_anc_eff_all_dlr_agent(anc_eff, next_term, anc_eff.antecedent.awareness, derive_condition)
+                        # if anc_eff.name == "mutual-awareness-pos__belief":
+                        #     print()
                         if self.max_depth_detected > self.problem.depth:
+                            # print("DEPTH TOO HIGH")
                             self.reset()
                             continue
                         for new_term in new_terms:
@@ -491,15 +495,18 @@ class ApplyAncEffs:
         timeout = 30 * 60
         all_rmls, all_rmls_pos_only = self.generate_all_rmls()
         self.domain._predicates = [ApplyAncEffs.term_to_rml(p) for p in all_rmls.values()]
+        anc_effs_count = 0
         for action in self.domain.actions:
-            # if action.name == "move_bob_l2_l3":
-            #     print()
-            for o in action.effect.operands:
-                new_terms = self.apply_anc_effs_to_action(o, action.derive_condition)
-                if new_terms:
-                    action.effect._operands.extend(new_terms)
-                if time.time() - start > timeout:
-                    raise TimeoutError("Preprocessing exceeded 30-minute time limit.")
+            print(action.name)
+            if action.name == "adopt-belief_cindy_l1":
+                for o in action.effect.operands:
+                    new_terms = self.apply_anc_effs_to_action(o, action.derive_condition)
+                    if new_terms:
+                        action.effect._operands.extend(new_terms)
+                        anc_effs_count += len(new_terms)
+                        print("total anc effs: ", anc_effs_count)
+                    if time.time() - start > timeout:
+                        raise TimeoutError("Preprocessing exceeded 30-minute time limit.")
         if self.problem.init_type == "complete":
             self.problem._init = list(self.problem.init)
             init_strs = [ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(init_rml)) for init_rml in self.problem.init]

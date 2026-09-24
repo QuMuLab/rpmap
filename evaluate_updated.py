@@ -141,7 +141,7 @@ def evaluate(dom, prob):
 if __name__ == "__main__":
     # single_file_run("\n".join(read_pdkbddl_file(os.path.join("refactored_rpmap", "test_files", "problem_1.pdkbddl"))))
     args = sys.argv[1:]   # everything after the script name
-    # args = ["capture-the-flag", "9", "solve"] # for testing
+    args = ["proselytize", "2", "solve"] # for testing
     args[1] = int(args[1]) # problem number (args[0] is the domain name)
     if args[-1] == "solve":
         evaluate(*args[:-1])

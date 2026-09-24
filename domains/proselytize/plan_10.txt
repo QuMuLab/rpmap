@@ -1,7 +1,0 @@
-(move_evelyn_l2_l1 )
-(move_derek_l2_l1 )
-(move_cindy_l2_l1 )
-(adopt-belief_alice_l1 )
-(proselytize_bob_derek_l1 )
-(proselytize_bob_cindy_l1 )
-; cost = 6 (unit cost)

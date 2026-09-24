@@ -1,7 +1,7 @@
 
 (define (domain proselytize)
 
-	(:agents alice bob cindy derek evelyn)
+	(:agents alice bob cindy)
     (:requirements :typing)
     (:types loc agent)
     (:constants )
@@ -20,7 +20,7 @@
         :derive-condition   never
         :parameters         (?a - agent ?l1 ?l2 - loc)
         :precondition       (and (at ?a ?l1) (connected ?l1 ?l2))
-        :effect             (and (at ?a ?l2) (!at ?a ?l1))
+        :effect             (and (at ?a ?l2) (not (at ?a ?l1)))
     )
 
     (:action adopt-belief
@@ -28,9 +28,9 @@
         :parameters         (?a - agent ?l - loc)
         :precondition       (and (leader ?a) (at ?a ?l) (book-at ?l))
         :effect (and 
-            [b, ?a](book-teachings)
+            [bel, ?a](book-teachings)
             (forall (?ag - agent)
-                [d, ?a][b, ?ag](book-teachings)
+                [des, ?a][bel, ?ag](book-teachings)
             )
         )
     )
@@ -38,33 +38,33 @@
     (:action proselytize
         :derive-condition   never
         :parameters         (?a1 ?a2 - agent ?l - loc)
-        :precondition       (and (at ?a1 ?l) [b, ?a1](book-teachings) [d, ?a1][b, ?a2](book-teachings) (at ?a2 ?l))
+        :precondition       (and (at ?a1 ?l) [bel, ?a1](book-teachings) [des, ?a1][bel, ?a2](book-teachings) (at ?a2 ?l))
         :effect             (and
-                                [b, ?a2][b, ?a1](book-teachings)
+                                [bel, ?a2][bel, ?a1](book-teachings)
                                 (when     
                                     (skeptical ?a2 ?a1)
-                                    !<b, ?a2>(book-teachings)
+                                    !<bel, ?a2>(book-teachings)
                                 )
                                 (when     
                                     (and
-                                        (!skeptical ?a2 ?a1)
-                                        <b, ?a2>(book-teachings)
+                                        (not (skeptical ?a2 ?a1))
+                                        <bel, ?a2>(book-teachings)
                                     )
-                                    [b, ?a2](book-teachings)
+                                    [bel, ?a2](book-teachings)
                                 )
                                 (when     
                                     (and
-                                        (!skeptical ?a2 ?a1)
-                                        <b, ?a2>(book-teachings)
+                                        (not (skeptical ?a2 ?a1))
+                                        <bel, ?a2>(book-teachings)
                                     )
                                     (follower ?a2 ?a1)
                                 )
                                 (when     
                                     (and
-                                        (!skeptical ?a2 ?a1)
-                                        !<b, ?a2>(book-teachings)
+                                        (not (skeptical ?a2 ?a1))
+                                        !<bel, ?a2>(book-teachings)
                                     )
-                                    <b, ?a2>(book-teachings)
+                                    <bel, ?a2>(book-teachings)
                                 )
                             )
     )
