@@ -91,7 +91,8 @@ class GeneralRML:
         return self.__class__(GeneralRML._get_counterpart_modl(self.mod_type), self.agent, self.child._negate()) if self.child else self.__class__(GeneralRML._get_counterpart_modl(self.mod_type), self.agent)
 
     def __str__(self):
-        return f"({self.mod_type.name}_{self.agent}{f"_{str(self.child)[1:-1]}" if self.child else ""})"
+        child_str = f"_{str(self.child)[1:-1]}" if self.child else ""
+        return f"({self.mod_type.name}_{self.agent}{child_str})"
 
     def __repr__(self):
         child = repr(self.child) if self.child else ""
@@ -342,7 +343,7 @@ class SeparatedRMLTerm:
 
     @property
     def nestings(self) -> list[Nesting | NOT_MODL]:
-        return self._var
+        return self._nestings
 
     @property
     def term(self) -> RMLOrPredTerm | Predicate:

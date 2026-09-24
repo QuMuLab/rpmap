@@ -13,7 +13,6 @@ from refactored_rpmap.parsing_and_grounding.parser_setup import read_pdkbddl_fil
 from refactored_rpmap.parsing_and_grounding.apply_anc_effs import ApplyAncEffs
 from refactored_rpmap.parsing_and_grounding.utils import cleaned_not
 from evaluate_updated import parse, get_parsing_result
-from copy import deepcopy
 from enum import Enum
 import pytest
 import os
@@ -37,12 +36,9 @@ class TestParsing:
         l_var = Variable("l", ["loc"])
         a_dlr_var = Variable("dlr_agent", ["agent"])
         secret = Predicate("secret", *[as_var])
-        at_pred_1 = Predicate("at", *[a_dlr_var, l_var])
-        at_pred_1.always_known = True
-        at_pred_2 = Predicate("at", *[a_var, l_var])
-        at_pred_2.always_known = True
-        at_pred_3 = Predicate("at", *[a2_var, l_var])
-        at_pred_3.always_known = True
+        at_pred_1 = Predicate("at", *[a_dlr_var, l_var], always_known=True)
+        at_pred_2 = Predicate("at", *[a_var, l_var], always_known=True)
+        at_pred_3 = Predicate("at", *[a2_var, l_var], always_known=True)
         return Action(
             "share",
             derive_condition=SeparatedRMLTerm(list(), at_pred_1),
@@ -137,8 +133,8 @@ class TestParsing:
             "header_end": anceff[1],
         }
         # set template action and ancillary effect
-        request.cls.action_template = TestParsing.get_template_action()
-        request.cls.anceff_template = TestParsing.get_template_anceff()
+        request.cls.act = TestParsing.get_template_action()
+        request.cls.anc = TestParsing.get_template_anceff()
 
     # ----- TEMPLATE FILE UPDATE FUNCTIONS -----
 
@@ -158,17 +154,17 @@ class TestParsing:
             f.write(self.anceff_str)
 
     def insert_domain_data(self, data_place: str, data: str):
-        data_copy = deepcopy(self.domain_data)
+        data_copy = self.domain_data
         data_copy[data_place] = data
         self.update_domain(data_copy)
 
     def insert_problem_data(self, data_place: str, data: str):
-        data_copy = deepcopy(self.problem_data)
+        data_copy = self.problem_data
         data_copy[data_place] = data
         self.update_problem(data_copy)
 
     def insert_anceff_data(self, data_place: str, data: str):
-        data_copy = deepcopy(self.anceff_data)
+        data_copy = self.anceff_data
         data_copy[data_place] = data
         self.update_anceff(data_copy)
 
@@ -269,8 +265,7 @@ class TestParsing:
         self.valid_predicate_tester("(whisper2)", Predicate("whisper2"))
 
     def test_predicate_always_known(self):
-        pred = Predicate("whisper", *[Variable("a1", ["agent"]), Variable("a2", ["agent"]), Variable("l", ["loc"])])
-        pred.always_known = True
+        pred = Predicate("whisper", *[Variable("a1", ["agent"]), Variable("a2", ["agent"]), Variable("l", ["loc"])], always_known=True)
         self.valid_predicate_tester("{AK}(whisper ?a1 ?a2 - agent ?l - loc)", pred)
 
     def test_predicate_unknown_type(self):
@@ -302,7 +297,7 @@ class TestParsing:
                                         [bel, ?a2](secret ?as)))
                             )
     )""",
-        self.action_template
+        self.act
     )
 
     def test_template_action(self):
@@ -317,12 +312,10 @@ class TestParsing:
                                             [bel, ?a2](secret ?as)))
                                 )
         )""",
-            self.action_template
+            self.act
         )
 
     def test_derive_condition_always(self):
-        action = deepcopy(self.action_template)
-        action.derive_condition = "always"
         self.valid_action_tester("""
         (:action share
             :derive-condition   always
@@ -334,12 +327,10 @@ class TestParsing:
                                             [bel, ?a2](secret ?as)))
                                 )
         )""",
-            action
+            Action(self.act.name, self.act.parameters, self.act.precondition, self.act.effect, derive_condition="always")
         )
 
     def test_derive_condition_never(self):
-        action = deepcopy(self.action_template)
-        action.derive_condition = "never"
         self.valid_action_tester("""
         (:action share
             :derive-condition   never
@@ -351,14 +342,11 @@ class TestParsing:
                                             [bel, ?a2](secret ?as)))
                                 )
         )""",
-            action
+            Action(self.act.name, self.act.parameters, self.act.precondition, self.act.effect, derive_condition="never")
         )
 
     def test_derive_condition_modality(self):
-        action = deepcopy(self.action_template)
         dlr_agent = Variable("dlr_agent", ["agent"])
-        action.derive_condition = RML(GenericMODLType.BEL, Agent(dlr_agent), Predicate("at", *[dlr_agent, Variable("l", *["loc"])]))
-
         self.valid_action_tester("""
         (:action share
             :derive-condition   [bel, $agent$](at $agent$ ?l)
@@ -370,12 +358,10 @@ class TestParsing:
                                             [bel, ?a2](secret ?as)))
                                 )
         )""",
-            action
+            Action(self.act.name, self.act.parameters, self.act.precondition, self.act.effect, derive_condition=RML(GenericMODLType.BEL, Agent(dlr_agent), Predicate("at", *[dlr_agent, Variable("l", *["loc"])])))
         )
 
     def test_action_empty_precondition(self):
-        action = deepcopy(self.action_template)
-        action._precondition = Or()
         self.valid_action_tester("""
         (:action share
             :derive-condition   (at $agent$ ?l)
@@ -387,14 +373,10 @@ class TestParsing:
                                             [bel, ?a2](secret ?as)))
                                 )
         )""",
-            action
+            Action(self.act.name, self.act.parameters, Or(), self.act.effect)
         )
 
     def test_action_or_precondition(self):
-        action = deepcopy(self.action_template)
-        or_ = Or()
-        or_._operands = self.action_template.precondition.operands
-        action._precondition = or_
         self.valid_action_tester("""
         (:action share
             :derive-condition   (at $agent$ ?l)
@@ -406,12 +388,10 @@ class TestParsing:
                                             [bel, ?a2](secret ?as)))
                                 )
         )""",
-            action
+            Action(self.act.name, self.act.parameters, Or(*self.act.precondition.operands), self.act.effect)
         )
 
     def test_action_negated_precondition(self):
-        action = deepcopy(self.action_template)
-        action._precondition = And(*[cleaned_not(p) for p in action._precondition._operands])
         self.valid_action_tester("""
         (:action share
             :derive-condition   (at $agent$ ?l)
@@ -423,12 +403,10 @@ class TestParsing:
                                             [bel, ?a2](secret ?as)))
                                 )
         )""",
-            action
+            Action(self.act.name, self.act.parameters, And(*[cleaned_not(p) for p in self.act.precondition.operands]), self.act.effect)
         )
 
     def test_action_implied_precondition(self):
-        action = deepcopy(self.action_template)
-        action._precondition = And(Imply(*action._precondition._operands))
         self.valid_action_tester("""
         (:action share
             :derive-condition   (at $agent$ ?l)
@@ -440,12 +418,10 @@ class TestParsing:
                                             [bel, ?a2](secret ?as)))
                                 )
         )""",
-            action
+            Action(self.act.name, self.act.parameters, And(Imply(*self.act.precondition.operands)), self.act.effect)
         )
 
     def test_action_exists_precondition(self):
-        action = deepcopy(self.action_template)
-        action._precondition = And(*[ExistsCondition(action._precondition._operands[1], {Variable("a", ["agent"])})])
         self.valid_action_tester("""
         (:action share
             :derive-condition   (at $agent$ ?l)
@@ -457,12 +433,10 @@ class TestParsing:
                                             [bel, ?a2](secret ?as)))
                                 )
         )""",
-            action
+            Action(self.act.name, self.act.parameters, And(*[ExistsCondition(self.act.precondition.operands[1], {Variable("a", ["agent"])})]), self.act.effect)
         )
 
     def test_action_forall_precondition(self):
-        action = deepcopy(self.action_template)
-        action._precondition = And(*[ForallCondition(action._precondition._operands[1], {Variable("a", ["agent"])})])
         self.valid_action_tester("""
         (:action share
             :derive-condition   (at $agent$ ?l)
@@ -474,12 +448,10 @@ class TestParsing:
                                             [bel, ?a2](secret ?as)))
                                 )
         )""",
-            action
+            Action(self.act.name, self.act.parameters, And(*[ForallCondition(self.act.precondition.operands[1], {Variable("a", ["agent"])})]), self.act.effect)
         )
 
     def test_action_empty_effect(self):
-        action = deepcopy(self.action_template)
-        action._effect = Or()
         self.valid_action_tester("""
         (:action share
             :derive-condition   (at $agent$ ?l)
@@ -487,12 +459,10 @@ class TestParsing:
             :precondition       (and (at ?a ?l) [bel, ?a](secret ?as))
             :effect             ()
         )""",
-            action
+            Action(self.act.name, self.act.parameters, self.act.precondition, Or())
         )
 
     def test_action_negated_effect(self):
-        action = deepcopy(self.action_template)
-        action._effect = cleaned_not(action._effect.effect.effect)
         self.valid_action_tester("""
         (:action share
             :derive-condition   (at $agent$ ?l)
@@ -502,12 +472,10 @@ class TestParsing:
                                     (not [bel, ?a2](secret ?as))
                                 )
         )""",
-            action
+            Action(self.act.name, self.act.parameters, self.act.precondition, cleaned_not(self.act.effect.effect.effect))
         )
 
     def test_action_negated_rml(self):
-        action = deepcopy(self.action_template)
-        action._effect = SeparatedRMLTerm([NOT_MODL()] + action._effect.effect.effect.nestings, action._effect.effect.effect.term)
         self.valid_action_tester("""
         (:action share
             :derive-condition   (at $agent$ ?l)
@@ -517,7 +485,7 @@ class TestParsing:
                                     ![bel, ?a2](secret ?as)
                                 )
         )""",
-            action
+            Action(self.act.name, self.act.parameters, self.act.precondition, SeparatedRMLTerm([NOT_MODL()] + self.act.effect.effect.effect.nestings, self.act.effect.effect.effect.term))
         )
         self.valid_action_tester("""
         (:action share
@@ -528,12 +496,10 @@ class TestParsing:
                                     <bel, ?a2>(!secret ?as)
                                 )
         )""",
-            action
+            Action(self.act.name, self.act.parameters, self.act.precondition, SeparatedRMLTerm([NOT_MODL()] + self.act.effect.effect.effect.nestings, self.act.effect.effect.effect.term))
         )
 
     def test_action_negated_pred(self):
-        action = deepcopy(self.action_template)
-        action._effect = SeparatedRMLTerm([NOT_MODL()], action._effect.effect.effect.term)
         self.valid_action_tester("""
         (:action share
             :derive-condition   (at $agent$ ?l)
@@ -543,9 +509,8 @@ class TestParsing:
                                     (!secret ?as)
                                 )
         )""",
-            action
+            Action(self.act.name, self.act.parameters, self.act.precondition, SeparatedRMLTerm([NOT_MODL()], self.act.effect.effect.effect.term))
         )
-        action._effect = SeparatedRMLTerm([NOT_MODL(), NOT_MODL()], action._effect.term)
         self.valid_action_tester("""
         (:action share
             :derive-condition   (at $agent$ ?l)
@@ -555,9 +520,8 @@ class TestParsing:
                                     (secret ?as)
                                 )
         )""",
-            action
+            Action(self.act.name, self.act.parameters, self.act.precondition, SeparatedRMLTerm([NOT_MODL(), NOT_MODL()], self.act.effect.effect.effect.term))
         )
-        action._effect = cleaned_not(SeparatedRMLTerm([NOT_MODL()], action._effect.term))
         self.valid_action_tester("""
         (:action share
             :derive-condition   (at $agent$ ?l)
@@ -567,14 +531,10 @@ class TestParsing:
                                     (not (!secret ?as))
                                 )
         )""",
-            action
+            Action(self.act.name, self.act.parameters, self.act.precondition, cleaned_not(SeparatedRMLTerm([NOT_MODL()], self.act.effect.effect.effect.term)))
         )
 
     def test_action_negate_always_known(self):
-        action = deepcopy(self.action_template)
-        at_p = Predicate("at", Variable("as", ["agent"]), Variable("l", ["loc"]))
-        at_p.always_known = True
-        action._effect = cleaned_not(SeparatedRMLTerm(list(), at_p))
         self.valid_action_tester("""
         (:action share
             :derive-condition   (at $agent$ ?l)
@@ -584,7 +544,7 @@ class TestParsing:
                                     (not (at ?as ?l))
                                 )
         )""",
-            action
+            Action(self.act.name, self.act.parameters, self.act.precondition, cleaned_not(SeparatedRMLTerm(list(), Predicate("at", Variable("as", ["agent"]), Variable("l", ["loc"]), always_known=True))))
         )
         self.error_tester_actions("""
         (:action share
@@ -615,8 +575,7 @@ class TestParsing:
         self.valid_init_tester("(forall (?a - agent) [bel, ?a](secret ?a))", Forall(And(SeparatedRMLTerm([Nesting(GenericMODLType.BEL, Agent(Variable("a", ["agent"])))], Predicate("secret", Variable("a", ["agent"])))), {Variable("a", ["agent"])}))
 
     def test_exc_negate(self):
-        p = SeparatedRMLTerm([NOT_MODL()], Predicate("secret", Constant("alice", "agent")))
-        self.valid_init_tester("(!secret alice)", p)
+        self.valid_init_tester("(!secret alice)", SeparatedRMLTerm([NOT_MODL()], Predicate("secret", Constant("alice", "agent"))))
 
     def test_problem_init_no_not(self):
         self.error_tester_init("(not (secret alice))", [UnexpectedCharacters])
@@ -676,7 +635,7 @@ class TestParsing:
             :rml !{rml}
             :type del
         )
-    )""", self.anceff_template)
+    )""", self.anc)
 
     def test_anceff_missing_param(self):
         self.error_tester_anceff("""
@@ -715,9 +674,6 @@ class TestParsing:
     
 
     def test_forall_var(self):
-        anceff = deepcopy(self.anceff_template)
-        anceff.consequent.poscond = None
-        anceff.consequent.negcond = [ListCompVar(SeparatedRMLTerm(list(), RTermNegated()), Variable("pos")), Variable("neg")]
         self.valid_anceff_tester("""
     (:anceff some-anceff
         :antecedent (
@@ -731,7 +687,7 @@ class TestParsing:
             :rml !{rml}
             :type del
         )
-    )""", anceff)
+    )""", AncEff(self.anc.name, self.anc.parameters, self.anc.antecedent, Consequent(None, [ListCompVar(SeparatedRMLTerm(list(), RTermNegated()), Variable("pos")), Variable("neg")], self.anc.consequent.rml, self.anc.consequent.anceff_type)))
 
     def test_forall_var_wrong_name(self):
         self.error_tester_anceff("""
@@ -750,9 +706,6 @@ class TestParsing:
     )""", [UnexpectedCharacters])
 
     def test_forall_agents(self):
-        anceff = deepcopy(self.anceff_template)
-        anceff.consequent.poscond = None
-        anceff.consequent.negcond = [ListCompAgents(SeparatedRMLTerm([Nesting(GenericMODLType.BEL, Agent(Variable("ag", ["agent"])))], RMLTerm())), Variable("pos")]
         self.valid_anceff_tester("""
     (:anceff some-anceff
         :antecedent (
@@ -766,12 +719,9 @@ class TestParsing:
             :rml !{rml}
             :type del
         )
-    )""", anceff)
+    )""", AncEff(self.anc.name, self.anc.parameters, self.anc.antecedent, Consequent(None, [ListCompAgents(SeparatedRMLTerm([Nesting(GenericMODLType.BEL, Agent(Variable("ag", ["agent"])))], RMLTerm())), Variable("pos")], self.anc.consequent.rml, self.anc.consequent.anceff_type)))
 
     def test_forall_var_agents(self):
-        anceff = deepcopy(self.anceff_template)
-        anceff.consequent.poscond = None
-        anceff.consequent.negcond = [ListCompVarAgents(SeparatedRMLTerm([Nesting(GenericMODLType.BEL, Agent(Variable("ag", ["agent"])))], RTerm()), Variable("pos")), Variable("neg")]
         self.valid_anceff_tester("""
     (:anceff some-anceff
         :antecedent (
@@ -785,16 +735,12 @@ class TestParsing:
             :rml !{rml}
             :type del
         )
-    )""", anceff)
+    )""", AncEff(self.anc.name, self.anc.parameters, self.anc.antecedent, Consequent(None, [ListCompVarAgents(SeparatedRMLTerm([Nesting(GenericMODLType.BEL, Agent(Variable("ag", ["agent"])))], RTerm()), Variable("pos")), Variable("neg")], self.anc.consequent.rml, self.anc.consequent.anceff_type)))
 
     def test_nesting_trailing(self):
-        anceff = deepcopy(self.anceff_template)
         agent_var = Variable("a", ["agent"])
         agent = Agent(agent_var)
         rml = RMLTerm()
-        anceff.parameters = [agent_var]
-        anceff.antecedent.rml = SeparatedRMLTerm([TrailingNesting(Nesting(GenericMODLType.BEL, agent))], rml)
-        anceff.consequent.rml = [SeparatedRMLTerm([TrailingNesting(Nesting(PossibleGenericMODLType.PBEL, agent))], rml)]
         self.valid_anceff_tester("""
     (:anceff some-anceff
         :parameters (?a - agent)
@@ -810,16 +756,12 @@ class TestParsing:
             :rml <bel, ?a>{nesting}{rml}
             :type del
         )
-    )""", anceff)
+    )""", AncEff(self.anc.name, [agent_var], Antecedent(self.anc.antecedent.awareness, SeparatedRMLTerm([TrailingNesting(Nesting(GenericMODLType.BEL, agent))], rml), self.anc.antecedent.anceff_type), Consequent(self.anc.consequent.poscond, self.anc.consequent.negcond, [SeparatedRMLTerm([TrailingNesting(Nesting(PossibleGenericMODLType.PBEL, agent))], rml)], self.anc.consequent.anceff_type)))
 
     def test_nesting_leading(self):
-        anceff = deepcopy(self.anceff_template)
         agent_var = Variable("a", ["agent"])
         agent = Agent(agent_var)
         rml = RMLTerm()
-        anceff.parameters = [agent_var]
-        anceff.antecedent.rml = SeparatedRMLTerm([LeadingNesting(Nesting(GenericMODLType.BEL, agent))], rml)
-        anceff.consequent.rml = [SeparatedRMLTerm([LeadingNesting(Nesting(PossibleGenericMODLType.PBEL, agent))], rml)]
         self.valid_anceff_tester("""
     (:anceff some-anceff
         :parameters (?a - agent)
@@ -835,16 +777,12 @@ class TestParsing:
             :rml {nesting}<bel, ?a>{rml}
             :type del
         )
-    )""", anceff)
+    )""", AncEff(self.anc.name, [agent_var], Antecedent(self.anc.antecedent.awareness, SeparatedRMLTerm([LeadingNesting(Nesting(GenericMODLType.BEL, agent))], rml), self.anc.antecedent.anceff_type), Consequent(self.anc.consequent.poscond, self.anc.consequent.negcond, [SeparatedRMLTerm([LeadingNesting(Nesting(PossibleGenericMODLType.PBEL, agent))], rml)], self.anc.consequent.anceff_type)))
 
     def test_nesting_leading_trailing(self):
-        anceff = deepcopy(self.anceff_template)
         agent_var = Variable("a", ["agent"])
         agent = Agent(agent_var)
         rml = RMLTerm()
-        anceff.parameters = [agent_var]
-        anceff.antecedent.rml = SeparatedRMLTerm([LeadingTrailingNesting(Nesting(GenericMODLType.BEL, agent))], rml)
-        anceff.consequent.rml = [SeparatedRMLTerm([LeadingTrailingNesting(Nesting(PossibleGenericMODLType.PBEL, agent))], rml)]
         self.valid_anceff_tester("""
     (:anceff some-anceff
         :parameters (?a - agent)
@@ -860,7 +798,7 @@ class TestParsing:
             :rml {nesting}<bel, ?a>{nesting}{rml}
             :type del
         )
-    )""", anceff)
+    )""", AncEff(self.anc.name, [agent_var], Antecedent(self.anc.antecedent.awareness, SeparatedRMLTerm([LeadingTrailingNesting(Nesting(GenericMODLType.BEL, agent))], rml), self.anc.antecedent.anceff_type), Consequent(self.anc.consequent.poscond, self.anc.consequent.negcond, [SeparatedRMLTerm([LeadingTrailingNesting(Nesting(PossibleGenericMODLType.PBEL, agent))], rml)], self.anc.consequent.anceff_type)))
 
     def test_double_nesting_error(self):
         self.error_tester_anceff("""

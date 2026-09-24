@@ -439,7 +439,7 @@ class ApplyAncEffs:
                 # if next_term_rep == "(when (and (at_bob_l1)) (and [BEL, bob](secret_alice)))":
                 #     print()
                 processed_conds[next_term_rep] = next_term
-                if len(processed_conds) > 1000:
+                if len(processed_conds) > 5000:
                     exit()
                 print("anceffs for action: ", len(processed_conds))
                 for anc_eff in anc_effs.values():

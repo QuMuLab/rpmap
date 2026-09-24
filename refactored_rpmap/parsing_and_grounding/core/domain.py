@@ -34,8 +34,7 @@ def action_transformer(self, args):
     action_body = {
         _children[i][1:]: _children[i + 1] for i in range(0, len(_children), 2)
     }
-    a = Action(action_name, variables, **action_body)
-    a.derive_condition = args[4]
+    a = Action(action_name, variables, **action_body, derive_condition=args[4])
     self._predicates_by_name[a.name] = Predicate(a.name, *a.parameters)
     return a
 
@@ -64,8 +63,7 @@ def atomic_formula_skeleton(self, args):
     # remove "always known" so variables are in the correct position
     args = args[1:]
     variables = self._formula_skeleton(args)
-    p = Predicate(pred_name, *variables)
-    p.always_known = True if ak else False
+    p = Predicate(pred_name, *variables, always_known=ak)
     return p
 
 def terminal_predicate(self, args):
@@ -77,8 +75,7 @@ def terminal_predicate(self, args):
     terms = args[3:-1]
     for i in range(len(terms)):
         terms[i]._type_tags = domain_preds[pred_name].terms[i].type_tags
-    pred = Predicate(pred_name, *terms)
-    pred.always_known = domain_preds[pred_name].always_known
+    pred = Predicate(pred_name, *terms, always_known=domain_preds[pred_name].always_known)
     negated = True if args[1] is not None else False
     if negated and pred.always_known:
         raise PDDLValidationError("Cannot apply a '!' to a predicate that is always known.")
@@ -194,8 +191,11 @@ def new_domain_str(self):
 
 # ----- OTHER CLASS MODIFICATIONS -----
 def new_action_init(self, *args, **kwargs):
-    self._derive_condition = kwargs["derive_condition"]
-    kwargs.pop("derive_condition")
+    if "derive_condition" in kwargs:
+        self._derive_condition = kwargs["derive_condition"]
+        kwargs.pop("derive_condition")
+    else:
+        self._derive_condition = None
     self.orig_init(*args, **kwargs)
 
 def derive_condition(self) -> SeparatedRMLTerm:
