@@ -16,16 +16,18 @@ class TestModalityConstruction:
         PITN = Nesting(PossibleActionMODLType.PITN, agent3)
         NOT = NOT_MODL()
         pred = Predicate("secret")
-        return BEL, DES, ITN, PBEL, PDES, PITN, NOT, pred
+        pred_negated = Predicate("secret", negated=True)
+        pred_always_known = Predicate("secret", always_known=True)
+        return BEL, DES, ITN, PBEL, PDES, PITN, NOT, pred, pred_always_known, pred_negated
 
     def test_basic_modls(self):
-        BEL, DES, ITN, _, _, _, _, pred = self.get_vars()
+        BEL, DES, ITN, _, _, _, _, pred, _, _ = self.get_vars()
         assert repr(BEL(pred)) == "[BEL, alice](secret)"
         assert repr(DES(pred)) == "[DES, bob](secret)"
         assert repr(ITN(pred)) == "[ITN, cindy](secret)"
 
     def test_basic_modl_squashing(self):
-        BEL, DES, ITN, PBEL, PDES, PITN, _, pred = self.get_vars()
+        BEL, DES, ITN, PBEL, PDES, PITN, _, pred, _, _ = self.get_vars()
         assert repr(BEL(BEL(pred))) == "[BEL, alice](secret)"
         assert repr(DES(DES(pred))) == "[DES, bob](secret)"
         assert repr(ITN(ITN(pred))) == "[ITN, cindy](secret)"
@@ -37,30 +39,20 @@ class TestModalityConstruction:
         assert repr(PITN(ITN(pred))) == "[ITN, cindy](secret)"
 
     def test_always_known(self):
-        BEL, DES, ITN, _, _, _, NOT, pred = self.get_vars()
+        BEL, DES, ITN, _, _, _, NOT, _, pred_always_known, _ = self.get_vars()
         with pytest.warns(Warning):
-            p = deepcopy(pred)
-            p.always_known = True
-            NOT(p)
+            NOT(pred_always_known)
         with pytest.warns(Warning):
-            p = deepcopy(pred)
-            p.always_known = True
-            NOT(BEL(p))
+            NOT(BEL(pred_always_known))
         with pytest.raises(PDDLValidationError):
-            p = deepcopy(pred)
-            p.always_known = True
-            BEL(NOT(p))
+            BEL(NOT(pred_always_known))
         with pytest.warns(Warning):
-            p = deepcopy(pred)
-            p.always_known = True
-            NOT(NOT(NOT(p)))
+            NOT(NOT(NOT(pred_always_known)))
         with pytest.raises(PDDLValidationError):
-            p = deepcopy(pred)
-            p.always_known = True
-            NOT(BEL(NOT(DES(NOT(ITN(p))))))
+            NOT(BEL(NOT(DES(NOT(ITN(pred_always_known))))))
 
     def test_not(self):
-        BEL, DES, ITN, _, _, _, NOT, pred = self.get_vars()
+        BEL, DES, ITN, _, _, _, NOT, pred, _, _ = self.get_vars()
         assert repr(NOT(pred)) == "(!secret)"
         assert repr(cleaned_not(pred)) == "(not (secret))"
         assert repr(cleaned_not(BEL(pred))) == "(not [BEL, alice](secret))"
@@ -68,9 +60,8 @@ class TestModalityConstruction:
         assert repr(NOT(cleaned_not(BEL(pred)))) == "[BEL, alice](secret)"
 
     def test_not_on_always_known(self):
-        BEL, DES, ITN, _, _, _, NOT, pred = self.get_vars()
-        p = deepcopy(pred)
-        p.always_known = True
+        BEL, DES, ITN, _, _, _, NOT, pred, _, _ = self.get_vars()
+        p = Predicate("secret", always_known=True)
         assert repr(NOT(p)) == "(not (secret))"
         assert repr(cleaned_not(p)) == "(not (secret))"
         assert repr(NOT(BEL(p))) == "(not (secret))"
@@ -79,7 +70,7 @@ class TestModalityConstruction:
 
 
     def test_rml_vs_nesting_formation(self):
-        BEL, DES, ITN, PBEL, PDES, PITN, NOT, pred = self.get_vars()
+        BEL, DES, ITN, PBEL, PDES, PITN, NOT, pred, _, _ = self.get_vars()
         assert isinstance(BEL, Nesting)
         assert repr(BEL) == "[BEL, alice]"
         assert isinstance(BEL(DES), Nesting)
@@ -102,7 +93,7 @@ class TestModalityConstruction:
             ITN(BEL(pred))
 
     def test_basic_double_nesting(self):
-        BEL, DES, ITN, _, _, _, _, pred = self.get_vars()
+        BEL, DES, ITN, _, _, _, _, pred, _, _ = self.get_vars()
         assert repr(BEL(BEL(pred))) == "[BEL, alice](secret)"
         assert repr(BEL(DES(pred))) == "[BEL, alice][DES, bob](secret)"
         assert repr(BEL(ITN(pred))) == "[BEL, alice][ITN, cindy](secret)"
@@ -112,7 +103,7 @@ class TestModalityConstruction:
         assert repr(DES(ITN(pred))) == "[DES, bob][ITN, cindy](secret)"
 
     def test_basic_triple_nesting(self):
-        BEL, DES, ITN, _, _, _, _ , pred = self.get_vars()
+        BEL, DES, ITN, _, _, _, _ , pred, _, _ = self.get_vars()
 
         assert repr(BEL(BEL(BEL(pred)))) == "[BEL, alice](secret)"
         assert repr(BEL(BEL(DES(pred)))) == "[BEL, alice][DES, bob](secret)"
@@ -131,13 +122,13 @@ class TestModalityConstruction:
         assert repr(DES(DES(ITN(pred)))) == "[DES, bob][ITN, cindy](secret)"
 
     def test_basic_soft_modls(self):
-        _, _, _ , PBEL, PDES, PITN, _ , pred = self.get_vars()
+        _, _, _ , PBEL, PDES, PITN, _ , pred, _, _ = self.get_vars()
         assert repr(PBEL(pred)) == "<BEL, alice>(secret)"
         assert repr(PDES(pred)) == "<DES, bob>(secret)"
         assert repr(PITN(pred)) == "<ITN, cindy>(secret)"
 
     def test_basic_double_nesting_soft(self):
-        _, _, _ , PBEL, PDES, PITN, _ , pred = self.get_vars()
+        _, _, _ , PBEL, PDES, PITN, _ , pred, _, _ = self.get_vars()
         assert repr(PBEL(PBEL(pred))) == "<BEL, alice>(secret)"
         assert repr(PBEL(PDES(pred))) == "<BEL, alice><DES, bob>(secret)"
         assert repr(PBEL(PITN(pred))) == "<BEL, alice><ITN, cindy>(secret)"
@@ -147,7 +138,7 @@ class TestModalityConstruction:
         assert repr(PDES(PITN(pred))) == "<DES, bob><ITN, cindy>(secret)"
 
     def test_basic_triple_nesting_soft(self):
-        _, _, _ , PBEL, PDES, PITN, _ , pred = self.get_vars()
+        _, _, _ , PBEL, PDES, PITN, _ , pred, _, _ = self.get_vars()
         assert repr(PBEL(PBEL(PBEL(pred)))) == "<BEL, alice>(secret)"
         assert repr(PBEL(PBEL(PDES(pred)))) == "<BEL, alice><DES, bob>(secret)"
         assert repr(PBEL(PBEL(PITN(pred)))) == "<BEL, alice><ITN, cindy>(secret)"
@@ -165,7 +156,7 @@ class TestModalityConstruction:
         assert repr(PDES(PDES(PITN(pred)))) == "<DES, bob><ITN, cindy>(secret)"
 
     def test_basic_double_nesting_mixed(self):
-        BEL, DES, ITN, PBEL, PDES, PITN, _ , pred = self.get_vars()
+        BEL, DES, ITN, PBEL, PDES, PITN, _ , pred, _, _ = self.get_vars()
 
         # BEL/DES outer == soft inner
         assert repr(BEL(PBEL(pred))) == "<BEL, alice>(secret)"
@@ -186,7 +177,7 @@ class TestModalityConstruction:
         assert repr(PDES(ITN(pred))) == "<DES, bob>[ITN, cindy](secret)"
 
     def test_basic_triple_nesting_mixed(self):
-        BEL, DES, ITN, PBEL, PDES, PITN, _ , pred = self.get_vars()
+        BEL, DES, ITN, PBEL, PDES, PITN, _ , pred, _, _ = self.get_vars()
         assert repr(BEL(PDES(BEL(pred)))) == "[BEL, alice]<DES, bob>[BEL, alice](secret)"
         assert repr(BEL(PDES(DES(pred)))) == "[BEL, alice][DES, bob](secret)"
         assert repr(BEL(PDES(ITN(pred)))) == "[BEL, alice]<DES, bob>[ITN, cindy](secret)"
@@ -204,92 +195,80 @@ class TestModalityConstruction:
         assert repr(PDES(BEL(PITN(pred)))) == "<DES, bob>[BEL, alice]<ITN, cindy>(secret)"
 
     def test_negation_basic_modls(self):
-        BEL, DES, ITN, _, _, _, NOT, pred = self.get_vars()
+        BEL, DES, ITN, _, _, _, NOT, pred, _, _ = self.get_vars()
         assert repr(BEL(NOT(pred))) == "[BEL, alice](!secret)"
         assert repr(NOT(DES(pred))) == "<DES, bob>(!secret)"
-        pred.negated = True
+        pred = Predicate(pred.name, *pred.terms, negated=True)
         assert repr(ITN(NOT(pred))) == "[ITN, cindy](secret)"
 
     def test_negation_basic_double_nesting(self):
-        BEL, DES, ITN, _, _, _, NOT, pred = self.get_vars()
-        pred.negated = True
-        assert repr(BEL(BEL(NOT(pred)))) == "[BEL, alice](secret)"
-        assert repr(NOT(BEL(DES(pred)))) == "<BEL, alice><DES, bob>(secret)"
-        pred.negated = False
+        BEL, DES, ITN, _, _, _, NOT, pred, _, _ = self.get_vars()
+        pred_negated = Predicate(pred.name, negated=True)
+        assert repr(BEL(BEL(NOT(pred_negated)))) == "[BEL, alice](secret)"
+        assert repr(NOT(BEL(DES(pred_negated)))) == "<BEL, alice><DES, bob>(secret)"
         assert repr(NOT(BEL(ITN(pred)))) == "<BEL, alice><ITN, cindy>(!secret)"
 
     def test_negation_basic_triple_nesting(self):
-        BEL, DES, ITN, _, _, _, NOT, pred = self.get_vars()
+        BEL, DES, ITN, _, _, _, NOT, pred, _, pred_negated = self.get_vars()
         assert repr(NOT(BEL(BEL(BEL(pred))))) == "<BEL, alice>(!secret)"
         assert repr(BEL(BEL(NOT(DES(pred))))) == "[BEL, alice]<DES, bob>(!secret)"
-        pred.negated = True
-        assert repr(NOT(BEL(BEL(ITN(pred))))) == "<BEL, alice><ITN, cindy>(secret)"
+        assert repr(NOT(BEL(BEL(ITN(pred_negated))))) == "<BEL, alice><ITN, cindy>(secret)"
 
     def test_negation_basic_soft_modls(self):
-        _, _, _ , PBEL, PDES, PITN, NOT , pred = self.get_vars()
+        _, _, _ , PBEL, PDES, PITN, NOT , pred, _, pred_negated = self.get_vars()
         assert repr(NOT(PBEL(pred))) == "[BEL, alice](!secret)"
-        pred.negated = True
-        assert repr(NOT(PDES(pred))) == "[DES, bob](secret)"
-        assert repr(NOT(PITN(pred))) == "[ITN, cindy](secret)"
+        assert repr(NOT(PDES(pred_negated))) == "[DES, bob](secret)"
+        assert repr(NOT(PITN(pred_negated))) == "[ITN, cindy](secret)"
 
     def test_negation_basic_double_nesting_soft(self):
-        _, _, _ , PBEL, PDES, PITN, NOT , pred = self.get_vars()
-        pred.negated = True
-        assert repr(PBEL(NOT(PBEL(pred)))) == "[BEL, alice](secret)"
-        assert repr(PBEL(NOT(PDES(pred)))) == "<BEL, alice>[DES, bob](secret)"
-        pred.negated = False
+        _, _, _ , PBEL, PDES, PITN, NOT , pred, _, pred_negated = self.get_vars()
+        assert repr(PBEL(NOT(PBEL(pred_negated)))) == "[BEL, alice](secret)"
+        assert repr(PBEL(NOT(PDES(pred_negated)))) == "<BEL, alice>[DES, bob](secret)"
         assert repr(NOT(PBEL(PITN(pred)))) == "[BEL, alice][ITN, cindy](!secret)"
 
     def test_negation_basic_triple_nesting_soft(self):
-        _, _, _ , PBEL, PDES, PITN, NOT , pred = self.get_vars()
+        _, _, _ , PBEL, PDES, PITN, NOT , pred, _, pred_negated = self.get_vars()
         assert repr(PBEL(NOT(PBEL(PBEL(pred))))) == "[BEL, alice](!secret)"
         assert repr(NOT(PBEL(PBEL(PDES(pred))))) == "[BEL, alice][DES, bob](!secret)"
-        pred.negated = True
-        assert repr(PBEL(PBEL(PITN(NOT(pred))))) == "<BEL, alice><ITN, cindy>(secret)"
+        assert repr(PBEL(PBEL(PITN(NOT(pred_negated))))) == "<BEL, alice><ITN, cindy>(secret)"
 
     def test_negation_basic_double_nesting_mixed(self):
-        BEL, DES, ITN, PBEL, PDES, PITN, NOT , pred = self.get_vars()
-        pred.negated = True
-        assert repr(NOT(BEL(PBEL(pred)))) == "[BEL, alice](secret)"
-        assert repr(BEL(PDES(NOT(pred)))) == "[BEL, alice]<DES, bob>(secret)"
-        assert repr(NOT(BEL(PITN(pred)))) == "<BEL, alice>[ITN, cindy](secret)"
+        BEL, DES, ITN, PBEL, PDES, PITN, NOT , pred, _, pred_negated = self.get_vars()
+        assert repr(NOT(BEL(PBEL(pred_negated)))) == "[BEL, alice](secret)"
+        assert repr(BEL(PDES(NOT(pred_negated)))) == "[BEL, alice]<DES, bob>(secret)"
+        assert repr(NOT(BEL(PITN(pred_negated)))) == "<BEL, alice>[ITN, cindy](secret)"
 
-        pred.negated = False
         assert repr(NOT(PBEL(BEL(pred)))) == "<BEL, alice>(!secret)"
         assert repr(PBEL(DES(NOT(pred)))) == "<BEL, alice>[DES, bob](!secret)"
         assert repr(PBEL(ITN(NOT(pred)))) == "<BEL, alice>[ITN, cindy](!secret)"
 
     def test_negation_basic_triple_nesting_mixed(self):
-        BEL, DES, ITN, PBEL, PDES, PITN, NOT , pred = self.get_vars()
+        BEL, DES, ITN, PBEL, PDES, PITN, NOT , pred, _, pred_negated = self.get_vars()
         assert repr(NOT(BEL(PDES(BEL(pred))))) == "<BEL, alice>[DES, bob]<BEL, alice>(!secret)"
         assert repr(BEL(PDES(DES(NOT(pred))))) == "[BEL, alice][DES, bob](!secret)"
         assert repr(NOT(BEL(PDES(ITN(pred))))) == "<BEL, alice>[DES, bob]<ITN, cindy>(!secret)"
 
-        pred.negated = True
-        assert repr(PBEL(NOT(DES(PBEL(pred))))) == "<BEL, alice><DES, bob>[BEL, alice](secret)"
-        assert repr(NOT(PBEL(DES(PDES(pred))))) == "[BEL, alice][DES, bob](secret)"
-        assert repr(PBEL(NOT(DES(PITN(pred))))) == "<BEL, alice><DES, bob>[ITN, cindy](secret)"
+        assert repr(PBEL(NOT(DES(PBEL(pred_negated))))) == "<BEL, alice><DES, bob>[BEL, alice](secret)"
+        assert repr(NOT(PBEL(DES(PDES(pred_negated))))) == "[BEL, alice][DES, bob](secret)"
+        assert repr(PBEL(NOT(DES(PITN(pred_negated))))) == "<BEL, alice><DES, bob>[ITN, cindy](secret)"
 
     def test_double_negation_basic_double_nesting_mixed(self):
-        BEL, DES, ITN, PBEL, PDES, PITN, NOT , pred = self.get_vars()
-        pred.negated = True
-        assert repr(NOT(NOT(BEL(PBEL(pred))))) == "<BEL, alice>(!secret)"
-        assert repr(NOT(BEL(PDES(NOT(pred))))) == "<BEL, alice>[DES, bob](!secret)"
-        assert repr(NOT(BEL(NOT(PITN(pred))))) == "<BEL, alice><ITN, cindy>(!secret)"
+        BEL, DES, ITN, PBEL, PDES, PITN, NOT , pred, _, pred_negated = self.get_vars()
+        assert repr(NOT(NOT(BEL(PBEL(pred_negated))))) == "<BEL, alice>(!secret)"
+        assert repr(NOT(BEL(PDES(NOT(pred_negated))))) == "<BEL, alice>[DES, bob](!secret)"
+        assert repr(NOT(BEL(NOT(PITN(pred_negated))))) == "<BEL, alice><ITN, cindy>(!secret)"
 
-        pred.negated = False
         assert repr(NOT(NOT(PBEL(BEL(pred))))) == "[BEL, alice](secret)"
         assert repr(PBEL(NOT(DES(NOT(pred))))) == "<BEL, alice><DES, bob>(secret)"
         assert repr(PBEL(NOT(ITN(NOT(pred))))) == "<BEL, alice><ITN, cindy>(secret)"
     
     def test_double_negation_basic_triple_nesting_mixed(self):
-        BEL, DES, ITN, PBEL, PDES, PITN, NOT , pred = self.get_vars()
+        BEL, DES, ITN, PBEL, PDES, PITN, NOT , pred, _, pred_negated = self.get_vars()
         assert repr(NOT(NOT(NOT(BEL(PDES(BEL(pred))))))) == "<BEL, alice>[DES, bob]<BEL, alice>(!secret)"
         assert repr(NOT(NOT(BEL(PDES(BEL(pred)))))) == "[BEL, alice]<DES, bob>[BEL, alice](secret)"
         assert repr(BEL(PDES(DES(NOT(NOT(pred)))))) == "[BEL, alice][DES, bob](secret)"
         assert repr(NOT(NOT(BEL(PDES(ITN(pred)))))) == "[BEL, alice]<DES, bob>[ITN, cindy](secret)"
 
-        pred.negated = True
-        assert repr(PBEL(NOT(DES(PBEL(NOT(pred)))))) == "<BEL, alice><DES, bob>[BEL, alice](!secret)"
-        assert repr(NOT(PBEL(DES(NOT(PDES(pred)))))) == "[BEL, alice]<DES, bob>(!secret)"
-        assert repr(NOT(PBEL(NOT(DES(PITN(pred)))))) == "[BEL, alice][DES, bob]<ITN, cindy>(!secret)"
+        assert repr(PBEL(NOT(DES(PBEL(NOT(pred_negated)))))) == "<BEL, alice><DES, bob>[BEL, alice](!secret)"
+        assert repr(NOT(PBEL(DES(NOT(PDES(pred_negated)))))) == "[BEL, alice]<DES, bob>(!secret)"
+        assert repr(NOT(PBEL(NOT(DES(PITN(pred_negated)))))) == "[BEL, alice][DES, bob]<ITN, cindy>(!secret)"

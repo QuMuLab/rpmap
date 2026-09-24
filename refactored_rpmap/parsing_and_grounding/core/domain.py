@@ -2,7 +2,6 @@ import pddl.core
 from pddl.exceptions import PDDLValidationError
 import pddl.logic
 from ..utils import *
-from copy import deepcopy
 from pddl.action import Action
 from pddl.formatter import (
     print_constants,
@@ -12,10 +11,8 @@ from pddl.formatter import (
     sort_and_print_collection,
 )
 from pddl.helpers.base import _typed_parameters
-from pddl.logic.base import Not
 from pddl.logic.predicates import Predicate
 from pddl.logic.terms import Variable, Constant
-from pddl.logic.effects import When
 from pddl.parser import domain, GRAMMAR_FILE
 from pddl._validation import Types, TypeChecker
 from textwrap import indent
@@ -196,13 +193,15 @@ def new_domain_str(self):
     return result
 
 # ----- OTHER CLASS MODIFICATIONS -----
-def new_init_action(self, *args, **kwargs):
-    if "derive_condition" in kwargs:
-        self.derive_condition = kwargs["derive_condition"]
-        kwargs.pop("derive_condition")
+def new_action_init(self, *args, **kwargs):
+    self._derive_condition = kwargs["derive_condition"]
+    kwargs.pop("derive_condition")
     self.orig_init(*args, **kwargs)
 
-def new_init_domain(self, *args, **kwargs):
+def derive_condition(self) -> SeparatedRMLTerm:
+    return self._derive_condition
+
+def new_domain_init(self, *args, **kwargs):
     """New init function for the pddl.core.Domain that takes into account agents."""
     self._agents = kwargs["agents"]
     kwargs["types"]["agent"] = None
@@ -235,16 +234,33 @@ def new_predicate_hash(self):
     """New predicate hash that takes into account the new always_known and negated terms."""
     return hash((self.name, self.arity, self.terms, self.always_known, self.negated))
 
+def new_predicate_init(self, *args, **kwargs):
+    if "always_known" in kwargs:
+        self._always_known = kwargs["always_known"]
+        kwargs.pop("always_known")
+    else:
+        self._always_known = False
+    if "negated" in kwargs:
+        self._negated = kwargs["negated"]
+        kwargs.pop("negated")
+    else:
+        self._negated = False
+    self.orig_init(*args, **kwargs)
+
 def negate_predicate(self):
-    new_base = deepcopy(self)
     if self.always_known:
-        # warnings.warn(f"Applying a '!' to a Predicate {self} that is always known.", Warning)
-        return cleaned_not(new_base)
-    new_base.negated = not self.negated
-    return new_base
+        warnings.warn(f"Applying a '!' to a Predicate {self} that is always known.", Warning)
+        return cleaned_not(Predicate(self.name, *self.terms))
+    return Predicate(self.name, *self.terms, always_known=self.always_known, negated=not self.negated)
+
+def always_known(self) -> bool:
+    return self._always_known
+
+def negated(self) -> bool:
+    return self._negated
 
 def negate_not(self):
-    return deepcopy(self.argument)
+    return self.argument
 
 # ----- GRAMMAR CONSTRUCTION -----
 
@@ -261,20 +277,22 @@ def modify_domain_classes():
     pddl.logic.base.Not.__str__ = new_not_str
     pddl.logic.base.And.__repr__ = new_and_repr
     pddl.logic.effects.When.__repr__ = new_when_repr
+    pddl.logic.predicates.Predicate.orig_init = pddl.logic.predicates.Predicate.__init__
+    pddl.logic.predicates.Predicate.__init__ = new_predicate_init
     pddl.logic.predicates.Predicate.__str__ = new_predicate_str_rmls_str
     pddl.logic.predicates.Predicate.__repr__ = new_predicate_str_rmls_repr
     pddl.logic.predicates.Predicate.__eq__ = new_predicate_eq
     pddl.logic.predicates.Predicate.__hash__ = new_predicate_hash
-    pddl.logic.predicates.Predicate.always_known = False
-    pddl.logic.predicates.Predicate.negated = False
+    setattr(Predicate, "always_known", property(always_known))
+    setattr(Predicate, "negated", property(negated))
     pddl.logic.predicates.Predicate._negate = negate_predicate
-    pddl.logic.predicates.Predicate._get_predicate = lambda self: deepcopy(self)
+    pddl.logic.predicates.Predicate._get_predicate = lambda self: self
     pddl.action.Action.orig_init = pddl.action.Action.__init__
-    pddl.action.Action.__init__ = new_init_action
+    pddl.action.Action.__init__ = new_action_init
     pddl.action.Action.__str__ = new_action_str
-    pddl.action.Action.derive_condition = None
+    setattr(Action, "derive_condition", property(derive_condition))
     pddl.core.Domain.orig_init = pddl.core.Domain.__init__
-    pddl.core.Domain.__init__ = new_init_domain
+    pddl.core.Domain.__init__ = new_domain_init
     pddl.core.Domain.__str__ = new_domain_str
     pddl.core.Domain.grounded_print = False
     pddl.core.Action.grounded_print = False

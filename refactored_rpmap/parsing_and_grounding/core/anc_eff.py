@@ -7,7 +7,6 @@ from pddl.logic.base import Not
 from pddl.logic.terms import Variable, Constant, Term
 from pddl.parser.domain import DomainTransformer
 from pddl.parser.problem import ProblemTransformer
-from copy import deepcopy
 import warnings
 from ..utils import return_option, basic_tokens_transformer
 
@@ -31,11 +30,19 @@ class ActionMODLType(Enum):
 class PossibleActionMODLType(Enum):
     PITN = 1
 
+class AncEffType(Enum):
+    ADD = 1
+    DEL = 2
+
 class Agent:
     def __init__(self, term: Term):
         if (isinstance(term, Constant) and term.type_tag != "agent") or (isinstance(term, Variable) and term.type_tags != frozenset(["agent"])):
             raise ValueError("The agent term must have `agent` as a type tag.")
-        self.term = term
+        self._term = term
+
+    @property
+    def term(self) -> Term:
+        return self._term
 
     def __eq__(self, other):
         return isinstance(other, Agent) and self.term == other.term
@@ -47,65 +54,25 @@ class Agent:
         return str(self.term)
 
 class GeneralRML:
-    def __init__(self, mod_type: GenericMODLType | PossibleGenericMODLType | ActionMODLType | PossibleActionMODLType, agent: Agent):
-        self.mod_type = mod_type
-        self.agent = agent
-        self.child: GeneralRML | Predicate = None
-
-    def __str__(self):
-        child = f"_{str(self.child)[1:-1]}" if self.child else ""
-        return f"({self.mod_type.name}_{self.agent}{child})"
-
-    def __repr__(self):
-        child = repr(self.child) if self.child else ""
-        return f"[{self.mod_type.name}, {self.agent}]{child}" if self.mod_type in GenericMODLType or self.mod_type in ActionMODLType else f"<{self.mod_type.name[1:]}, {self.agent}>{child}"
-
-    def __eq__(self, other):
-        return (
-            isinstance(other, self.__class__)
-            and self.mod_type == other.mod_type
-            and self.agent == other.agent
-            and self.child == other.child
-        )
-
-    def __hash__(self):
-        return hash((self.__class__, self.mod_type, self.agent, self.child))
-
-    def set_child(self, arg):
-        if arg:
-            if (self.mod_type in ActionMODLType or self.mod_type in PossibleActionMODLType) and not isinstance(arg, Predicate) and not isinstance(arg, NOT_MODL):
+    def __init__(self, mod_type: GenericMODLType | PossibleGenericMODLType | ActionMODLType | PossibleActionMODLType, agent: Agent, child: GeneralRML | Predicate = None):
+        if child:
+            if (mod_type in ActionMODLType or mod_type in PossibleActionMODLType) and not isinstance(child, Predicate) and not isinstance(child, NOT_MODL):
                 raise PDDLValidationError("Cannot apply an Action MODL to another MODL.")
-        self.child = arg
+        self._mod_type = mod_type
+        self._agent = agent
+        self._child = child
 
-class Nesting(GeneralRML):
-    def __init__(self, mod_type: GenericMODLType | PossibleGenericMODLType | ActionMODLType | PossibleActionMODLType, agent: Agent):
-        super().__init__(mod_type, agent)
-        self.child: Nesting | RML | Predicate
+    @property
+    def mod_type(self) ->  GenericMODLType | PossibleGenericMODLType | ActionMODLType | PossibleActionMODLType:
+        return self._mod_type
 
-    def __call__(self, arg):
-        if isinstance(arg, NOT_MODL): #TODO: remove Not from possibilities here
-            new_base = deepcopy(self)
-            new_base.set_child(deepcopy(arg))
-            return new_base
-        elif isinstance(arg, Nesting):
-            if (arg.mod_type == self.mod_type or self.mod_type == Nesting._get_counterpart_modl(arg.mod_type)) and arg.agent == self.agent:
-                return arg
-            new_base = deepcopy(self)
-            new_base.set_child(deepcopy(arg))
-            return new_base
-        elif isinstance(arg, RML):
-            if (arg.mod_type == self.mod_type or self.mod_type == Nesting._get_counterpart_modl(arg.mod_type)) and arg.agent == self.agent:
-                return arg
-            return RML(self.mod_type, self.agent, deepcopy(arg))
-        elif isinstance(arg, Predicate):
-            if arg.always_known:
-                warnings.warn(f"Nesting {self} being applied to a Predicate {arg} that is always known. Returning {arg}...", Warning)
-                return arg
-            return RML(self.mod_type, self.agent, deepcopy(arg))
-        elif isinstance(arg, BLANK_MODL):
-            return deepcopy(self)
-        else:
-            raise PDDLValidationError(f"A Nesting can only be applied to another Nesting or an RML, not {type(arg)}.")
+    @property
+    def agent(self) -> Agent:
+        return self._agent
+
+    @property
+    def child(self) -> GeneralRML | Predicate:
+        return self._child
 
     @staticmethod
     def _get_counterpart_modl(mod_type: GenericMODLType | PossibleGenericMODLType | ActionMODLType | PossibleActionMODLType):
@@ -121,40 +88,63 @@ class Nesting(GeneralRML):
             raise PDDLValidationError(f"Unknown modl type {mod_type}")
 
     def _negate(self):
-        new_base = Nesting(Nesting._get_counterpart_modl(self.mod_type), self.agent)
-        if self.child:
-            return new_base(self.child._negate())
-        return new_base
+        return self.__class__(GeneralRML._get_counterpart_modl(self.mod_type), self.agent, self.child._negate()) if self.child else self.__class__(GeneralRML._get_counterpart_modl(self.mod_type), self.agent)
+
+    def __str__(self):
+        return f"({self.mod_type.name}_{self.agent}{f"_{str(self.child)[1:-1]}" if self.child else ""})"
+
+    def __repr__(self):
+        child = repr(self.child) if self.child else ""
+        return f"[{self.mod_type.name}, {self.agent}]{child}" if self.mod_type in GenericMODLType or self.mod_type in ActionMODLType else f"<{self.mod_type.name[1:]}, {self.agent}>{child}"
+
+    def __eq__(self, other):
+        return (
+            isinstance(other, self.__class__)
+            and self.mod_type == other.mod_type
+            and self.agent == other.agent
+            and self.child == other.child
+        )
+
+    def __hash__(self):
+        return hash((self.__class__, self.mod_type, self.agent, self.child))    
+
+class Nesting(GeneralRML):
+    def __init__(self, mod_type: GenericMODLType | PossibleGenericMODLType | ActionMODLType | PossibleActionMODLType, agent: Agent, child: GeneralRML | Predicate = None):
+        super().__init__(mod_type, agent, child)
+
+    def __call__(self, arg):
+        if isinstance(arg, NOT_MODL):
+            return Nesting(self.mod_type, self.agent, arg)
+        elif isinstance(arg, BLANK_MODL):
+            return Nesting(self.mod_type, self.agent, self.child)
+        elif isinstance(arg, Predicate):
+            if arg.always_known:
+                warnings.warn(f"Nesting {self} being applied to a Predicate {arg} that is always known. Returning {arg}...", Warning)
+                return arg
+            return RML(self.mod_type, self.agent, arg)
+        elif isinstance(arg, GeneralRML):
+            if (arg.mod_type == self.mod_type or self.mod_type == Nesting._get_counterpart_modl(arg.mod_type)) and arg.agent == self.agent:
+                return arg
+            return arg.__class__(self.mod_type, self.agent, arg)
+        else:
+            raise PDDLValidationError(f"A Nesting can only be applied to another Nesting or an RML, not {type(arg)}.")
 
 class RML(GeneralRML):
     def __init__(self, mod_type: GenericMODLType | PossibleGenericMODLType | ActionMODLType | PossibleActionMODLType, agent: Agent, child: RML | Predicate):
-        super().__init__(mod_type, agent)
-        self.set_child(child)
+        super().__init__(mod_type, agent, child)
         self._check_terminal()
 
-    def _get_predicate(self):
-        current = deepcopy(self)
+    def _get_root(self):
+        current = self
         while isinstance(current.child, RML):
-            current = deepcopy(current.child)
-        return deepcopy(current.child)
+            current = current.child
+        return current.child
 
     def _check_terminal(self):
-        # check that the RML is "terminal" (ends in a Predicate)
-        current = deepcopy(self)
-        while isinstance(current.child, RML):
-            current = deepcopy(current.child)
-        if not isinstance(current.child, Predicate):
+        """check that the RML is "terminal" (ends in a Predicate)"""
+        if not isinstance(self._get_root(), Predicate):
             raise PDDLValidationError("RML does not terminate with a Predicate.")
 
-    def _negate(self):
-        if self.mod_type in GenericMODLType:
-            return RML(list(PossibleGenericMODLType)[list(GenericMODLType).index(self.mod_type)], self.agent, self.child._negate())
-        elif self.mod_type in PossibleGenericMODLType:
-            return RML(list(GenericMODLType)[list(PossibleGenericMODLType).index(self.mod_type)], self.agent, self.child._negate())
-        elif self.mod_type in ActionMODLType:
-            return RML(list(PossibleActionMODLType)[list(ActionMODLType).index(self.mod_type)], self.agent, self.child._negate())
-        else:
-            return RML(list(ActionMODLType)[list(PossibleActionMODLType).index(self.mod_type)], self.agent, self.child._negate())
 
 class BLANK_MODL:
     def __init__(self):
@@ -174,7 +164,11 @@ class BLANK_MODL:
 
 class NOT_MODL:
     def __init__(self):
-        self.mod_type = self
+        self._mod_type = self
+
+    @property
+    def mod_type(self) -> NOT_MODL:
+        return self
 
     def _negate(self):
         return BLANK_MODL()
@@ -239,7 +233,11 @@ class MODLTermWNesting:
     def __init__(self, modl: Nesting):
         if not isinstance(modl, Nesting):
             raise PDDLValidationError(f"Unknown type {type(modl)}")
-        self.modl = modl
+        self._modl = modl
+
+    @property
+    def modl(self) -> Nesting:
+        return self._modl
 
     def __eq__(self, other):
         return isinstance(other, self.__class__)
@@ -274,9 +272,17 @@ def detect_var_pos_neg(var: Variable):
 
 class ListCompVar:
     def __init__(self, term: SeparatedRMLTerm, var: Variable):
-        self.term = term
+        self._term = term
         detect_var_pos_neg(var)
-        self.var = var
+        self._var = var
+
+    @property
+    def term(self) ->  SeparatedRMLTerm:
+        return self._term
+
+    @property
+    def var(self) ->  Variable:
+        return self._var
 
     def __eq__(self, other):
         return isinstance(other, ListCompVar) and self.term == other.term and self.var == other.var
@@ -294,7 +300,11 @@ def detect_ag(term: SeparatedRMLTerm):
 class ListCompAgents:
     def __init__(self, term: SeparatedRMLTerm):
         detect_ag(term)
-        self.term = term
+        self._term = term
+
+    @property
+    def term(self) ->  SeparatedRMLTerm:
+        return self._term
 
     def __eq__(self, other):
         return isinstance(other, ListCompAgents) and self.term == other.term
@@ -305,9 +315,17 @@ class ListCompAgents:
 class ListCompVarAgents:
     def __init__(self, term: SeparatedRMLTerm, var: Variable):
         detect_ag(term)
-        self.term = term
+        self._term = term
         detect_var_pos_neg(var)
-        self.var = var
+        self._var = var
+
+    @property
+    def term(self) ->  SeparatedRMLTerm:
+        return self._term
+
+    @property
+    def var(self) ->  Variable:
+        return self._var
 
     def __eq__(self, other):
         return isinstance(other, ListCompVarAgents) and self.term == other.term and self.var == other.var
@@ -316,11 +334,19 @@ class ListCompVarAgents:
         return hash((ListCompVarAgents, self.term, self.var))
 
 class SeparatedRMLTerm:
-    def __init__(self, nestings: list[Nesting | NOT_MODL], rml_or_pred_term: RMLOrPredTerm | Predicate):
-        self.nestings = self.normal_form(nestings)
-        if isinstance(rml_or_pred_term, Predicate) and rml_or_pred_term.negated:
+    def __init__(self, nestings: list[Nesting | NOT_MODL], term: RMLOrPredTerm | Predicate):
+        self._nestings = self.normal_form(nestings)
+        if isinstance(term, Predicate) and term.negated:
             raise PDDLValidationError("Any negation in a `SeparatedRMLTerm` should be separated into `nestings`.")
-        self.term = rml_or_pred_term
+        self._term = term
+
+    @property
+    def nestings(self) -> list[Nesting | NOT_MODL]:
+        return self._var
+
+    @property
+    def term(self) -> RMLOrPredTerm | Predicate:
+        return self._term
 
     @staticmethod
     def _get_as_list(term: Predicate | Nesting | RML | NOT_MODL):
@@ -328,15 +354,13 @@ class SeparatedRMLTerm:
         if isinstance(term, NOT_MODL) or isinstance(term, BLANK_MODL):
             pass
         elif isinstance(term, Predicate):
-            modl_list.append(deepcopy(term))
+            modl_list.append(term)
         elif isinstance(term, Nesting) or isinstance(term, RML):
             if not term.child:
-                modl_list.append(deepcopy(term))
+                modl_list.append(term)
             else:
-                base = deepcopy(term)
-                base.child = None
-                modl_list.append(base)
-                modl_list.extend(deepcopy(SeparatedRMLTerm._get_as_list(term.child)))
+                modl_list.append(term.__class__(term.mod_type, term.agent))
+                modl_list.extend(SeparatedRMLTerm._get_as_list(term.child))
         else:
             raise ValueError(f"Unknown type {type(term)}.")
         return modl_list
@@ -368,11 +392,27 @@ class SeparatedRMLTerm:
         return f"{self.nestings} >> {self.term}"
 
 class AncEffPart:
-    def __init__(self, poscond: list, negcond: list, rml: SeparatedRMLTerm | list[SeparatedRMLTerm | ListCompAgents | ListCompVar | ListCompVarAgents], anceff_type: str):
-        self.poscond = poscond
-        self.negcond = negcond
-        self.rml = rml
-        self.anceff_type = anceff_type
+    def __init__(self, poscond: list[Variable | ListCompAgents | ListCompVar | ListCompVarAgents | SeparatedRMLTerm | Not], negcond: list[Variable | ListCompAgents | ListCompVar | ListCompVarAgents | SeparatedRMLTerm | Not], rml: SeparatedRMLTerm | list[SeparatedRMLTerm | ListCompAgents | ListCompVar | ListCompVarAgents], anceff_type: AncEffType):
+        self._poscond = poscond
+        self._negcond = negcond
+        self._rml = rml
+        self._anceff_type = anceff_type
+
+    @property
+    def poscond(self) -> list[Variable | ListCompAgents | ListCompVar | ListCompVarAgents | SeparatedRMLTerm | Not]:
+        return self._poscond
+
+    @property
+    def negcond(self) -> list[Variable | ListCompAgents | ListCompVar | ListCompVarAgents | SeparatedRMLTerm | Not]:
+        return self._negcond
+
+    @property
+    def rml(self) -> SeparatedRMLTerm | list[SeparatedRMLTerm | ListCompAgents | ListCompVar | ListCompVarAgents]:
+        return self._rml
+
+    @property
+    def anceff_type(self) -> AncEffType:
+        return self._anceff_type
     
     def __eq__(self, other):
         return (isinstance(other, self.__class__) and
@@ -385,13 +425,17 @@ class AncEffPart:
         return hash((self.poscond, self.negcond, self.rml, self.anceff_type))
 
 class Consequent(AncEffPart):
-    def __init__(self, poscond: list, negcond: list, rml: list[SeparatedRMLTerm | ListCompAgents | ListCompVar | ListCompVarAgents], anceff_type: str):
+    def __init__(self, poscond:  list[Variable | ListCompAgents | ListCompVar | ListCompVarAgents | SeparatedRMLTerm | Not], negcond:  list[Variable | ListCompAgents | ListCompVar | ListCompVarAgents | SeparatedRMLTerm | Not], rml: list[SeparatedRMLTerm | ListCompAgents | ListCompVar | ListCompVarAgents], anceff_type: AncEffType):
         super().__init__(poscond, negcond, rml, anceff_type)
 
 class Antecedent(AncEffPart):
-    def __init__(self, awareness: bool, rml: SeparatedRMLTerm, anceff_type: str):
+    def __init__(self, awareness: bool, rml: SeparatedRMLTerm, anceff_type: AncEffType):
         super().__init__([Variable("pos")], [Variable("neg")], rml, anceff_type)
-        self.awareness = awareness
+        self._awareness = awareness
+
+    @property
+    def awareness(self) -> bool:
+        return self._awareness
 
     def __eq__(self, other):
         return super().__eq__(other) and self.awareness == other.awareness
@@ -401,8 +445,8 @@ class Antecedent(AncEffPart):
 
 class AncEff:
     def __init__(self, name: str, parameters: list[Variable], antecedent: Antecedent, consequent: Consequent):
-        self.name = name
-        self.parameters = parameters if parameters else list()
+        self._name = name
+        self._parameters = parameters if parameters else list()
         ant_vars = AncEff._get_vars(antecedent.rml)
         cons_vars = set()
         if consequent.poscond:
@@ -426,9 +470,29 @@ class AncEff:
         cons_terms_w_nesting_types = {type(term) for rml in consequent.rml if isinstance(rml, SeparatedRMLTerm) for term in rml.nestings if isinstance(term, MODLTermWNesting)}
         if ant_terms_w_nesting_types != cons_terms_w_nesting_types:
             raise PDDLValidationError(f"The antecedent and consequent of the {self.name} ancillary effect feature different" + "{nesting} term types.")
-        self.antecedent = antecedent
-        self.consequent = consequent
-        self.agents = {a for a in ant_vars | cons_vars if "agent" in a.type_tags}
+        self._antecedent = antecedent
+        self._consequent = consequent
+        self._agents = {a for a in ant_vars | cons_vars if "agent" in a.type_tags}
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @property
+    def parameters(self) -> list[Variable]:
+        return self._parameters
+
+    @property
+    def antecedent(self) -> Antecedent:
+        return self._antecedent
+
+    @property
+    def consequent(self) -> Consequent:
+        return self._consequent
+
+    @property
+    def agents(self) -> set[Agent]:
+        return self._agents
 
     @staticmethod
     def _get_vars(rml: SeparatedRMLTerm | MODLTermWNesting | Nesting | NOT_MODL):
@@ -454,7 +518,7 @@ class AncEff:
             variables.update(AncEff._get_vars(rml.argument))
         else:
             raise ValueError(f"Unexpected type {type(rml)}.")
-        return deepcopy(variables)
+        return variables
                 
     def __eq__(self, other):
         return (isinstance(other, AncEff) and 
