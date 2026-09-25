@@ -1,6 +1,6 @@
 #!/bin/bash
 
-for ((i=2; i<=2; i++)); do
+for ((i=1; i<=2; i++)); do
     echo "Running: python3 evaluate_updated.py \"$1\" $i"
     python3 -W ignore evaluate_updated.py "$1" "$i" solve
     echo "Running the planner..."
@@ -10,7 +10,7 @@ for ((i=2; i<=2; i++)); do
     printf "%s\n" "$plan_out" > "domains/$1/output_$i.txt"
     mv sas_plan domains/$1/plan_$i.txt
     python3 evaluate_updated.py "$1" "$i" write-plan
-    # rm domains/$1/pdkb-domain.pddl
-    # rm domains/$1/pdkb-problem.pddl
+    rm domains/$1/pdkb-domain.pddl
+    rm domains/$1/pdkb-problem.pddl
     rm time_output.txt
 done
