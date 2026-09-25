@@ -428,9 +428,9 @@ class ApplyAncEffs:
                 # if next_term_rep == "(when (and (at_bob_l1)) (and [BEL, bob](secret_alice)))":
                 #     print()
                 processed_conds[next_term_rep] = next_term
-                if len(processed_conds) > 5000:
-                    exit()
-                print("anceffs for action: ", len(processed_conds))
+                # if len(processed_conds) > 5000:
+                #     exit()
+                # print("anceffs for action: ", len(processed_conds))
                 for anc_eff in anc_effs.values():
                     if self.check_ant_match(anc_eff.antecedent.rml, anc_eff.antecedent.anceff_type, next_term, anc_eff.antecedent.awareness, derive_condition):
                         new_terms = self.apply_anc_eff_all_dlr_agent(anc_eff, next_term, anc_eff.antecedent.awareness, derive_condition)
@@ -459,10 +459,10 @@ class ApplyAncEffs:
         for depth in range(1, self.problem.depth + 1):
             for p in curr:
                 if not p.always_known:
-                    for negation_status in (list(), [NOT_MODL()]):
+                    for negation_status in (True, False):
                         for generic_modl_permutation in list(itertools.product({*GenericMODLType, *PossibleGenericMODLType}, repeat=depth)):
                             for agent_permutation in list(itertools.product(self.agents.values(), repeat=depth)):
-                                variant_nestings = negation_status
+                                variant_nestings = [NOT_MODL()] if negation_status else list() 
                                 variant_nestings.extend([Nesting(generic_modl_permutation[i], Agent(Constant(agent_permutation[i], "agent"))) for i in range(depth)])
                                 srt_variant = SeparatedRMLTerm(variant_nestings, p)
                                 variants[ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(srt_variant))] = srt_variant
@@ -486,16 +486,13 @@ class ApplyAncEffs:
         self.domain._predicates = [ApplyAncEffs.term_to_rml(p) for p in all_rmls.values()]
         anc_effs_count = 0
         for action in self.domain.actions:
-            print(action.name)
-            if action.name == "adopt-belief_cindy_l1":
-                for o in action.effect.operands:
-                    new_terms = self.apply_anc_effs_to_action(o, action.derive_condition)
-                    if new_terms:
-                        action.effect._operands.extend(new_terms)
-                        anc_effs_count += len(new_terms)
-                        print("total anc effs: ", anc_effs_count)
-                    if time.time() - start > timeout:
-                        raise TimeoutError("Preprocessing exceeded 30-minute time limit.")
+            for o in action.effect.operands:
+                new_terms = self.apply_anc_effs_to_action(o, action.derive_condition)
+                if new_terms:
+                    action.effect._operands.extend(new_terms)
+                    anc_effs_count += len(new_terms)
+                if time.time() - start > timeout:
+                    raise TimeoutError("Preprocessing exceeded 30-minute time limit.")
         if self.problem.init_type == "complete":
             self.problem._init = list(self.problem.init)
             init_strs = [ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(init_rml)) for init_rml in self.problem.init]
@@ -516,7 +513,7 @@ class ApplyAncEffs:
         # now we need to convert everything to RMLs
 
         for action in self.domain.actions:
-            action.derive_condition = ApplyAncEffs.term_to_rml(action.derive_condition) if isinstance(action.derive_condition, SeparatedRMLTerm) else action.derive_condition
+            action._derive_condition = ApplyAncEffs.term_to_rml(action.derive_condition) if isinstance(action.derive_condition, SeparatedRMLTerm) else action.derive_condition
             for i in range(len(action.precondition._operands)):
                 action.precondition._operands[i] = ApplyAncEffs.term_to_rml(action.precondition._operands[i])
             for i in range(len(action.effect._operands)):
