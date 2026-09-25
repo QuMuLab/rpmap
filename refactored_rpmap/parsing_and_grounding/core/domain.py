@@ -47,8 +47,8 @@ def agent_transformer(self, args):
 def agents_transformer(self, args):
     """Transformer for agents."""
     # assign the agents
-    self._agents = {a: Constant(a) for a in set(args[1:-1])}
-    return {"agents": self._agents}
+    self.agents = {a: Constant(a, "agent") for a in set(args[1:-1])}
+    return {"agents": self.agents}
 
 def check_pred_name(pred_name):
     if pred_name in ["rml", "r"]:
@@ -159,7 +159,7 @@ def new_domain_str(self):
     body = ""
     body += sort_and_print_collection("(:requirements ", self.requirements, ")\n")
     if not self.grounded_print:
-        body += f"(:agents {' '.join(sorted(self._agents.keys())) if self._agents.keys() else ''})\n"
+        body += f"(:agents {' '.join(sorted(self.agents.keys())) if self.agents.keys() else ''})\n"
     self._types = Types(self.types, self._requirements)
     types_str = print_types_or_functions_with_parents("(:types", self.types, ")\n")
     types_str = types_str.replace(" - object", "")  # remove the default object type
@@ -203,7 +203,7 @@ def derive_condition(self) -> SeparatedRMLTerm:
 
 def new_domain_init(self, *args, **kwargs):
     """New init function for the pddl.core.Domain that takes into account agents."""
-    self._agents = kwargs["agents"]
+    self.agents = kwargs["agents"]
     kwargs["types"]["agent"] = None
     kwargs.pop("agents")
     self.orig_init(*args, **kwargs)
@@ -211,7 +211,7 @@ def new_domain_init(self, *args, **kwargs):
 @TypeChecker.check_type.register
 def _(self, rml: RML) -> None:
     """Check types annotations of an RML."""
-    self.check_type(rml._get_predicate())
+    self.check_type(rml.get_predicate())
 
 @TypeChecker.check_type.register
 def _(self, sep: SeparatedRMLTerm) -> None:
@@ -286,7 +286,7 @@ def modify_domain_classes():
     setattr(Predicate, "always_known", property(always_known))
     setattr(Predicate, "negated", property(negated))
     pddl.logic.predicates.Predicate._negate = negate_predicate
-    pddl.logic.predicates.Predicate._get_predicate = lambda self: self
+    pddl.logic.predicates.Predicate.get_predicate = lambda self: self
     pddl.action.Action.orig_init = pddl.action.Action.__init__
     pddl.action.Action.__init__ = new_action_init
     pddl.action.Action.__str__ = new_action_str

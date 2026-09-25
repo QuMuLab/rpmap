@@ -477,201 +477,201 @@ class TestUnification:
     def test_add_leading_nesting(self):
         srt = SeparatedRMLTerm([self.bel], self.pred)
         assert self.apply_anc_effs.check_ant_match(self.leading_nesting, "add", srt)
-        assert self.apply_anc_effs.nestings == [[[], []]]
+        assert self.apply_anc_effs.nesting_terms == [[[], []]]
 
     def test_add_leading_nesting_extra_nesting(self):
         srt = SeparatedRMLTerm([self.des, self.bel], self.pred)
         assert self.apply_anc_effs.check_ant_match(self.leading_nesting, "add", srt)
-        assert self.apply_anc_effs.nestings == [[[self.des], []]]
+        assert self.apply_anc_effs.nesting_terms == [[[self.des], []]]
 
     def test_add_leading_nesting_no_cond_nesting(self):
         srt = SeparatedRMLTerm(list(), self.pred)
         assert not self.apply_anc_effs.check_ant_match(self.leading_nesting, "add", srt)
-        assert self.apply_anc_effs.nestings is None
+        assert self.apply_anc_effs.nesting_terms is None
 
     def test_add_leading_nesting_wrong_pos(self):
         srt = SeparatedRMLTerm([self.bel, self.des], self.pred)
         assert not self.apply_anc_effs.check_ant_match(self.leading_nesting, "add", srt)
-        assert self.apply_anc_effs.nestings is None
+        assert self.apply_anc_effs.nesting_terms is None
 
     def test_add_leading_nesting_no_match(self):
         srt = SeparatedRMLTerm([self.des], self.pred)
         assert not self.apply_anc_effs.check_ant_match(self.leading_nesting, "add", srt)
-        assert self.apply_anc_effs.nestings is None
+        assert self.apply_anc_effs.nesting_terms is None
 
     def test_del_leading_nesting(self):
         srt = SeparatedRMLTerm([self.bel], self.pred)
         assert self.apply_anc_effs.check_ant_match(self.leading_nesting, "del", cleaned_not(srt))
-        assert self.apply_anc_effs.nestings == [[[], []]]
+        assert self.apply_anc_effs.nesting_terms == [[[], []]]
 
     def test_del_leading_nesting_extra_nesting(self):
         srt = SeparatedRMLTerm([self.des, self.bel], self.pred)
         assert self.apply_anc_effs.check_ant_match(self.leading_nesting, "del", cleaned_not(srt))
-        assert self.apply_anc_effs.nestings == [[[self.des], []]]
+        assert self.apply_anc_effs.nesting_terms == [[[self.des], []]]
 
     def test_del_leading_nesting_wrong_pos(self):
         srt = SeparatedRMLTerm([self.bel, self.des], self.pred)
         assert not self.apply_anc_effs.check_ant_match(self.leading_nesting, "del", cleaned_not(srt))
-        assert self.apply_anc_effs.nestings is None
+        assert self.apply_anc_effs.nesting_terms is None
 
     def test_del_leading_nesting_no_match(self):
         srt = SeparatedRMLTerm([self.des], self.pred)
         assert not self.apply_anc_effs.check_ant_match(self.leading_nesting, "add", cleaned_not(srt))
-        assert self.apply_anc_effs.nestings is None
+        assert self.apply_anc_effs.nesting_terms is None
 
     # ----- antecedent: [bel, ?a]{nesting}{rml} ----- 
 
     def test_add_trailing_nesting(self):
         srt = SeparatedRMLTerm([self.bel], self.pred)
         assert self.apply_anc_effs.check_ant_match(self.trailing_nesting, "add", srt)
-        assert self.apply_anc_effs.nestings == [[[], []]]
+        assert self.apply_anc_effs.nesting_terms == [[[], []]]
 
     def test_add_trailing_nesting_no_cond_nesting(self):
         srt = SeparatedRMLTerm(list(), self.pred)
         assert not self.apply_anc_effs.check_ant_match(self.trailing_nesting, "add", srt)
-        assert self.apply_anc_effs.nestings is None
+        assert self.apply_anc_effs.nesting_terms is None
 
     def test_add_trailing_nesting_extra_nesting(self):
         srt = SeparatedRMLTerm([self.bel, self.des], self.pred)
         assert self.apply_anc_effs.check_ant_match(self.trailing_nesting, "add", srt)
-        assert self.apply_anc_effs.nestings == [[[], [self.des]]]
+        assert self.apply_anc_effs.nesting_terms == [[[], [self.des]]]
 
     def test_add_trailing_nesting_wrong_pos(self):
         srt = SeparatedRMLTerm([self.des, self.bel], self.pred)
         assert not self.apply_anc_effs.check_ant_match(self.trailing_nesting, "add", srt)
-        assert self.apply_anc_effs.nestings is None
+        assert self.apply_anc_effs.nesting_terms is None
 
     def test_add_trailing_nesting_no_match(self):
         srt = SeparatedRMLTerm([self.des], self.pred)
         assert not self.apply_anc_effs.check_ant_match(self.trailing_nesting, "add", srt)
-        assert self.apply_anc_effs.nestings is None
+        assert self.apply_anc_effs.nesting_terms is None
 
     def test_del_trailing_nesting(self):
         srt = SeparatedRMLTerm([self.bel], self.pred)
         assert self.apply_anc_effs.check_ant_match(self.trailing_nesting, "del", cleaned_not(srt))
-        assert self.apply_anc_effs.nestings == [[[], []]]
+        assert self.apply_anc_effs.nesting_terms == [[[], []]]
 
     def test_del_trailing_nesting_extra_nesting(self):
         srt = SeparatedRMLTerm([self.bel, self.des], self.pred)
         assert self.apply_anc_effs.check_ant_match(self.trailing_nesting, "del", cleaned_not(srt))
-        assert self.apply_anc_effs.nestings == [[[], [self.des]]]
+        assert self.apply_anc_effs.nesting_terms == [[[], [self.des]]]
 
     def test_del_trailing_nesting_wrong_pos(self):
         srt = SeparatedRMLTerm([self.des, self.bel], self.pred)
         assert not self.apply_anc_effs.check_ant_match(self.trailing_nesting, "del", cleaned_not(srt))
-        assert self.apply_anc_effs.nestings is None
+        assert self.apply_anc_effs.nesting_terms is None
 
     def test_del_trailing_nesting_no_match(self):
         srt = SeparatedRMLTerm([self.des], self.pred)
         assert not self.apply_anc_effs.check_ant_match(self.trailing_nesting, "add", cleaned_not(srt))
-        assert self.apply_anc_effs.nestings is None
+        assert self.apply_anc_effs.nesting_terms is None
 
     # ----- antecedent: {nesting}[bel, ?a]{nesting} ----- 
 
     def test_add_leading_trailing_nesting(self):
         srt = SeparatedRMLTerm([self.bel], self.pred)
         assert self.apply_anc_effs.check_ant_match(self.leading_trailing_nesting, "add", srt)
-        assert self.apply_anc_effs.nestings == [[[], []]]
+        assert self.apply_anc_effs.nesting_terms == [[[], []]]
 
     def test_add_leading_trailing_nesting_no_cond_nesting(self):
         srt = SeparatedRMLTerm(list(), self.pred)
         assert not self.apply_anc_effs.check_ant_match(self.leading_trailing_nesting, "add", srt)
-        assert self.apply_anc_effs.nestings is None
+        assert self.apply_anc_effs.nesting_terms is None
 
     def test_add_leading_trailing_nesting_extra_nesting(self):
         srt = SeparatedRMLTerm([self.bel, self.des], self.pred)
         assert self.apply_anc_effs.check_ant_match(self.leading_trailing_nesting, "add", srt)
-        assert self.apply_anc_effs.nestings == [[[], [self.des]]]
+        assert self.apply_anc_effs.nesting_terms == [[[], [self.des]]]
 
     def test_add_leading_trailing_nesting_extra_nesting_before(self):
         srt = SeparatedRMLTerm([self.des, self.bel], self.pred)
         assert self.apply_anc_effs.check_ant_match(self.leading_trailing_nesting, "add", srt)
-        assert self.apply_anc_effs.nestings == [[[self.des], []]]
+        assert self.apply_anc_effs.nesting_terms == [[[self.des], []]]
 
     def test_add_leading_trailing_nesting_extra_nesting_before_and_after(self):
         srt = SeparatedRMLTerm([self.des, self.bel, self.des], self.pred)
         assert self.apply_anc_effs.check_ant_match(self.leading_trailing_nesting, "add", srt)
-        assert self.apply_anc_effs.nestings == [[[self.des], [self.des]]]
+        assert self.apply_anc_effs.nesting_terms == [[[self.des], [self.des]]]
 
     def test_add_leading_trailing_nesting_extra_nesting_after_multiple(self):
         srt = SeparatedRMLTerm([self.des, self.bel, self.des, self.des], self.pred)
         assert self.apply_anc_effs.check_ant_match(self.leading_trailing_nesting, "add", srt)
-        assert self.apply_anc_effs.nestings == [[[self.des], [self.des]]]
+        assert self.apply_anc_effs.nesting_terms == [[[self.des], [self.des]]]
 
     def test_add_leading_trailing_nesting_extra_nesting_before_multiple(self):
         srt = SeparatedRMLTerm([self.des, self.des, self.bel, self.des], self.pred)
         assert self.apply_anc_effs.check_ant_match(self.leading_trailing_nesting, "add", srt)
-        assert self.apply_anc_effs.nestings == [[[self.des], [self.des]]]
+        assert self.apply_anc_effs.nesting_terms == [[[self.des], [self.des]]]
 
     def test_add_leading_trailing_nesting_extra_nesting_before_after_multiple(self):
         srt = SeparatedRMLTerm([self.des, self.des, self.bel, self.des, self.des], self.pred)
         assert self.apply_anc_effs.check_ant_match(self.leading_trailing_nesting, "add", srt)
-        assert self.apply_anc_effs.nestings == [[[self.des], [self.des]]]
+        assert self.apply_anc_effs.nesting_terms == [[[self.des], [self.des]]]
 
     def test_add_leading_trailing_nesting_multiple_bel(self):
         srt = SeparatedRMLTerm([self.des, self.des, self.bel, self.bel, self.des], self.pred)
         assert self.apply_anc_effs.check_ant_match(self.leading_trailing_nesting, "add", srt)
-        assert self.apply_anc_effs.nestings == [[[self.des], [self.des]]]
+        assert self.apply_anc_effs.nesting_terms == [[[self.des], [self.des]]]
 
     def test_add_leading_trailing_nesting_multiple_bel_2(self):
         srt = SeparatedRMLTerm([self.des, self.des, self.bel, self.des, self.bel], self.pred)
         assert self.apply_anc_effs.check_ant_match(self.leading_trailing_nesting, "add", srt)
-        assert self.apply_anc_effs.nestings == [[[self.des], [self.des, self.bel]], [[self.des, self.bel, self.des], []]]
+        assert self.apply_anc_effs.nesting_terms == [[[self.des], [self.des, self.bel]], [[self.des, self.bel, self.des], []]]
 
     def test_add_leading_trailing_nesting_no_match(self):
         srt = SeparatedRMLTerm([self.des], self.pred)
         assert not self.apply_anc_effs.check_ant_match(self.leading_trailing_nesting, "add", srt)
-        assert self.apply_anc_effs.nestings is None
+        assert self.apply_anc_effs.nesting_terms is None
 
     def test_del_leading_trailing_nesting(self):
         srt = SeparatedRMLTerm([self.bel], self.pred)
         assert self.apply_anc_effs.check_ant_match(self.leading_trailing_nesting, "del", cleaned_not(srt))
-        assert self.apply_anc_effs.nestings == [[[], []]
+        assert self.apply_anc_effs.nesting_terms == [[[], []]
 ]
     def test_del_leading_trailing_nesting_extra_nesting(self):
         srt = SeparatedRMLTerm([self.bel, self.des], self.pred)
         assert self.apply_anc_effs.check_ant_match(self.leading_trailing_nesting, "del", cleaned_not(srt))
-        assert self.apply_anc_effs.nestings == [[[], [self.des]]]
+        assert self.apply_anc_effs.nesting_terms == [[[], [self.des]]]
 
     def test_del_leading_trailing_nesting_extra_nesting_before(self):
         srt = SeparatedRMLTerm([self.des, self.bel], self.pred)
         assert self.apply_anc_effs.check_ant_match(self.leading_trailing_nesting, "del", cleaned_not(srt))
-        assert self.apply_anc_effs.nestings == [[[self.des], []]]
+        assert self.apply_anc_effs.nesting_terms == [[[self.des], []]]
 
     def test_del_leading_trailing_nesting_extra_nesting_before_and_after(self):
         srt = SeparatedRMLTerm([self.des, self.bel, self.des], self.pred)
         assert self.apply_anc_effs.check_ant_match(self.leading_trailing_nesting, "del", cleaned_not(srt))
-        assert self.apply_anc_effs.nestings == [[[self.des], [self.des]]]
+        assert self.apply_anc_effs.nesting_terms == [[[self.des], [self.des]]]
 
     def test_del_leading_trailing_nesting_extra_nesting_after_multiple(self):
         srt = SeparatedRMLTerm([self.des, self.bel, self.des, self.des], self.pred)
         assert self.apply_anc_effs.check_ant_match(self.leading_trailing_nesting, "del", cleaned_not(srt))
-        assert self.apply_anc_effs.nestings == [[[self.des], [self.des]]]
+        assert self.apply_anc_effs.nesting_terms == [[[self.des], [self.des]]]
 
     def test_del_leading_trailing_nesting_extra_nesting_before_multiple(self):
         srt = SeparatedRMLTerm([self.des, self.des, self.bel, self.des], self.pred)
         assert self.apply_anc_effs.check_ant_match(self.leading_trailing_nesting, "del", cleaned_not(srt))
-        assert self.apply_anc_effs.nestings == [[[self.des], [self.des]]]
+        assert self.apply_anc_effs.nesting_terms == [[[self.des], [self.des]]]
 
     def test_del_leading_trailing_nesting_extra_nesting_before_after_multiple(self):
         srt = SeparatedRMLTerm([self.des, self.des, self.bel, self.des, self.des], self.pred)
         assert self.apply_anc_effs.check_ant_match(self.leading_trailing_nesting, "del", cleaned_not(srt))
-        assert self.apply_anc_effs.nestings == [[[self.des], [self.des]]]
+        assert self.apply_anc_effs.nesting_terms == [[[self.des], [self.des]]]
 
     def test_del_leading_trailing_nesting_multiple_bel(self):
         srt = SeparatedRMLTerm([self.des, self.des, self.bel, self.bel, self.des], self.pred)
         assert self.apply_anc_effs.check_ant_match(self.leading_trailing_nesting, "del", cleaned_not(srt))
-        assert self.apply_anc_effs.nestings == [[[self.des], [self.des]]]
+        assert self.apply_anc_effs.nesting_terms == [[[self.des], [self.des]]]
 
     def test_del_leading_trailing_nesting_multiple_bel_2(self):
         srt = SeparatedRMLTerm([self.des, self.des, self.bel, self.des, self.bel], self.pred)
         assert self.apply_anc_effs.check_ant_match(self.leading_trailing_nesting, "del", cleaned_not(srt))
-        assert self.apply_anc_effs.nestings == [[[self.des], [self.des, self.bel]], [[self.des, self.bel, self.des], []]]
+        assert self.apply_anc_effs.nesting_terms == [[[self.des], [self.des, self.bel]], [[self.des, self.bel, self.des], []]]
 
     def test_del_leading_trailing_nesting_no_match(self):
         srt = SeparatedRMLTerm([self.des], self.pred)
         assert not self.apply_anc_effs.check_ant_match(self.leading_trailing_nesting, "del", cleaned_not(srt))
-        assert self.apply_anc_effs.nestings is None
+        assert self.apply_anc_effs.nesting_terms is None
 
     # ----- derived condition testing -----
 
@@ -746,7 +746,7 @@ class TestUnification:
     def test_add_rml_when_complex(self):
         srt = SeparatedRMLTerm([self.des, self.des, self.bel, self.des, self.des], self.pred)
         assert self.apply_anc_effs.check_ant_match(self.leading_trailing_nesting, "add", When(And(), srt))
-        assert self.apply_anc_effs.nestings == [[[self.des], [self.des]]]
+        assert self.apply_anc_effs.nesting_terms == [[[self.des], [self.des]]]
 
     def test_del_rml_when_complex(self):
         srt = SeparatedRMLTerm([NOT_MODL()], self.pred)

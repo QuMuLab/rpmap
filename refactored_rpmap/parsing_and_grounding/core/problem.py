@@ -106,7 +106,7 @@ def is_literal_modified(formula: Formula) -> bool:
         or (isinstance(formula, Not)
             and isinstance(formula.argument, Atomic))
         or (isinstance(formula, RML)
-            and isinstance(formula._get_predicate(), Atomic))
+            and isinstance(formula.get_predicate(), Atomic))
         or (isinstance(formula, Forall)
             and is_literal_modified(formula.effect))
         or (isinstance(formula, SeparatedRMLTerm)

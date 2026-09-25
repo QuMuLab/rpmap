@@ -4,7 +4,6 @@ from pddl.core import Domain, Problem
 from pddl.exceptions import PDDLValidationError
 from pddl.logic.base import Not, And
 from pddl.logic.effects import When
-from copy import deepcopy
 import itertools
 import time
 
@@ -19,11 +18,10 @@ class ApplyAncEffs:
         )
         self.domain = domain
         self.problem = problem
-        self.agents = domain._agents
+        self.agents = domain.agents
         self.rml: SeparatedRMLTerm = None
         self.pred: Predicate = None
-        self.nestings: list[list[list[Nesting]]] = None
-        self.current_nestings: list[list[Nesting]] = None
+        self.nesting_terms: list[list[list[Nesting]]] = None
         self.raw_conds: list[Not | SeparatedRMLTerm | Predicate] = None
         self.assignment: dict[Variable, str] = {}
         self.max_depth_detected = 0
@@ -31,8 +29,7 @@ class ApplyAncEffs:
     def reset(self):
         self.rml = None
         self.pred = None
-        self.nestings = None
-        self.current_nestings = None
+        self.nesting_terms = None
         self.assignment = {}
         self.raw_conds = None
         self.max_depth_detected = 0
@@ -49,41 +46,41 @@ class ApplyAncEffs:
 
     def check_ant_rml_nestings(self, ant_rml: SeparatedRMLTerm, cond: SeparatedRMLTerm, soft_check: bool):
         if isinstance(ant_rml.nestings[0], MODLTermWNesting):
-            self.nestings = []
+            self.nesting_terms = []
             if not cond.nestings:
-                self.nestings = None
+                self.nesting_terms = None
                 return False
             nesting_term = ant_rml.nestings[0]
             if isinstance(nesting_term, TrailingNesting):
                 if cond.nestings[0].mod_type == nesting_term.modl.mod_type:
-                    nesting_terms = deepcopy(cond.nestings[1:]) if len(cond.nestings) > 1 else list()
-                    self.nestings.append([])
-                    self.nestings.append(nesting_terms)
-                    self.nestings = [self.nestings]
+                    nesting_terms = cond.nestings[1:] if len(cond.nestings) > 1 else list()
+                    self.nesting_terms.append([])
+                    self.nesting_terms.append(nesting_terms)
+                    self.nesting_terms = [self.nesting_terms]
                     self.assignment[nesting_term.modl.agent.term] = cond.nestings[0].agent.term
                     return True
-                self.nestings = None
+                self.nesting_terms = None
                 return False
             elif isinstance(nesting_term, LeadingNesting):
                 if cond.nestings[-1].mod_type == nesting_term.modl.mod_type:
-                    nesting_terms = deepcopy(cond.nestings[:-1]) if len(cond.nestings) > 1 else list()
-                    self.nestings.append(nesting_terms)
-                    self.nestings.append([])
-                    self.nestings = [self.nestings]
+                    nesting_terms = cond.nestings[:-1] if len(cond.nestings) > 1 else list()
+                    self.nesting_terms.append(nesting_terms)
+                    self.nesting_terms.append([])
+                    self.nesting_terms = [self.nesting_terms]
                     self.assignment[nesting_term.modl.agent.term] = cond.nestings[-1].agent.term
                     return True
-                self.nestings = None
+                self.nesting_terms = None
                 return False
             elif isinstance(nesting_term, LeadingTrailingNesting):
                 found_idxs = [i for i in range(len(cond.nestings)) if cond.nestings[i].mod_type == nesting_term.modl.mod_type]
                 if not found_idxs:
-                    self.nestings = None
+                    self.nesting_terms = None
                     return False
                 self.assignment[nesting_term.modl.agent.term] = list()
                 for i in found_idxs:
                     nesting_terms = [cond.nestings[:i]]
                     nesting_terms.append(cond.nestings[i + 1:]  if i < len(cond.nestings) - 1 else [])
-                    self.nestings.append(nesting_terms)
+                    self.nesting_terms.append(nesting_terms)
                     self.assignment[nesting_term.modl.agent.term].append(cond.nestings[i].agent.term)
                 return True
             else:
@@ -105,91 +102,82 @@ class ApplyAncEffs:
             return True
 
     def check_ant_match(self, ant_rml: SeparatedRMLTerm, ant_rml_type: str, next_term: Not | When | SeparatedRMLTerm, awareness: bool = False, derive_condition: str | SeparatedRMLTerm = "never"):
-        nt = deepcopy(next_term)
         # if dealing with a When statement, we need to compare against the When effect.
-        if isinstance(nt, When):
+        if isinstance(next_term, When):
             # note that When formulas already been grounded such that every When has only one effect
             # there is a possibility it is a Not instead though
-            nt = nt.effect.operands[0] if isinstance(nt.effect, And) else nt.effect
+            next_term = next_term.effect.operands[0] if isinstance(next_term.effect, And) else next_term.effect
         # compare Not status with the antecedent type status
-        if (ant_rml_type == "del" and not isinstance(nt, Not)) or (isinstance(nt, Not) and ant_rml_type != "del"):
+        if (ant_rml_type == "del" and not isinstance(next_term, Not)) or (isinstance(next_term, Not) and ant_rml_type != "del"):
             return False
         # if dealing with a Not statement, we need to compare against the argument.
-        if isinstance(nt, Not): 
+        if isinstance(next_term, Not): 
             # Not has been checked in grounding such that it can take an RML, Predicate, or SeparatedRMLTerm
-            nt = nt.argument
+            next_term = next_term.argument
         if awareness:
             if derive_condition == "never":
                 return False
-            # elif derive_condition == "always":
-            #     if Variable("dlr_agent", ["agent"]) in anc_eff_agents:
-            #         return False
-            # elif isinstance(derive_condition, SeparatedRMLTerm):
-            #     if hasattr(derive_condition, "assignment"): 
-            #         self.assignment.update(derive_condition.assignment)
-            # else:
-            #     raise ValueError(f"Unknown derived condition type {type(derive_condition)}.")
-        if isinstance(nt, SeparatedRMLTerm):
+        if isinstance(next_term, SeparatedRMLTerm):
             if isinstance(ant_rml.term, RMLTerm):
                 if ant_rml.nestings:
-                    if self.check_ant_rml_nestings(ant_rml, nt, soft_check=True):
-                        # if dealing with a {nesting} term type, then anything remaining will have already been stored in self.nestings
+                    if self.check_ant_rml_nestings(ant_rml, next_term, soft_check=True):
+                        # if dealing with a {nesting} term type, then anything remaining will have already been stored in self.nesting_terms
                         # also note that the MODLTermWNesting case currently is only allowed to match with RMLTerms (at the parsing level)
                         if isinstance(ant_rml.nestings[0], MODLTermWNesting):
-                            self.rml = SeparatedRMLTerm(list(), nt.term)
+                            self.rml = SeparatedRMLTerm(list(), next_term.term)
                         else:
-                            remaining_cond_nestings = nt.nestings[len(ant_rml.nestings):] if len(nt.nestings) > len(ant_rml.nestings) else []
-                            self.rml = SeparatedRMLTerm(deepcopy(remaining_cond_nestings), deepcopy(nt.term))
+                            remaining_cond_nestings = next_term.nestings[len(ant_rml.nestings):] if len(next_term.nestings) > len(ant_rml.nestings) else []
+                            self.rml = SeparatedRMLTerm(remaining_cond_nestings, next_term.term)
                         return True
                     return False
                 # if there's no antecedent nestings, then anything can be matched.
                 else:
-                    self.rml = deepcopy(nt)
+                    self.rml = next_term
                     return True
             elif isinstance(ant_rml.term, RMLTermNegated):
                 # indicates that the next term is a Predicate (no modalities) and also is not negated.
-                if not nt.nestings: 
+                if not next_term.nestings: 
                     return False
                 if ant_rml.nestings:
-                    if not self.check_ant_rml_nestings(ant_rml, nt, soft_check=True):
+                    if not self.check_ant_rml_nestings(ant_rml, next_term, soft_check=True):
                         return False
-                # create a copy of the nt's nestings after the RML point, and add a negation.
+                # create a copy of the next_term's nestings after the RML point, and add a negation.
                 # we basically want to isolate the {rml}.
-                temp_nestings = [NOT_MODL()] + nt.nestings[len(ant_rml.nestings):] if len(nt.nestings) > len(ant_rml.nestings) else []
+                temp_nestings = [NOT_MODL()] + next_term.nestings[len(ant_rml.nestings):] if len(next_term.nestings) > len(ant_rml.nestings) else []
                 # recreate the SeparatedRMLTerm with these new nestings, which will also put the nestings in normal form.
-                self.rml = SeparatedRMLTerm(deepcopy(temp_nestings), deepcopy(nt.term))
+                self.rml = SeparatedRMLTerm(temp_nestings, next_term.term)
                 return True
             elif isinstance(ant_rml.term, PredTerm) or isinstance(ant_rml.term, PredTermNegated):
                 if isinstance(ant_rml.term, PredTermNegated):
-                    # ensures that nt has a negation
-                    if not nt.nestings or nt.nestings[-1] != NOT_MODL(): 
+                    # ensures that next_term has a negation
+                    if not next_term.nestings or next_term.nestings[-1] != NOT_MODL(): 
                         return False
-                    # remove the last negation from the nt nestings, since that matches the '!' in '!{pred}'
-                    nt.nestings = nt.nestings[:-1]
+                    # remove the last negation from the next_term nestings, since that matches the '!' in '!{pred}'
+                    next_term = SeparatedRMLTerm(next_term.nestings[:-1], next_term.term)
                 if ant_rml.nestings:
-                    if not self.check_ant_rml_nestings(ant_rml, nt, soft_check=False):
+                    if not self.check_ant_rml_nestings(ant_rml, next_term, soft_check=False):
                         return False
                 else:
-                    if nt.nestings:
+                    if next_term.nestings:
                         return False
-                self.pred = deepcopy(nt.term)
+                self.pred = next_term.term
                 return True
             elif isinstance(ant_rml.term, Predicate):
                 if ant_rml.nestings:
-                    if not self.check_ant_rml_nestings(ant_rml, nt, soft_check=False):
+                    if not self.check_ant_rml_nestings(ant_rml, next_term, soft_check=False):
                         return False
                 else:
-                    if nt.nestings:
+                    if next_term.nestings:
                         return False
-                if ant_rml.term.name == nt.term.name and ant_rml.term.arity == nt.term.arity:
+                if ant_rml.term.name == next_term.term.name and ant_rml.term.arity == next_term.term.arity:
                     for i in range(len(ant_rml.term.terms)):
-                        self.assignment[ant_rml.term.terms[i]] = nt.term.terms[i]
+                        self.assignment[ant_rml.term.terms[i]] = next_term.term.terms[i]
                     return True
                 return False
             else:
                 raise PDDLValidationError(f"Unknown Antecedent term type {type(ant_rml.term)}")
         else:
-            raise PDDLValidationError(f"Unknown nt type {type(nt)}")
+            raise PDDLValidationError(f"Unknown next_term type {type(next_term)}")
 
     def get_positive_conds(self):
         return [c for c in self.raw_conds if not isinstance(c, Not)]
@@ -206,14 +194,16 @@ class ApplyAncEffs:
             raise ValueError(f"Unknown variable {var}.")
 
     def ground_srt(self, new_rml: SeparatedRMLTerm):
-        new_rml = deepcopy(new_rml)
+        nestings = []
         for n in new_rml.nestings:
             if isinstance(n, Nesting):
-                if isinstance(n.agent.term, Variable):
-                    n.agent.term = self.assignment[n.agent.term]
+                nestings.append(Nesting(n.mod_type, Agent(self.assignment[n.agent.term])) if isinstance(n.agent.term, Variable) else n)
             elif isinstance(n, MODLTermWNesting):
-                if isinstance(n.modl.agent.term, Variable):
-                    n.modl.agent.term = self.assignment[n.modl.agent.term]
+                nestings.append(n.__class__(Nesting(n.modl.mod_type, Agent(self.assignment[n.modl.agent.term]))) if isinstance(n.modl.agent.term, Variable) else n)
+            elif isinstance(n, NOT_MODL):
+                nestings.append(n)
+            else:
+                raise ValueError(f"Unknown nesting type {type(n)}.")
         if isinstance(new_rml.term, Predicate):
             terms = list(new_rml.term.terms)
             ak = new_rml.term.always_known
@@ -221,10 +211,10 @@ class ApplyAncEffs:
             for i in range(len(terms)):
                 if isinstance(terms[i], Variable):
                     terms[i] = self.assignment[terms[i]]
-            new_rml.term = Predicate(new_rml.term.name, *tuple(terms))
-            new_rml.term.always_known = ak
-            new_rml.term.negated = negated
-        return new_rml
+            term = Predicate(new_rml.term.name, *tuple(terms), always_known=new_rml.term.always_known, negated=new_rml.term.negated)
+        else:
+            term = new_rml.term
+        return SeparatedRMLTerm(nestings, term)
 
     @staticmethod
     def terms_to_rml(terms: list[Nesting | NOT_MODL | Predicate]):
@@ -234,7 +224,7 @@ class ApplyAncEffs:
 
     @staticmethod
     def extend_srt_terms(srt: SeparatedRMLTerm | Not, existing_nestings: list[Nesting | NOT_MODL] = None):
-        rml_terms = list() if not existing_nestings else deepcopy(existing_nestings)
+        rml_terms = list() if not existing_nestings else existing_nestings
         if isinstance(srt, Not):
             srt = srt.argument
             rml_terms.append(Not)
@@ -262,22 +252,22 @@ class ApplyAncEffs:
 
     def apply_rml(self, new_rml: SeparatedRMLTerm):
         new_rml = self.ground_srt(new_rml)
-        if self.nestings:
+        if self.nesting_terms:
             rml_terms = []
             if isinstance(new_rml.nestings[0], LeadingNesting):
-                rml_terms.extend(self.nestings[0])
+                rml_terms.extend(self.nesting_terms[0])
                 rml_terms.append(new_rml.nestings[0].modl)
             elif isinstance(new_rml.nestings[0], TrailingNesting):
                 rml_terms.append(new_rml.nestings[0].modl)
-                rml_terms.extend(self.nestings[0])
+                rml_terms.extend(self.nesting_terms[0])
             elif isinstance(new_rml.nestings[0], LeadingTrailingNesting):
-                rml_terms.extend(self.nestings[0])
+                rml_terms.extend(self.nesting_terms[0])
                 rml_terms.append(new_rml.nestings[0].modl)
-                rml_terms.extend(self.nestings[1])
+                rml_terms.extend(self.nesting_terms[1])
             else:
                 raise ValueError(f"Unknown nesting type {type(new_rml.nestings[0])}.")
         else:
-            rml_terms = deepcopy(new_rml.nestings)
+            rml_terms = new_rml.nestings
         if isinstance(new_rml.term, PredTermNegated) or isinstance(new_rml.term, RMLTermNegated) or isinstance(new_rml.term, RTermNegated):
             rml_terms.append(NOT_MODL())
         if isinstance(new_rml.term, RMLTerm) or isinstance(new_rml.term, RMLTermNegated):
@@ -328,7 +318,7 @@ class ApplyAncEffs:
         return list(next_term.condition.operands) if isinstance(next_term, When) else []
 
     def get_conds(self, poscond, negcond, next_term):
-        self.raw_conds = deepcopy(self.get_raw_conds(next_term))
+        self.raw_conds = self.get_raw_conds(next_term)
         conds = []
         if poscond:
             for c in poscond:
@@ -340,11 +330,9 @@ class ApplyAncEffs:
 
     @staticmethod
     def simplify_always_known(operand_term: SeparatedRMLTerm | Not):
-        operand_term = deepcopy(operand_term)
+        operand_term = operand_term
         if isinstance(operand_term, SeparatedRMLTerm):
-            if operand_term.term.always_known and operand_term.nestings:
-                operand_term.nestings = [n for n in operand_term.nestings if isinstance(n, NOT_MODL)]
-            return operand_term
+            return SeparatedRMLTerm([n for n in operand_term.nestings if isinstance(n, NOT_MODL)], operand_term.term) if operand_term.term.always_known and operand_term.nestings else operand_term
         elif isinstance(operand_term, Not):
             return Not(ApplyAncEffs.simplify_always_known(operand_term.argument))
         else:
@@ -382,12 +370,12 @@ class ApplyAncEffs:
         return self.simplify_and_check_depth(When(create_and(conds), create_and(eff))) if conds else self.simplify_and_check_depth(create_and(eff))
                 
     def apply_anc_eff_all_nestings(self, anc_eff_cons: Consequent, next_term, awareness: bool, derive_condition: str | SeparatedRMLTerm):
-        if self.nestings:
-            all_nestings = deepcopy(self.nestings)
-            all_nesting_assignments = deepcopy(self.assignment)
+        if self.nesting_terms:
+            all_nesting_terms = [n for n in self.nesting_terms]
+            all_nesting_assignments = {var: cond for var, cond in self.assignment.items()}
             results = []
-            for n in self.nestings:
-                self.nestings = all_nestings.pop(0)
+            for n in self.nesting_terms:
+                self.nesting_terms = all_nesting_terms.pop(0)
                 for var in all_nesting_assignments:
                     if type(all_nesting_assignments[var]) == list:
                         self.assignment[var] = all_nesting_assignments[var].pop(0)
@@ -397,10 +385,11 @@ class ApplyAncEffs:
             return self.apply_anc_eff(anc_eff_cons, next_term, awareness, derive_condition)
 
     def apply_anc_eff_all_dlr_agent(self, anc_eff: AncEff, next_term, awareness: bool, derive_condition: str | SeparatedRMLTerm):
-        if Variable("dlr_agent", ["agent"]) in anc_eff.agents:
+        dlr_agent = Variable("dlr_agent", ["agent"])
+        if (dlr_agent in anc_eff.agents) or (dlr_agent in [n.agent.term for n in derive_condition.nestings if isinstance(n, Nesting)] if isinstance(derive_condition, SeparatedRMLTerm) else False):
             results = []
-            for agent in self.domain._agents.values():
-                self.assignment[Variable("dlr_agent", ["agent"])] = agent
+            for agent in self.agents.values():
+                self.assignment[dlr_agent] = agent
                 results.extend(self.apply_anc_eff_all_nestings(anc_eff.consequent, next_term, awareness, derive_condition))
             return results
         else:
@@ -460,7 +449,7 @@ class ApplyAncEffs:
         return list(processed_conds.values())[1:]
 
     def generate_all_rmls(self):
-        curr = deepcopy(self.domain.predicates)
+        curr = self.domain.predicates
         pos_predicates = {ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(p)): SeparatedRMLTerm(list(), p) for p in curr}
         variants_pos_only = {}
         variants_pos_only.update(pos_predicates)
@@ -473,7 +462,7 @@ class ApplyAncEffs:
                     for negation_status in (list(), [NOT_MODL()]):
                         for generic_modl_permutation in list(itertools.product({*GenericMODLType, *PossibleGenericMODLType}, repeat=depth)):
                             for agent_permutation in list(itertools.product(self.agents.values(), repeat=depth)):
-                                variant_nestings = deepcopy(negation_status)
+                                variant_nestings = negation_status
                                 variant_nestings.extend([Nesting(generic_modl_permutation[i], Agent(Constant(agent_permutation[i], "agent"))) for i in range(depth)])
                                 srt_variant = SeparatedRMLTerm(variant_nestings, p)
                                 variants[ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(srt_variant))] = srt_variant
@@ -482,7 +471,7 @@ class ApplyAncEffs:
                                 if depth + 1 < self.problem.depth:
                                     for action_modl in {*ActionMODLType, *PossibleActionMODLType}:
                                         for agent in self.agents.values():
-                                            am_variant_nestings = deepcopy(variant_nestings)
+                                            am_variant_nestings = variant_nestings
                                             am_variant_nestings.append(Nesting(action_modl, Agent(agent)))
                                             srt_variant = SeparatedRMLTerm(am_variant_nestings, p)
                                             variants[ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(srt_variant))] = srt_variant
@@ -513,7 +502,7 @@ class ApplyAncEffs:
             # create the negated (planning agent belief) version of everything NOT in the initial state
             # add that to the initial state  
             for rml_str, rml in all_rmls_pos_only.items():
-                neg_rml = SeparatedRMLTerm([NOT_MODL()] + deepcopy(rml.nestings), rml.term)
+                neg_rml = SeparatedRMLTerm([NOT_MODL()] + rml.nestings, rml.term)
                 if not rml.term.always_known and rml_str not in init_strs and ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(neg_rml)) not in init_strs:
                     self.problem._init.append(neg_rml)
 

@@ -1,7 +1,6 @@
 from collections.abc import Sequence
 from .utils import create_valuations, cleaned_not, create_and
 from .core.anc_eff import ActionMODLType, PossibleActionMODLType, NOT_MODL, Agent, RMLOrPredTerm, ListCompVar, ListCompAgents, ListCompVarAgents, RML, Nesting, SeparatedRMLTerm
-from copy import deepcopy
 from pddl.action import Action
 from pddl.exceptions import PDDLValidationError
 from pddl.logic.base import And, Not, ForallCondition
@@ -13,23 +12,20 @@ import pddl.core as pddl_core
 
 def check_intention_error(rml: RML, domain):
     action_names = [a.name for a in domain.actions]
-    current = deepcopy(rml)
+    current = rml
     while isinstance(current.child, RML):
-        current = deepcopy(current.child)
+        current = current.child
     if isinstance(current.mod_type, ActionMODLType) or isinstance(current.mod_type, PossibleActionMODLType):
         if current.child.name not in action_names:
             raise PDDLValidationError("Cannot intend a predicate; you can only intend an action.")
 
 def set_rml_deepest_child(rml: RML, new_child, assignment = None):
     nestings = []
-    current = deepcopy(rml)
+    current = rml
     while isinstance(current, RML):
-        current_no_child = deepcopy(current)
-        current_no_child.child = None
-        if assignment:
-            current_no_child.agent = Agent(Constant(assignment[current_no_child.agent.term.name], "agent"))
-        nestings.append(Nesting(current_no_child.mod_type, current_no_child.agent))
-        current = deepcopy(current.child)
+        grounded_agent = Agent(Constant(assignment[current.agent.term.name], "agent")) if assignment else current.agent
+        nestings.append(Nesting(current.mod_type, grounded_agent))
+        current = current.child
     nestings.append(new_child)
     for i in range(len(nestings) - 1, - 1, - 1):
         if isinstance(nestings[i], Predicate):
@@ -40,7 +36,6 @@ def set_rml_deepest_child(rml: RML, new_child, assignment = None):
 def ground_formula(formula: Sequence, assignment, domain, problem):
     grounded_formulas = []
     for fo in formula:
-        fo = deepcopy(fo)
         if isinstance(fo, Predicate):
             # no predicate should be negated yet, since everything is separated
             if fo.negated:
@@ -55,20 +50,18 @@ def ground_formula(formula: Sequence, assignment, domain, problem):
                         if terms[i].name not in assignment:
                             raise PDDLValidationError(f"Variable {terms[i].name} not defined; cannot ground.")
                         terms[i] = Constant(assignment[terms[i].name]) 
-                p = Predicate(fo.name, *terms)
-                p.negated = fo.negated
-                p.always_known = fo.always_known
+                p = Predicate(fo.name, *terms, always_known=fo.always_known, negated=fo.negated)
                 grounded_formulas.append(p)
         elif isinstance(fo, RML):
             # need to set the base predicate of the RML to the grounded predicate
-            grounded_predicate = list(ground_formula([fo._get_predicate()], assignment, domain, problem))[0]
+            grounded_predicate = list(ground_formula([fo.get_predicate()], assignment, domain, problem))[0]
             grounded_rml = set_rml_deepest_child(fo, grounded_predicate, assignment)
             # need to ground the agents in the MODLs as well
             check_intention_error(grounded_rml, domain)
             grounded_formulas.append(grounded_rml)
         elif isinstance(fo, ForallCondition):
             variables = {v for v in fo.variables}
-            val_generator = create_valuations(domain._agents.keys(), domain.gathered_constants, variables)
+            val_generator = create_valuations(domain.agents.keys(), domain.gathered_constants, variables)
             for valuation in val_generator:
                 var_names = [v.name for v in variables]
                 for var_name, val in zip(var_names, valuation):
@@ -77,7 +70,7 @@ def ground_formula(formula: Sequence, assignment, domain, problem):
             assignment = {}
         elif isinstance(fo, Forall):
             var_names = [v.name for v in fo.variables]
-            val_generator = create_valuations(domain._agents.keys(), domain.gathered_constants, fo.variables)
+            val_generator = create_valuations(domain.agents.keys(), domain.gathered_constants, fo.variables)
             for valuation in val_generator:
                 # need to add onto the existing assignment so we retain knowledge of outer variables
                 for var_name, val in zip(var_names, valuation):
@@ -113,8 +106,8 @@ def ground_formula(formula: Sequence, assignment, domain, problem):
 def create_grounded_fluents(domain, problem):
     formulas = set()
     for p in domain.predicates:
-        val_generator = create_valuations(domain._agents.keys(), domain.gathered_constants, p.terms)
-        variables = p.terms if isinstance(p, Predicate) else p._get_predicate().terms
+        val_generator = create_valuations(domain.agents.keys(), domain.gathered_constants, p.terms)
+        variables = p.terms if isinstance(p, Predicate) else p.get_predicate().terms
         var_names = [v.name for v in variables]
         for valuation in val_generator:
             assignment = {var_name: val for var_name, val in zip(var_names, valuation)}
@@ -143,7 +136,7 @@ def ground_action(a, domain, problem, assignment):
             new_a.derive_condition = list(ground_formula([a.derive_condition], assignment, domain, problem))[0]
             # store the assignment so we know what the derive condition variable $agent$ was grounded to
             # we need this when applying ancillary effects, as the ancillary effect can reference the derive condition variable
-            # new_a.derive_condition.dlr_var = list(domain._agents.values()) if Variable("dlr_agent", ["agent"]) in a.derive_condition.term.terms else None
+            # new_a.derive_condition.dlr_var = list(domain.agents.values()) if Variable("dlr_agent", ["agent"]) in a.derive_condition.term.terms else None
     return new_a
 
 def create_grounded_operators(domain, problem):
@@ -158,7 +151,7 @@ def create_grounded_operators(domain, problem):
             for n in a.derive_condition.nestings:
                 variables.add(n.agent.term)
         var_names = [v.name for v in variables]
-        val_generator = create_valuations(domain._agents.keys(), domain.gathered_constants, variables)
+        val_generator = create_valuations(domain.agents.keys(), domain.gathered_constants, variables)
         for valuation in val_generator:
             assignment = {var_name: val for var_name, val in zip(var_names, valuation)}
             operators.add(ground_action(a, domain, problem, assignment))
@@ -171,7 +164,7 @@ def gather_itn_preds(formula):
             pass
         elif isinstance(fo, RML):
             if isinstance(fo.mod_type, ActionMODLType) or isinstance(fo.mod_type, PossibleActionMODLType):
-                pred = fo._get_predicate()
+                pred = fo.get_predicate()
                 if not isinstance(pred, RMLOrPredTerm):
                     itn_preds.add(pred)
         elif isinstance(fo, ForallCondition):
@@ -211,23 +204,20 @@ def create_itn_action_preds(operators, agents, problem, anc_effs):
     for i in range(len(operators)):
         o_name = f"({operators[i].name})"
         if o_name in itn_preds_strs:
-            action_iaps = []
-            for ag in agents:
-                iap = NOT_MODL()(RML(PossibleActionMODLType.PITN, Agent(Constant(ag, "agent")), Predicate(operators[i].name)))
-                action_iaps.append(iap)
-            operators[i].effect._operands.extend(action_iaps)
+            action_iaps = [NOT_MODL()(RML(PossibleActionMODLType.PITN, Agent(Constant(ag, "agent")), Predicate(operators[i].name))) for ag in agents]
+            operators[i] = Action(operators[i].name, operators[i].parameters, operators[i].precondition, operators[i].effect + action_iaps)
             action_intention_f.update(action_iaps)
     return set(operators), action_intention_f
 
 def ground(anc_effs, domain, problem):
-    constants = set(domain.constants) | set(problem.objects) | set(domain._agents.values())
+    constants = set(domain.constants) | set(problem.objects) | set(domain.agents.values())
     domain.gathered_constants = constants
     lifted_action_names = {a.name for a in domain.actions}
     domain.lifted_action_names = lifted_action_names
 
     g_formulas = create_grounded_fluents(domain, problem)
     g_operators = create_grounded_operators(domain, problem)
-    g_operators, action_intention_f = create_itn_action_preds(g_operators, domain._agents.keys(), problem, anc_effs)
+    g_operators, action_intention_f = create_itn_action_preds(g_operators, domain.agents.keys(), problem, anc_effs)
     g_formulas.update(action_intention_f)
     grounded_domain = pddl_core.Domain(
         name=domain.name,
@@ -238,7 +228,7 @@ def ground(anc_effs, domain, problem):
         derived_predicates=domain.derived_predicates,
         functions=domain.functions,
         actions=g_operators,
-        agents=domain._agents
+        agents=domain.agents
     )
 
     grounded_domain.gathered_constants = constants

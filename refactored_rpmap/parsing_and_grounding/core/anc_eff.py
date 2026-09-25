@@ -335,14 +335,14 @@ class ListCompVarAgents:
         return hash((ListCompVarAgents, self.term, self.var))
 
 class SeparatedRMLTerm:
-    def __init__(self, nestings: list[Nesting | NOT_MODL], term: RMLOrPredTerm | Predicate):
+    def __init__(self, nestings: list[Nesting | NOT_MODL | MODLTermWNesting], term: RMLOrPredTerm | Predicate):
         self._nestings = self.normal_form(nestings)
         if isinstance(term, Predicate) and term.negated:
             raise PDDLValidationError("Any negation in a `SeparatedRMLTerm` should be separated into `nestings`.")
         self._term = term
 
     @property
-    def nestings(self) -> list[Nesting | NOT_MODL]:
+    def nestings(self) -> list[Nesting | NOT_MODL | MODLTermWNesting]:
         return self._nestings
 
     @property
@@ -570,11 +570,11 @@ def atomic_formula_term_anceff(self, args):
 
 def get_constants(transformer_class, args):
     if isinstance(transformer_class, DomainTransformer):
-        constants = transformer_class._constants_by_name | transformer_class._agents
+        constants = transformer_class._constants_by_name | transformer_class.agents
     elif isinstance(transformer_class, ProblemTransformer):
-        constants = transformer_class._objects_by_name | transformer_class._domain_transformer._constants_by_name | transformer_class._domain_transformer._agents
+        constants = transformer_class._objects_by_name | transformer_class._domain_transformer._constants_by_name | transformer_class._domain_transformer.agents
     elif isinstance(transformer_class, AncEffTransformer):
-        constants = transformer_class._domain_transformer._constants_by_name | transformer_class._domain_transformer._agents
+        constants = transformer_class._domain_transformer._constants_by_name | transformer_class._domain_transformer.agents
     else:
         raise PDDLValidationError(f"Unknown transformer received: {transformer_class}")
     obj = args[0].value
@@ -624,7 +624,7 @@ def modl(self, args):
     for modl_type in possible_classes:
         if term_name in [m.name for m in modl_type]:
             if isinstance(args[4], Constant):
-                if args[4].name not in self._domain_transformer._agents:
+                if args[4].name not in self._domain_transformer.agents:
                     raise PDDLValidationError(f"Unknown agent {args[4].name} referenced.")
                 args[4] = Constant(args[4].name, "agent")
             else:

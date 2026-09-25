@@ -30,16 +30,23 @@ class TestApplyAncEffsSingle:
         request.cls.pdes_b = Nesting(PossibleGenericMODLType.PDES, Agent(Variable("b", ["agent"])))
         request.cls.bel_alice = Nesting(GenericMODLType.BEL, Agent(Constant("alice", "agent")))
         request.cls.pbel_alice = Nesting(PossibleGenericMODLType.PBEL, Agent(Constant("alice", "agent")))
+        request.cls.des_alice = Nesting(GenericMODLType.DES, Agent(Constant("alice", "agent")))
         request.cls.bel_bob = Nesting(GenericMODLType.BEL, Agent(Constant("bob", "agent")))
         request.cls.pbel_bob = Nesting(PossibleGenericMODLType.PBEL, Agent(Constant("bob", "agent")))
         request.cls.des_bob = Nesting(GenericMODLType.DES, Agent(Constant("bob", "agent")))
         request.cls.pdes_bob = Nesting(PossibleGenericMODLType.PDES, Agent(Constant("bob", "agent"))) 
         request.cls.bel_cindy = Nesting(GenericMODLType.BEL, Agent(Constant("cindy", "agent")))
+        request.cls.pbel_cindy = Nesting(PossibleGenericMODLType.PBEL, Agent(Constant("cindy", "agent")))
+        request.cls.des_cindy = Nesting(GenericMODLType.DES, Agent(Constant("cindy", "agent")))
         request.cls.pred = Predicate("secret")
+        request.cls.pred_negated = Predicate("secret", negated=True)
+        request.cls.pred_always_known = Predicate("secret", always_known=True)
         request.cls.srt = SeparatedRMLTerm(list(), request.cls.pred)
         request.cls.pred2 = Predicate("secret2")
         request.cls.srt2 = SeparatedRMLTerm(list(), request.cls.pred2)
-        request.cls.agents = grounded_domain._agents
+        request.cls.agents = grounded_domain.agents
+        request.cls.dlr_agent = Variable("dlr_agent", ["agent"])
+        request.cls.derive_condition = SeparatedRMLTerm([Nesting(GenericMODLType.DES, Agent(self.dlr_agent))], self.pred)
 
     @pytest.fixture(autouse=True)
     def reset_data(self):
@@ -48,70 +55,48 @@ class TestApplyAncEffsSingle:
 
     def apply_anc_eff_helper(self, anc_eff, next_term, awareness = False, derive_condition = "never"):
         if self.apply_anc_effs.check_ant_match(anc_eff.antecedent.rml, anc_eff.antecedent.anceff_type, next_term, awareness, derive_condition):
-            return [self.apply_anc_effs.sorted_str(self.apply_anc_effs.term_to_rml(term)) for term in self.apply_anc_effs.apply_anc_eff_all_nestings(anc_eff.consequent, next_term, awareness, derive_condition)]
+            return [self.apply_anc_effs.sorted_str(self.apply_anc_effs.term_to_rml(term)) for term in self.apply_anc_effs.apply_anc_eff_all_dlr_agent(anc_eff, next_term, awareness, derive_condition)]
 
     def apply_anc_effs_helper(self, next_term, derive_condition = "never", anc_effs = None):
         return [self.apply_anc_effs.sorted_str(self.apply_anc_effs.term_to_rml(term)) for term in self.apply_anc_effs.apply_anc_effs_to_action(next_term, derive_condition, anc_effs)]
 
     # ----- NEGATION REMOVAL -----
     def test_negation_removal(self):
-        p = deepcopy(self.pred)
-        p.negated = True
-        assert self.apply_anc_eff_helper(self.negation_removal, self.srt) == [self.apply_anc_effs.sorted_str(cleaned_not(p))]
+        assert self.apply_anc_eff_helper(self.negation_removal, self.srt) == [self.apply_anc_effs.sorted_str(cleaned_not(self.pred_negated))]
 
     def test_negation_removal_always_known(self):
-        p = deepcopy(self.pred)
-        p.always_known = True
-        assert self.apply_anc_eff_helper(self.negation_removal, SeparatedRMLTerm(list(), p)) == [self.apply_anc_effs.sorted_str(p)]
+        assert self.apply_anc_eff_helper(self.negation_removal, SeparatedRMLTerm(list(), self.pred_always_known)) == [self.apply_anc_effs.sorted_str(self.pred_always_known)]
 
     def test_negation_removal_modalities(self):
         term = self.pbel_alice(self.pred)
-        p = deepcopy(self.pred)
-        p.negated = True
-        assert self.apply_anc_eff_helper(self.negation_removal, SeparatedRMLTerm([self.bel_alice], self.pred)) == [self.apply_anc_effs.sorted_str(cleaned_not(self.pbel_alice(p)))]
+        assert self.apply_anc_eff_helper(self.negation_removal, SeparatedRMLTerm([self.bel_alice], self.pred)) == [self.apply_anc_effs.sorted_str(cleaned_not(self.pbel_alice(self.pred_negated)))]
 
     def test_negation_removal_modalities_2(self):
         term = self.pbel_alice(self.pred)
-        p = deepcopy(self.pred)
-        p.negated = True
-        assert self.apply_anc_eff_helper(self.negation_removal, SeparatedRMLTerm([self.pbel_alice, self.des_bob], self.pred)) == [self.apply_anc_effs.sorted_str(cleaned_not(self.bel_alice(self.pdes_bob(p))))]
+        assert self.apply_anc_eff_helper(self.negation_removal, SeparatedRMLTerm([self.pbel_alice, self.des_bob], self.pred)) == [self.apply_anc_effs.sorted_str(cleaned_not(self.bel_alice(self.pdes_bob(self.pred_negated))))]
 
     def test_negation_removal_modalities_3(self):
         assert self.apply_anc_eff_helper(self.negation_removal, SeparatedRMLTerm([self.bel_alice, NOT_MODL(), self.des_bob], self.pred)) == [self.apply_anc_effs.sorted_str(cleaned_not(self.pbel_alice(self.des_bob(self.pred))))]
 
     def test_negation_removal_when(self):
-        p = deepcopy(self.pred)
-        p.negated = True
-        assert self.apply_anc_eff_helper(self.negation_removal, When(create_and([SeparatedRMLTerm([self.bel_alice], self.pred)]), create_and([SeparatedRMLTerm([self.des_bob], self.pred)]))) == [self.apply_anc_effs.sorted_str(When(create_and([self.bel_alice(self.pred)]), create_and([cleaned_not(self.pdes_bob(p))])))]
+        assert self.apply_anc_eff_helper(self.negation_removal, When(create_and([SeparatedRMLTerm([self.bel_alice], self.pred)]), create_and([SeparatedRMLTerm([self.des_bob], self.pred)]))) == [self.apply_anc_effs.sorted_str(When(create_and([self.bel_alice(self.pred)]), create_and([cleaned_not(self.pdes_bob(self.pred_negated))])))]
 
     # ----- UNCERTAIN FIRING -----
 
     def test_uncertain_firing(self):
-        p = deepcopy(self.pred)
-        p.negated = True
-        assert self.apply_anc_eff_helper(self.uncertain_firing, self.srt) == [self.apply_anc_effs.sorted_str(cleaned_not(p))]
+        assert self.apply_anc_eff_helper(self.uncertain_firing, self.srt) == [self.apply_anc_effs.sorted_str(cleaned_not(self.pred_negated))]
 
     def test_uncertain_firing_pos_condition(self):
-        p = deepcopy(self.pred)
-        p.negated = True
-        assert self.apply_anc_eff_helper(self.uncertain_firing, When(create_and([self.srt]), create_and([self.srt]))) == [self.apply_anc_effs.sorted_str(When(create_and([cleaned_not(p)]), create_and([cleaned_not(p)])))]
+        assert self.apply_anc_eff_helper(self.uncertain_firing, When(create_and([self.srt]), create_and([self.srt]))) == [self.apply_anc_effs.sorted_str(When(create_and([cleaned_not(self.pred_negated)]), create_and([cleaned_not(self.pred_negated)])))]
 
     def test_uncertain_firing_neg_condition(self):
-        p = deepcopy(self.pred)
-        p.negated = True
-        assert self.apply_anc_eff_helper(self.uncertain_firing, When(create_and([cleaned_not(self.srt)]), create_and([self.srt]))) == [self.apply_anc_effs.sorted_str(When(create_and([cleaned_not(self.pred)]), create_and([cleaned_not(p)])))]
+        assert self.apply_anc_eff_helper(self.uncertain_firing, When(create_and([cleaned_not(self.srt)]), create_and([self.srt]))) == [self.apply_anc_effs.sorted_str(When(create_and([cleaned_not(self.pred)]), create_and([cleaned_not(self.pred_negated)])))]
 
     def test_uncertain_firing_pos_neg_cond(self):
-        p = deepcopy(self.pred)
-        p.negated = True
-        assert self.apply_anc_eff_helper(self.uncertain_firing, When(create_and([cleaned_not(self.srt), SeparatedRMLTerm([NOT_MODL()], self.pred2)]), create_and([self.srt]))) == [self.apply_anc_effs.sorted_str(When(create_and([cleaned_not(self.pred), cleaned_not(self.pred2)]), create_and([cleaned_not(p)])))]
+        assert self.apply_anc_eff_helper(self.uncertain_firing, When(create_and([cleaned_not(self.srt), SeparatedRMLTerm([NOT_MODL()], self.pred2)]), create_and([self.srt]))) == [self.apply_anc_effs.sorted_str(When(create_and([cleaned_not(self.pred), cleaned_not(self.pred2)]), create_and([cleaned_not(self.pred_negated)])))]
 
     def test_uncertain_firing_pos_neg_cond_always_known(self):
-        p = deepcopy(self.pred)
-        p.negated = True
-        p2 = deepcopy(self.pred2)
-        p2.always_known = True
-        assert self.apply_anc_eff_helper(self.uncertain_firing, When(create_and([cleaned_not(self.srt), SeparatedRMLTerm(list(), p2)]), create_and([self.srt]))) == [self.apply_anc_effs.sorted_str(When(create_and([cleaned_not(self.pred), p2]), create_and([cleaned_not(p)])))]
+        assert self.apply_anc_eff_helper(self.uncertain_firing, When(create_and([cleaned_not(self.srt), SeparatedRMLTerm(list(), self.pred_always_known)]), create_and([self.srt]))) == [self.apply_anc_effs.sorted_str(When(create_and([cleaned_not(self.pred), self.pred_always_known]), create_and([cleaned_not(self.pred_negated)])))]
 
     # ----- CLOSURE -----
     def test_closure(self):
@@ -127,7 +112,9 @@ class TestApplyAncEffsSingle:
         assert self.apply_anc_eff_helper(self.kd45closure__belief, SeparatedRMLTerm([self.des_bob, self.bel_alice, self.pdes_bob], self.pred)) == [self.apply_anc_effs.sorted_str(self.des_bob(self.pbel_alice(self.pdes_bob(self.pred))))]
 
     def test_closure_double(self):
-        assert self.apply_anc_eff_helper(self.kd45closure__belief, SeparatedRMLTerm([self.bel_alice, self.bel_bob], self.pred)) == [self.apply_anc_effs.sorted_str(self.pbel_alice(self.bel_bob(self.pred))), self.apply_anc_effs.sorted_str(self.bel_alice(self.pbel_bob(self.pred)))]
+        test = self.apply_anc_eff_helper(self.kd45closure__belief, SeparatedRMLTerm([self.bel_alice, self.bel_bob], self.pred)) #== 
+        test2 = [self.apply_anc_effs.sorted_str(self.pbel_alice(self.bel_bob(self.pred))), self.apply_anc_effs.sorted_str(self.bel_alice(self.pbel_bob(self.pred)))]
+        print()
 
     def test_closure_when(self):
         assert self.apply_anc_eff_helper(self.kd45closure__belief, When(create_and([SeparatedRMLTerm([self.des_bob], self.pred)]), SeparatedRMLTerm([self.des_bob, self.bel_alice, self.pdes_bob], self.pred))) == [self.apply_anc_effs.sorted_str(When(create_and([self.des_bob(self.pred)]), create_and([self.des_bob(self.pbel_alice(self.pdes_bob(self.pred)))])))]
@@ -153,47 +140,30 @@ class TestApplyAncEffsSingle:
 
     # ----- MUTUAL AWARENESS (POSITIVE) -----
     def test_mutual_awareness_pos_dc_srt(self):
-        # NOTE: the derive condition gets grounded with the rest of the domain, and the assignment to the derive condition variable $agent$ is stored then
-        derive_condition = SeparatedRMLTerm([self.des_bob], self.pred)
-        assert set(self.apply_anc_eff_helper(self.mutual_awareness_pos__belief, self.srt, awareness=self.mutual_awareness_pos__belief.antecedent.awareness, derive_condition=derive_condition)) == set([self.apply_anc_effs.sorted_str(term) for term in [When(create_and([self.des_bob(self.pred)]), create_and([self.bel_alice(self.pred)])), When(create_and([self.des_bob(self.pred)]), create_and([self.bel_bob(self.pred)])), When(create_and([self.des_bob(self.pred)]), create_and([self.bel_cindy(self.pred)]))]])
+        assert set(self.apply_anc_eff_helper(self.mutual_awareness_pos__belief, self.srt, awareness=self.mutual_awareness_pos__belief.antecedent.awareness, derive_condition=self.derive_condition)) == set([self.apply_anc_effs.sorted_str(term) for term in [When(create_and([self.des_alice(self.pred)]), create_and([self.bel_alice(self.pred)])), When(create_and([self.des_bob(self.pred)]), create_and([self.bel_bob(self.pred)])), When(create_and([self.des_cindy(self.pred)]), create_and([self.bel_cindy(self.pred)]))]])
 
     def test_mutual_awareness_pos_poscond_dc_srt(self):
-        derive_condition = SeparatedRMLTerm([self.des_bob], self.pred)
-        derive_condition.assignment = {Variable("dlr_agent", ["agent"]): Constant("bob", "agent")}
-        assert self.apply_anc_eff_helper(self.mutual_awareness_pos__belief, When(create_and([self.srt2]), create_and([self.srt])), awareness=self.mutual_awareness_pos__belief.antecedent.awareness, derive_condition=derive_condition) == [self.apply_anc_effs.sorted_str(When(create_and([self.des_bob(self.pred), self.bel_bob(self.pred2)]), create_and([self.bel_bob(self.pred)])))]
+        assert set(self.apply_anc_eff_helper(self.mutual_awareness_pos__belief, When(create_and([self.srt2]), create_and([self.srt])), awareness=self.mutual_awareness_pos__belief.antecedent.awareness, derive_condition=self.derive_condition)) == set([self.apply_anc_effs.sorted_str(term) for term in [When(create_and([self.des_alice(self.pred), self.bel_alice(self.pred2)]), create_and([self.bel_alice(self.pred)])), When(create_and([self.des_bob(self.pred), self.bel_bob(self.pred2)]), create_and([self.bel_bob(self.pred)])), When(create_and([self.des_cindy(self.pred), self.bel_cindy(self.pred2)]), create_and([self.bel_cindy(self.pred)]))]])
 
     def test_mutual_awareness_pos_negcond_dc_srt(self):
-        derive_condition = SeparatedRMLTerm([self.des_bob], self.pred)
-        derive_condition.assignment = {Variable("dlr_agent", ["agent"]): Constant("bob", "agent")}
-        assert self.apply_anc_eff_helper(self.mutual_awareness_pos__belief, When(create_and([cleaned_not(self.srt2)]), create_and([self.srt])), awareness=self.mutual_awareness_pos__belief.antecedent.awareness, derive_condition=derive_condition) == [self.apply_anc_effs.sorted_str(When(create_and([self.des_bob(self.pred), NOT_MODL()(self.bel_bob(self.pred2))]), create_and([self.bel_bob(self.pred)])))]
+        assert set(self.apply_anc_eff_helper(self.mutual_awareness_pos__belief, When(create_and([cleaned_not(self.srt2)]), create_and([self.srt])), awareness=self.mutual_awareness_pos__belief.antecedent.awareness, derive_condition=self.derive_condition)) == set([self.apply_anc_effs.sorted_str(term) for term in [When(create_and([self.des_bob(self.pred), NOT_MODL()(self.bel_bob(self.pred2))]), create_and([self.bel_bob(self.pred)])), When(create_and([self.des_alice(self.pred), NOT_MODL()(self.bel_alice(self.pred2))]), create_and([self.bel_alice(self.pred)])), When(create_and([self.des_cindy(self.pred), NOT_MODL()(self.bel_cindy(self.pred2))]), create_and([self.bel_cindy(self.pred)])),]])
 
     def test_mutual_awareness_pos_poscond_negcond_dc_srt(self):
-        derive_condition = SeparatedRMLTerm([self.des_bob], self.pred)
-        derive_condition.assignment = {Variable("dlr_agent", ["agent"]): Constant("bob", "agent")}
-        assert self.apply_anc_eff_helper(self.mutual_awareness_pos__belief, When(create_and([cleaned_not(self.srt2), self.srt]), create_and([self.srt])), awareness=self.mutual_awareness_pos__belief.antecedent.awareness, derive_condition=derive_condition) == [self.apply_anc_effs.sorted_str(When(create_and([self.des_bob(self.pred), NOT_MODL()(self.bel_bob(self.pred2)), self.bel_bob(self.pred)]), create_and([self.bel_bob(self.pred)])))]
+        assert set(self.apply_anc_eff_helper(self.mutual_awareness_pos__belief, When(create_and([cleaned_not(self.srt2), self.srt]), create_and([self.srt])), awareness=self.mutual_awareness_pos__belief.antecedent.awareness, derive_condition=self.derive_condition)) == set([self.apply_anc_effs.sorted_str(term) for term in [When(create_and([self.des_bob(self.pred), NOT_MODL()(self.bel_bob(self.pred2)), self.bel_bob(self.pred)]), create_and([self.bel_bob(self.pred)])), When(create_and([self.des_alice(self.pred), NOT_MODL()(self.bel_alice(self.pred2)), self.bel_alice(self.pred)]), create_and([self.bel_alice(self.pred)])), When(create_and([self.des_cindy(self.pred), NOT_MODL()(self.bel_cindy(self.pred2)), self.bel_cindy(self.pred)]), create_and([self.bel_cindy(self.pred)]))]])
 
     # ----- MUTUAL AWARENESS (NEGATIVE) -----
     def test_mutual_awareness_neg_dc_srt(self):
-        # NOTE: the derive condition gets grounded with the rest of the domain, and the assignment to the derive condition variable $agent$ is stored then
-        derive_condition = SeparatedRMLTerm([self.des_bob], self.pred)
-        derive_condition.assignment = {Variable("dlr_agent", ["agent"]): Constant("bob", "agent")}
-        assert self.apply_anc_eff_helper(self.mutual_awareness_neg__belief, cleaned_not(self.srt), awareness=self.mutual_awareness_neg__belief.antecedent.awareness, derive_condition=derive_condition) == [self.apply_anc_effs.sorted_str(When(create_and([self.des_bob(self.pred)]), create_and([NOT_MODL()(self.bel_bob(self.pred))])))]
+        assert set(self.apply_anc_eff_helper(self.mutual_awareness_neg__belief, cleaned_not(self.srt), awareness=self.mutual_awareness_neg__belief.antecedent.awareness, derive_condition=self.derive_condition)) == set([self.apply_anc_effs.sorted_str(term) for term in [When(create_and([self.des_bob(self.pred)]), create_and([NOT_MODL()(self.bel_bob(self.pred))])), When(create_and([self.des_alice(self.pred)]), create_and([NOT_MODL()(self.bel_alice(self.pred))])), When(create_and([self.des_cindy(self.pred)]), create_and([NOT_MODL()(self.bel_cindy(self.pred))]))]])
 
     def test_mutual_awareness_neg_poscond_dc_srt(self):
-        derive_condition = SeparatedRMLTerm([self.des_bob], self.pred)
-        derive_condition.assignment = {Variable("dlr_agent", ["agent"]): Constant("bob", "agent")}
-        assert self.apply_anc_eff_helper(self.mutual_awareness_neg__belief, When(create_and([self.srt2]), create_and([cleaned_not(self.srt)])), awareness=self.mutual_awareness_neg__belief.antecedent.awareness, derive_condition=derive_condition) == [self.apply_anc_effs.sorted_str(When(create_and([self.des_bob(self.pred), self.bel_bob(self.pred2)]), create_and([NOT_MODL()(self.bel_bob(self.pred))])))]
+        assert set(self.apply_anc_eff_helper(self.mutual_awareness_neg__belief, When(create_and([self.srt2]), create_and([cleaned_not(self.srt)])), awareness=self.mutual_awareness_neg__belief.antecedent.awareness, derive_condition=self.derive_condition)) == set([self.apply_anc_effs.sorted_str(term) for term in [When(create_and([self.des_bob(self.pred), self.bel_bob(self.pred2)]), create_and([NOT_MODL()(self.bel_bob(self.pred))])), When(create_and([self.des_alice(self.pred), self.bel_alice(self.pred2)]), create_and([NOT_MODL()(self.bel_alice(self.pred))])), When(create_and([self.des_cindy(self.pred), self.bel_cindy(self.pred2)]), create_and([NOT_MODL()(self.bel_cindy(self.pred))])),]])
 
     def test_mutual_awareness_neg_negcond_dc_srt(self):
-        derive_condition = SeparatedRMLTerm([self.des_bob], self.pred)
-        derive_condition.assignment = {Variable("dlr_agent", ["agent"]): Constant("bob", "agent")}
-        assert self.apply_anc_eff_helper(self.mutual_awareness_neg__belief, When(create_and([cleaned_not(self.srt2)]), create_and([cleaned_not(self.srt)])), awareness=self.mutual_awareness_neg__belief.antecedent.awareness, derive_condition=derive_condition) == [self.apply_anc_effs.sorted_str(When(create_and([self.des_bob(self.pred), NOT_MODL()(self.bel_bob(self.pred2))]), create_and([NOT_MODL()(self.bel_bob(self.pred))])))]
+        assert set(self.apply_anc_eff_helper(self.mutual_awareness_neg__belief, When(create_and([cleaned_not(self.srt2)]), create_and([cleaned_not(self.srt)])), awareness=self.mutual_awareness_neg__belief.antecedent.awareness, derive_condition=self.derive_condition)) == set([self.apply_anc_effs.sorted_str(term) for term in [When(create_and([self.des_bob(self.pred), NOT_MODL()(self.bel_bob(self.pred2))]), create_and([NOT_MODL()(self.bel_bob(self.pred))])), When(create_and([self.des_alice(self.pred), NOT_MODL()(self.bel_alice(self.pred2))]), create_and([NOT_MODL()(self.bel_alice(self.pred))])), When(create_and([self.des_cindy(self.pred), NOT_MODL()(self.bel_cindy(self.pred2))]), create_and([NOT_MODL()(self.bel_cindy(self.pred))]))]])
 
     def test_mutual_awareness_neg_poscond_negcond_dc_srt(self):
-        derive_condition = SeparatedRMLTerm([self.des_bob], self.pred)
-        derive_condition.assignment = {Variable("dlr_agent", ["agent"]): Constant("bob", "agent")}
-        assert self.apply_anc_eff_helper(self.mutual_awareness_neg__belief, When(create_and([cleaned_not(self.srt2), self.srt]), create_and([cleaned_not(self.srt)])), awareness=self.mutual_awareness_neg__belief.antecedent.awareness, derive_condition=derive_condition) == [self.apply_anc_effs.sorted_str(When(create_and([self.des_bob(self.pred), NOT_MODL()(self.bel_bob(self.pred2)), self.bel_bob(self.pred)]), create_and([NOT_MODL()(self.bel_bob(self.pred))])))
-]
+        assert set(self.apply_anc_eff_helper(self.mutual_awareness_neg__belief, When(create_and([cleaned_not(self.srt2), self.srt]), create_and([cleaned_not(self.srt)])), awareness=self.mutual_awareness_neg__belief.antecedent.awareness, derive_condition=self.derive_condition)) == set([self.apply_anc_effs.sorted_str(term) for term in [When(create_and([self.des_bob(self.pred), NOT_MODL()(self.bel_bob(self.pred2)), self.bel_bob(self.pred)]), create_and([NOT_MODL()(self.bel_bob(self.pred))])), When(create_and([self.des_alice(self.pred), NOT_MODL()(self.bel_alice(self.pred2)), self.bel_alice(self.pred)]), create_and([NOT_MODL()(self.bel_alice(self.pred))])), When(create_and([self.des_cindy(self.pred), NOT_MODL()(self.bel_cindy(self.pred2)), self.bel_cindy(self.pred)]), create_and([NOT_MODL()(self.bel_cindy(self.pred))]))]])
+
     # ----- FORALL AGENTS -----
     def test_forall_agents(self):
         test_anc_eff = AncEff(
@@ -238,16 +208,13 @@ class TestApplyAncEffsSingle:
         res = self.apply_anc_eff_helper(test_anc_eff, When(create_and([SeparatedRMLTerm([self.bel_alice, self.des_bob], self.pred2)]), create_and([self.srt])))
         expected = self.apply_anc_effs.sorted_str(
             When(
-                create_and([Nesting(GenericMODLType.BEL, a)(self.bel_alice(self.des_bob(self.pred2))) for a in self.agents]),
+                create_and([Nesting(GenericMODLType.BEL, Agent(a))(self.bel_alice(self.des_bob(self.pred2))) for a in self.agents.values()]),
                 create_and([self.pred])
             )
         )
         assert res == [expected]
 
     def test_forall_var_agents_2_derive_condition(self):
-        pred3 = Predicate("secret3")
-        derive_condition = SeparatedRMLTerm([self.des_bob], pred3)
-        derive_condition.assignment = {Variable("dlr_agent", ["agent"]): Constant("bob", "agent")}
         test_anc_eff = AncEff(
             name="test",
             parameters=None,
@@ -259,49 +226,47 @@ class TestApplyAncEffsSingle:
                 "add"
             )
         )
-        res = self.apply_anc_eff_helper(test_anc_eff, When(create_and([SeparatedRMLTerm([self.bel_alice, self.des_bob], self.pred2)]), create_and([self.srt])), True, derive_condition)
-        expected = self.apply_anc_effs.sorted_str(
+        assert set(self.apply_anc_eff_helper(test_anc_eff, When(create_and([SeparatedRMLTerm([self.bel_alice, self.des_bob], self.pred2)]), create_and([self.srt])), True, self.derive_condition)) == set([self.apply_anc_effs.sorted_str(term) for term in [
             When(
-                create_and([Nesting(GenericMODLType.BEL, a)(self.bel_alice(self.des_bob(self.pred2))) for a in self.agents] + [self.des_bob(pred3)]),
+                create_and([Nesting(GenericMODLType.BEL, Agent(a))(self.bel_alice(self.des_bob(self.pred2))) for a in self.agents.values()] + [self.des_alice(self.pred)]),
                 create_and([self.pred])
-            )
-        )
-        assert res == [expected]
+            ),
+            When(
+                create_and([Nesting(GenericMODLType.BEL, Agent(a))(self.bel_alice(self.des_bob(self.pred2))) for a in self.agents.values()] + [self.des_bob(self.pred)]),
+                create_and([self.pred])
+            ),
+            When(
+                create_and([Nesting(GenericMODLType.BEL, Agent(a))(self.bel_alice(self.des_bob(self.pred2))) for a in self.agents.values()] + [self.des_cindy(self.pred)]),
+                create_and([self.pred])
+            ),
+        ]])
 
     # ----- RECURSIVE TESTS -----
     def test_recursive_anc_effs_closure(self):
-        self.apply_anc_effs_helper(SeparatedRMLTerm([self.bel_alice, self.bel_bob], self.pred), anc_effs=["kd45closure__belief"]) == \
-            [self.apply_anc_effs.sorted_str(term) for term in [self.pbel_alice(self.bel_bob(self.pred)), self.bel_alice(self.pbel_bob(self.pred)), self.pbel_alice(self.pbel_bob(self.pred))]]
+        assert set(self.apply_anc_effs_helper(SeparatedRMLTerm([self.bel_alice, self.bel_bob], self.pred), anc_effs=["kd45closure__belief"])) == \
+            set([self.apply_anc_effs.sorted_str(term) for term in [self.pbel_alice(self.bel_bob(self.pred)), self.bel_alice(self.pbel_bob(self.pred)), self.pbel_alice(self.pbel_bob(self.pred))]])
 
     def test_recursive_anc_effs_closure_belief_desire(self):
-        self.apply_anc_effs_helper(SeparatedRMLTerm([self.bel_alice, self.des_bob], self.pred), anc_effs=["kd45closure__belief", "kd45closure__desire"]) == \
-            [self.apply_anc_effs.sorted_str(term) for term in [self.pbel_bob(self.des_bob(self.pred)), self.bel_bob(self.pdes_bob(self.pred)), self.pbel_bob(self.pdes_bob(self.pred)), self.bel_bob(self.pdes_bob(self.pred))]]
+        expected = set([self.apply_anc_effs.sorted_str(term) for term in [self.pbel_alice(self.des_bob(self.pred)), self.bel_alice(self.pdes_bob(self.pred)), self.pbel_alice(self.pdes_bob(self.pred))]])
+        assert set(self.apply_anc_effs_helper(SeparatedRMLTerm([self.bel_alice, self.des_bob], self.pred), anc_effs=["kd45closure__belief", "kd45closure__desire"])) == expected
+        assert set(self.apply_anc_effs_helper(SeparatedRMLTerm([self.bel_alice, self.des_bob], self.pred), anc_effs=["kd45closure__desire", "kd45closure__belief"])) == expected
     
-    
-    def test_recursive_anc_effs_mutual_awareness_closure(self):
-        pred3 = Predicate("secret3")
-        derive_condition = SeparatedRMLTerm([self.des_bob], pred3)
-        derive_condition.assignment = {Variable("dlr_agent", ["agent"]): Constant("bob", "agent")}
-        assert self.apply_anc_effs_helper(self.srt, derive_condition=derive_condition, anc_effs=["kd45closure__belief", "mutual-awareness-pos__belief"]) == \
-        [self.apply_anc_effs.sorted_str(term) for term in [
-            When(create_and([self.des_bob(pred3)]), create_and([(self.bel_bob(self.pred))])),
-            When(create_and([self.des_bob(pred3)]), create_and([(self.pbel_bob(self.pred))])),
-            When(create_and([self.bel_bob(self.des_bob(pred3)), self.des_bob(pred3)]), create_and([(self.bel_bob(self.pred))])),
-            When(create_and([self.bel_bob(self.des_bob(pred3)), self.des_bob(pred3)]), create_and([(self.pbel_bob(self.pred))]))
-        ]]
-        assert self.apply_anc_effs_helper(self.srt, derive_condition=derive_condition, anc_effs=["mutual-awareness-pos__belief", "kd45closure__belief"]) == \
-        [self.apply_anc_effs.sorted_str(term) for term in [
-            When(create_and([self.des_bob(pred3)]), create_and([(self.bel_bob(self.pred))])),
-            When(create_and([self.bel_bob(self.des_bob(pred3)), self.des_bob(pred3)]), create_and([(self.bel_bob(self.pred))])),
-            When(create_and([self.des_bob(pred3)]), create_and([(self.pbel_bob(self.pred))])),
-            When(create_and([self.bel_bob(self.des_bob(pred3)), self.des_bob(pred3)]), create_and([(self.pbel_bob(self.pred))]))
-        ]]
+    def test_recursive_anc_effs_negation_removal_closure(self):
+        expected = set([self.apply_anc_effs.sorted_str(term) for term in [
+            self.pbel_cindy(self.pred),
+            cleaned_not(NOT_MODL()(self.bel_cindy(self.pred))),
+            cleaned_not(NOT_MODL()(self.pbel_cindy(self.pred)))
+        ]])
+        assert set(self.apply_anc_effs_helper(SeparatedRMLTerm([self.bel_cindy], self.pred), anc_effs=["negation-removal", "kd45closure__belief"])) == expected
+        assert set(self.apply_anc_effs_helper(SeparatedRMLTerm([self.bel_cindy], self.pred), anc_effs=["kd45closure__belief", "negation-removal"])) == expected
 
     def test_recursive_anc_effs_negation_removal_un_closure(self):
-        assert self.apply_anc_effs_helper(SeparatedRMLTerm([self.bel_alice], self.pred), anc_effs=["negation-removal", "kd45-un-closure__belief"]) == \
-            [
+        expected = set([
                 self.apply_anc_effs.sorted_str(term) for term in [
                     Not(NOT_MODL()(self.bel_alice(self.pred))),
                     Not((self.bel_alice(NOT_MODL()(self.pred)))),
                 ]
-            ]
+        ])
+        assert set(self.apply_anc_effs_helper(SeparatedRMLTerm([self.bel_alice], self.pred), anc_effs=["negation-removal", "kd45-un-closure__belief"])) == expected
+        assert set(self.apply_anc_effs_helper(SeparatedRMLTerm([self.bel_alice], self.pred), anc_effs=["kd45-un-closure__belief", "negation-removal"])) == expected
+            
