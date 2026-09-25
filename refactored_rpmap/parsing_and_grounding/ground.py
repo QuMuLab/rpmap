@@ -95,8 +95,7 @@ def ground_formula(formula: Sequence, assignment, domain, problem):
         elif isinstance(fo, Nesting):
             if fo.child:
                 raise ValueError("Nestings should not yet be nested (stored in a list, not nested with children).")
-            fo.agent.term = Constant(assignment[fo.agent.term.name]) if isinstance(fo.agent.term, Variable) else fo.agent.term
-            grounded_formulas.append(fo)
+            grounded_formulas.append(Nesting(fo.mod_type, Agent(Constant(assignment[fo.agent.term.name], "agent") if isinstance(fo.agent.term, Variable) else fo.agent.term)))
         elif isinstance(fo, NOT_MODL):
             grounded_formulas.append(fo)
         else:
@@ -123,20 +122,15 @@ def ground_action(a, domain, problem, assignment):
     effect = ground_formula(a.effect.operands if isinstance(a.effect, And) else [a.effect], assignment, domain, problem) 
     if not isinstance(effect, And):
         effect = create_and(effect)
+    derive_condition = (a.derive_condition if type(a.derive_condition) is str else list(ground_formula([a.derive_condition], assignment, domain, problem))[0]) if a.derive_condition else None
     new_a = Action(
             op_name,
             None,
             precondition,
-            effect
+            effect,
+            derive_condition=derive_condition
         )
-    if a.derive_condition:
-        if type(a.derive_condition) is str:
-            new_a.derive_condition = a.derive_condition 
-        else:
-            new_a.derive_condition = list(ground_formula([a.derive_condition], assignment, domain, problem))[0]
-            # store the assignment so we know what the derive condition variable $agent$ was grounded to
-            # we need this when applying ancillary effects, as the ancillary effect can reference the derive condition variable
-            # new_a.derive_condition.dlr_var = list(domain.agents.values()) if Variable("dlr_agent", ["agent"]) in a.derive_condition.term.terms else None
+    
     return new_a
 
 def create_grounded_operators(domain, problem):
