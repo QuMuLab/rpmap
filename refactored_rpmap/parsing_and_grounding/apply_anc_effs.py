@@ -413,6 +413,14 @@ class ApplyAncEffs:
         else:
             raise ValueError(f"Invalid term type: {type(term)}")
 
+    @staticmethod
+    def check_a_subsumed_by_b(a_cond: And, a_eff: And, b_cond: And, b_eff: And):
+        """e.g. a = (when (and (a) (b)) (and(r))), b = (when (and (a)) (and (r))), a is subsumed by b"""
+        res = b_cond.operands in a_cond.operands and a_eff == b_eff 
+        if res:
+            print()
+        return res
+
     def apply_anc_effs_to_action(self, next_term, derive_condition, anc_effs = None):
         anc_effs = {a: self.anc_effs[a] for a in anc_effs} if anc_effs else self.anc_effs 
         next_term.id = ApplyAncEffs.gen_id(next_term)
@@ -420,14 +428,31 @@ class ApplyAncEffs:
         next_term.comment = "BASE" + f" id({next_term.id})"
         condleft = [next_term]
         processed_conds = dict()
+        processed_conds_cond_eff = dict()
         
         while condleft:
             next_term = condleft.pop(0)
             next_term_rep = ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(next_term))
+            if isinstance(next_term, When):
+                already_subsumed = False
+                for when_cond, when in processed_conds_cond_eff.items():
+                    # if it's subsumed by anything already processed, skip it
+                    if ApplyAncEffs.check_a_subsumed_by_b(next_term.condition, next_term.effect, when_cond, when.effect):
+                        already_subsumed = True
+                        break
+                    # if it subsumes anything already processed, toss that
+                    if ApplyAncEffs.check_a_subsumed_by_b(when_cond, when.effect, next_term.condition, next_term.effect):
+                        del processed_conds_cond_eff[when_cond]
+                        del processed_conds[ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(when))]
+                if already_subsumed:
+                    continue
             if next_term_rep not in processed_conds:
                 # if next_term_rep == "(when (and (at_bob_l1)) (and [BEL, bob](secret_alice)))":
                 #     print()
                 processed_conds[next_term_rep] = next_term
+                if isinstance(next_term, When):
+                    processed_conds_cond_eff[next_term.condition] = next_term
+
                 # if len(processed_conds) > 5000:
                 #     exit()
                 # print("anceffs for action: ", len(processed_conds))
