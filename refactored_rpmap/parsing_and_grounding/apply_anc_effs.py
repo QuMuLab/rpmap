@@ -450,6 +450,8 @@ class ApplyAncEffs:
                         continue
                 if isinstance(next_term, And):
                     # split this up to add to the conds to process and continue
+                    for o in next_term.operands:
+                        o.id = ApplyAncEffs.gen_id(o)
                     condleft.extend(next_term.operands)
                     continue
                 if isinstance(next_term, When):
@@ -464,7 +466,7 @@ class ApplyAncEffs:
                                     break
                                 # if it subsumes anything already processed, toss that
                                 if ApplyAncEffs.check_a_subsumed_by_b(term.condition, next_term.condition):
-                                    to_del.append(when)
+                                    to_del.append(term)
                     if already_subsumed:
                         continue
                     for td in to_del:
@@ -475,7 +477,7 @@ class ApplyAncEffs:
                 processed_conds[next_term_rep] = next_term
 
                 # if len(processed_conds) > 5000:
-                #     exit()
+                    # return list(processed_conds.values())[1:]
                 # print("anceffs for action: ", len(processed_conds))
                 for anc_eff in anc_effs.values():
                     if self.check_ant_match(anc_eff.antecedent.rml, anc_eff.antecedent.anceff_type, next_term, anc_eff.antecedent.awareness, derive_condition):
@@ -500,6 +502,14 @@ class ApplyAncEffs:
         variants = {}
         variants.update(pos_predicates)
         variants.update({ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(NOT_MODL()(p))): SeparatedRMLTerm([NOT_MODL()], p) for p in curr if not p.always_known})
+        action_names = set(a.name for a in self.domain.actions)
+        for p in curr:
+            if p.name in action_names:
+                for action_modl in {*ActionMODLType, *PossibleActionMODLType}:
+                    for agent in self.agents.values():
+                        srt = SeparatedRMLTerm([action_modl], p)
+                        variants[ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(srt))] = srt
+
         for depth in range(1, self.problem.depth + 1):
             for p in curr:
                 if not p.always_known:
@@ -510,7 +520,7 @@ class ApplyAncEffs:
                                 variant_nestings.extend([Nesting(generic_modl_permutation[i], Agent(Constant(agent_permutation[i], "agent"))) for i in range(depth)])
                                 srt_variant = SeparatedRMLTerm(variant_nestings, p)
                                 variants[ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(srt_variant))] = srt_variant
-                                if depth + 1 < self.problem.depth:
+                                if depth + 1 < self.problem.depth and p.name in action_names:
                                     for action_modl in {*ActionMODLType, *PossibleActionMODLType}:
                                         for agent in self.agents.values():
                                             am_variant_nestings = variant_nestings
@@ -526,14 +536,15 @@ class ApplyAncEffs:
         self.domain._predicates = [ApplyAncEffs.term_to_rml(p) for p in all_rmls.values()]
         anc_effs_count = 0
         for action in self.domain.actions:
-            for o in action.effect.operands:
-                new_terms = self.apply_anc_effs_to_action(o, action.derive_condition, action.precondition)
-                if new_terms:
-                    action.effect._operands.extend(new_terms)
-                    # print(anc_effs_count)
-                    anc_effs_count += len(new_terms)
-                if time.time() - start > timeout:
-                    raise TimeoutError("Preprocessing exceeded 30-minute time limit.")
+            # if action.name == "adopt-belief_alice_l1":
+                for o in action.effect.operands:
+                    new_terms = self.apply_anc_effs_to_action(o, action.derive_condition, action.precondition)
+                    if new_terms:
+                        action.effect._operands.extend(new_terms)
+                        print(anc_effs_count)
+                        anc_effs_count += len(new_terms)
+                    if time.time() - start > timeout:
+                        raise TimeoutError("Preprocessing exceeded 30-minute time limit.")
 
         # apply closure to everything in the initial state
         self.problem._init = list(self.problem.init)
