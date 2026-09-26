@@ -58,7 +58,7 @@ class TestApplyAncEffsSingle:
             return [self.apply_anc_effs.sorted_str(self.apply_anc_effs.term_to_rml(term)) for term in self.apply_anc_effs.apply_anc_eff_all_dlr_agent(anc_eff, next_term, awareness, derive_condition)]
 
     def apply_anc_effs_helper(self, next_term, derive_condition = "never", anc_effs = None):
-        return [self.apply_anc_effs.sorted_str(self.apply_anc_effs.term_to_rml(term)) for term in self.apply_anc_effs.apply_anc_effs_to_action(next_term, derive_condition, anc_effs)]
+        return [self.apply_anc_effs.sorted_str(self.apply_anc_effs.term_to_rml(term)) for term in self.apply_anc_effs.apply_anc_effs_to_action(next_term, derive_condition, And(), anc_effs)]
 
     # ----- NEGATION REMOVAL -----
     def test_negation_removal(self):
