@@ -35,13 +35,13 @@ class ApplyAncEffs:
         self.max_depth_detected = 0
 
     @staticmethod
-    def gen_id(cond):
+    def gen_id(term):
         """Generate a unique ID for a condition based on its string representation."""
         # make it a unique 5-character hash
         import hashlib
 
         m = hashlib.md5()
-        m.update(str(hash(cond)).encode("utf-8"))
+        m.update(str(hash(term)).encode("utf-8"))
         return m.hexdigest()[:8]
 
     def check_ant_rml_nestings(self, ant_rml: SeparatedRMLTerm, cond: SeparatedRMLTerm, soft_check: bool):
@@ -414,44 +414,65 @@ class ApplyAncEffs:
             raise ValueError(f"Invalid term type: {type(term)}")
 
     @staticmethod
-    def check_a_subsumed_by_b(a_cond: And, a_eff: And, b_cond: And, b_eff: And):
+    def check_a_subsumed_by_b(a_cond: And, b_cond: And):
         """e.g. a = (when (and (a) (b)) (and(r))), b = (when (and (a)) (and (r))), a is subsumed by b"""
-        res = b_cond.operands in a_cond.operands and a_eff == b_eff 
-        if res:
-            print()
-        return res
+        return all([f in a_cond.operands for f in b_cond.operands])
 
-    def apply_anc_effs_to_action(self, next_term, derive_condition, anc_effs = None):
+    @staticmethod
+    def simplify_against_precondition(next_term, precondition):
+        cond = []
+        for c in next_term.condition.operands:
+            # remove any conditions already in the precondition
+            if c not in precondition.operands:
+                cond.append(c)
+            # forget this next term if it includes any condition that contradict with the precondition
+            if cleaned_not(c) in precondition.operands:
+                return None
+        simplify = When(create_and(cond), next_term.effect) if cond else next_term.effect
+        simplify.id = ApplyAncEffs.gen_id(simplify)
+        simplify.comment = next_term.comment
+        return simplify
+
+    def apply_anc_effs_to_action(self, next_term, derive_condition, act_precondition, anc_effs = None):
         anc_effs = {a: self.anc_effs[a] for a in anc_effs} if anc_effs else self.anc_effs 
         next_term.id = ApplyAncEffs.gen_id(next_term)
-        next_term.parent = None
-        next_term.comment = "BASE" + f" id({next_term.id})"
+        next_term.comment = f" id({next_term.id})"
         condleft = [next_term]
         processed_conds = dict()
-        processed_conds_cond_eff = dict()
         
         while condleft:
             next_term = condleft.pop(0)
             next_term_rep = ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(next_term))
-            if isinstance(next_term, When):
-                already_subsumed = False
-                for when_cond, when in processed_conds_cond_eff.items():
-                    # if it's subsumed by anything already processed, skip it
-                    if ApplyAncEffs.check_a_subsumed_by_b(next_term.condition, next_term.effect, when_cond, when.effect):
-                        already_subsumed = True
-                        break
-                    # if it subsumes anything already processed, toss that
-                    if ApplyAncEffs.check_a_subsumed_by_b(when_cond, when.effect, next_term.condition, next_term.effect):
-                        del processed_conds_cond_eff[when_cond]
-                        del processed_conds[ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(when))]
-                if already_subsumed:
-                    continue
             if next_term_rep not in processed_conds:
+                if isinstance(next_term, When):
+                    next_term = ApplyAncEffs.simplify_against_precondition(next_term, act_precondition)
+                    if not next_term:
+                        continue
+                if isinstance(next_term, And):
+                    # split this up to add to the conds to process and continue
+                    condleft.extend(next_term.operands)
+                    continue
+                if isinstance(next_term, When):
+                    already_subsumed = False
+                    to_del = []
+                    for term in processed_conds.values():
+                        if isinstance(term, When):
+                            if next_term.effect == term.effect:
+                                # if it's subsumed by anything already processed, skip it
+                                if ApplyAncEffs.check_a_subsumed_by_b(next_term.condition, term.condition):
+                                    already_subsumed = True
+                                    break
+                                # if it subsumes anything already processed, toss that
+                                if ApplyAncEffs.check_a_subsumed_by_b(term.condition, next_term.condition):
+                                    to_del.append(when)
+                    if already_subsumed:
+                        continue
+                    for td in to_del:
+                        del processed_conds[ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(td))]
+                    
                 # if next_term_rep == "(when (and (at_bob_l1)) (and [BEL, bob](secret_alice)))":
                 #     print()
                 processed_conds[next_term_rep] = next_term
-                if isinstance(next_term, When):
-                    processed_conds_cond_eff[next_term.condition] = next_term
 
                 # if len(processed_conds) > 5000:
                 #     exit()
@@ -512,9 +533,10 @@ class ApplyAncEffs:
         anc_effs_count = 0
         for action in self.domain.actions:
             for o in action.effect.operands:
-                new_terms = self.apply_anc_effs_to_action(o, action.derive_condition)
+                new_terms = self.apply_anc_effs_to_action(o, action.derive_condition, action.precondition)
                 if new_terms:
                     action.effect._operands.extend(new_terms)
+                    # print(anc_effs_count)
                     anc_effs_count += len(new_terms)
                 if time.time() - start > timeout:
                     raise TimeoutError("Preprocessing exceeded 30-minute time limit.")
@@ -532,7 +554,7 @@ class ApplyAncEffs:
         closure_anc_effs = ["kd45closure__belief", "kd45closure__desire", "kd45closure__intention"]
         init_closure = []
         for init_rml in self.problem.init:
-            init_closure.extend(self.apply_anc_effs_to_action(init_rml, "never", closure_anc_effs))
+            init_closure.extend(self.apply_anc_effs_to_action(init_rml, "never", And(), closure_anc_effs))
         self.problem._init.extend(init_closure)
 
         # now we need to convert everything to RMLs
