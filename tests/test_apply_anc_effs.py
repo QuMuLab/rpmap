@@ -55,7 +55,7 @@ class TestApplyAncEffsSingle:
 
     def apply_anc_eff_helper(self, anc_eff, next_term, awareness = False, derive_condition = "never"):
         if self.apply_anc_effs.check_ant_match(anc_eff.antecedent.rml, anc_eff.antecedent.anceff_type, next_term, awareness, derive_condition):
-            return [self.apply_anc_effs.sorted_str(self.apply_anc_effs.term_to_rml(term)) for term in self.apply_anc_effs.apply_anc_eff_all_dlr_agent(anc_eff, next_term, awareness, derive_condition)]
+            return [self.apply_anc_effs.sorted_str(self.apply_anc_effs.term_to_rml(term)) for term in self.apply_anc_effs.apply_anc_eff_all_anceff_vars(anc_eff, next_term, awareness, derive_condition)]
 
     def apply_anc_effs_helper(self, next_term, derive_condition = "never", anc_effs = None):
         return [self.apply_anc_effs.sorted_str(self.apply_anc_effs.term_to_rml(term)) for term in self.apply_anc_effs.apply_anc_effs_to_action(next_term, derive_condition, And(), anc_effs)]

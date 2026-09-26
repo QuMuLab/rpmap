@@ -15,10 +15,10 @@ NL_AND_3_TABS = "\n" + "\t" * 3
 
 # ----- GROUNDING/ASSIGNMENTS
 
-def create_valuations(agents, objects, variables: Sequence[Variable]):
+def create_valuations(objects, variables: Sequence[Variable]):
     assignment = {}
     for var in variables:
-        assignment[var.name] = [o.name for o in objects if o.type_tags == var.type_tags]
+        assignment[var.name] = [o for o in objects if o.type_tags == var.type_tags]
     return itertools.product(*assignment.values())
 
 # ----- PRINT AND FILE WRITE FUNCTIONS -----

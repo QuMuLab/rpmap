@@ -1,5 +1,5 @@
 from .core.anc_eff import *
-from .utils import cleaned_not, create_and
+from .utils import cleaned_not, create_and, create_valuations
 from pddl.core import Domain, Problem
 from pddl.exceptions import PDDLValidationError
 from pddl.logic.base import Not, And
@@ -384,12 +384,17 @@ class ApplyAncEffs:
         else:
             return self.apply_anc_eff(anc_eff_cons, next_term, awareness, derive_condition)
 
-    def apply_anc_eff_all_dlr_agent(self, anc_eff: AncEff, next_term, awareness: bool, derive_condition: str | SeparatedRMLTerm):
-        dlr_agent = Variable("dlr_agent", ["agent"])
-        if (dlr_agent in anc_eff.agents) or (dlr_agent in [n.agent.term for n in derive_condition.nestings if isinstance(n, Nesting)] if isinstance(derive_condition, SeparatedRMLTerm) else False):
+    def apply_anc_eff_all_anceff_vars(self, anc_eff: AncEff, next_term, awareness: bool, derive_condition: str | SeparatedRMLTerm):
+        all_relevant_vars = anc_eff.vars
+        if isinstance(derive_condition, SeparatedRMLTerm):
+            all_relevant_vars.update([n.agent.term for n in derive_condition.nestings if isinstance(n, Nesting)])
+        dlr_vars = {v for v in all_relevant_vars if "dlr__" in v.name}
+        if dlr_vars:
             results = []
-            for agent in self.agents.values():
-                self.assignment[dlr_agent] = agent
+            val_generator = create_valuations(self.domain.gathered_constants, dlr_vars)
+            for valuation in val_generator:
+                for var, val in zip(dlr_vars, valuation):
+                    self.assignment[var] = val
                 results.extend(self.apply_anc_eff_all_nestings(anc_eff.consequent, next_term, awareness, derive_condition))
             return results
         else:
@@ -481,7 +486,7 @@ class ApplyAncEffs:
                 # print("anceffs for action: ", len(processed_conds))
                 for anc_eff in anc_effs.values():
                     if self.check_ant_match(anc_eff.antecedent.rml, anc_eff.antecedent.anceff_type, next_term, anc_eff.antecedent.awareness, derive_condition):
-                        new_terms = self.apply_anc_eff_all_dlr_agent(anc_eff, next_term, anc_eff.antecedent.awareness, derive_condition)
+                        new_terms = self.apply_anc_eff_all_anceff_vars(anc_eff, next_term, anc_eff.antecedent.awareness, derive_condition)
                         # if anc_eff.name == "mutual-awareness-pos__belief":
                         #     print()
                         if self.max_depth_detected > self.problem.depth:

@@ -46,10 +46,10 @@ def ground_formula(formula: Sequence, assignment, domain, problem):
             else:
                 terms = list(fo.terms)
                 for i in range(len(terms)):
-                    if isinstance(terms[i], Variable) and terms[i] != Variable("dlr_agent", ["agent"]):
+                    if isinstance(terms[i], Variable) and "dlr__" not in terms[i].name:
                         if terms[i].name not in assignment:
                             raise PDDLValidationError(f"Variable {terms[i].name} not defined; cannot ground.")
-                        terms[i] = Constant(assignment[terms[i].name]) 
+                        terms[i] = assignment[terms[i].name]
                 p = Predicate(fo.name, *terms, always_known=fo.always_known, negated=fo.negated)
                 grounded_formulas.append(p)
         elif isinstance(fo, RML):
@@ -61,7 +61,7 @@ def ground_formula(formula: Sequence, assignment, domain, problem):
             grounded_formulas.append(grounded_rml)
         elif isinstance(fo, ForallCondition):
             variables = {v for v in fo.variables}
-            val_generator = create_valuations(domain.agents.keys(), domain.gathered_constants, variables)
+            val_generator = create_valuations(domain.gathered_constants, variables)
             for valuation in val_generator:
                 var_names = [v.name for v in variables]
                 for var_name, val in zip(var_names, valuation):
@@ -70,7 +70,7 @@ def ground_formula(formula: Sequence, assignment, domain, problem):
             assignment = {}
         elif isinstance(fo, Forall):
             var_names = [v.name for v in fo.variables]
-            val_generator = create_valuations(domain.agents.keys(), domain.gathered_constants, fo.variables)
+            val_generator = create_valuations(domain.gathered_constants, fo.variables)
             for valuation in val_generator:
                 # need to add onto the existing assignment so we retain knowledge of outer variables
                 for var_name, val in zip(var_names, valuation):
@@ -105,7 +105,7 @@ def ground_formula(formula: Sequence, assignment, domain, problem):
 def create_grounded_fluents(domain, problem):
     formulas = set()
     for p in domain.predicates:
-        val_generator = create_valuations(domain.agents.keys(), domain.gathered_constants, p.terms)
+        val_generator = create_valuations(domain.gathered_constants, p.terms)
         variables = p.terms if isinstance(p, Predicate) else p.get_predicate().terms
         var_names = [v.name for v in variables]
         for valuation in val_generator:
@@ -114,7 +114,7 @@ def create_grounded_fluents(domain, problem):
     return formulas
 
 def ground_action(a, domain, problem, assignment):
-    op_name_suffix = "_".join([assignment[var.name] for var in a.parameters])
+    op_name_suffix = "_".join([assignment[var.name].name for var in a.parameters])
     op_name = a.name + "_" + op_name_suffix if op_name_suffix else a.name
     precondition = ground_formula(a.precondition.operands if isinstance(a.precondition, And) else [a.precondition], assignment, domain, problem)
     if not isinstance(precondition, And):
@@ -145,7 +145,7 @@ def create_grounded_operators(domain, problem):
             for n in a.derive_condition.nestings:
                 variables.add(n.agent.term)
         var_names = [v.name for v in variables]
-        val_generator = create_valuations(domain.agents.keys(), domain.gathered_constants, variables)
+        val_generator = create_valuations(domain.gathered_constants, variables)
         for valuation in val_generator:
             assignment = {var_name: val for var_name, val in zip(var_names, valuation)}
             operators.add(ground_action(a, domain, problem, assignment))

@@ -56,7 +56,7 @@ class Agent:
 class GeneralRML:
     def __init__(self, mod_type: GenericMODLType | PossibleGenericMODLType | ActionMODLType | PossibleActionMODLType, agent: Agent, child: GeneralRML | Predicate = None):
         if child:
-            if (mod_type in ActionMODLType or mod_type in PossibleActionMODLType) and not isinstance(child, Predicate) and not isinstance(child, NOT_MODL):
+            if (mod_type in ActionMODLType or mod_type in PossibleActionMODLType) and not isinstance(child, Predicate) and not isinstance(child, NOT_MODL) and not isinstance(child, BLANK_MODL):
                 raise PDDLValidationError("Cannot apply an Action MODL to another MODL.")
         self._mod_type = mod_type
         self._agent = agent
@@ -294,7 +294,7 @@ class ListCompVar:
 def detect_ag(term: SeparatedRMLTerm):
     for n in term.nestings:
         if isinstance(n, Nesting): # rule out NOT_MODL
-            if n.agent.term == Variable("ag", ["agent"]):
+            if n.agent.term.name != "ag":
                 return
     raise PDDLValidationError(f"No ?ag agent detected in the agent list comprehension nestings.")
 
@@ -458,14 +458,13 @@ class AncEff:
                 cons_vars.update(AncEff._get_vars(r))
         for r in consequent.rml:
             cons_vars.update(AncEff._get_vars(r))
-        vars_to_ignore = {Variable("ag", ["agent"]), Variable("dlr_agent", ["agent"])}    
         for a in ant_vars | cons_vars:
-            if a in vars_to_ignore:
+            if a.name != "ag" or "dlr__" in a.name:
                 continue
             if not self.parameters or a not in self.parameters:
                 raise PDDLValidationError(f"Variable {a} not in the ancillary effect {self.name} parameters, {self.parameters}.")
-        diff = cons_vars - ant_vars
-        if diff != set() and diff not in [{a} for a in vars_to_ignore]:
+        diff = {d for d in cons_vars - ant_vars if d.name != "ag" and "dlr__" not in d.name}
+        if diff:
             raise PDDLValidationError(f"The consequent in the ancillary effect {name} contains variables {diff} not referenced in the antecedent.")
         ant_terms_w_nesting_types = {type(term) for term in antecedent.rml.nestings if isinstance(term, MODLTermWNesting)}
         cons_terms_w_nesting_types = {type(term) for rml in consequent.rml if isinstance(rml, SeparatedRMLTerm) for term in rml.nestings if isinstance(term, MODLTermWNesting)}
@@ -473,7 +472,7 @@ class AncEff:
             raise PDDLValidationError(f"The antecedent and consequent of the {self.name} ancillary effect feature different" + "{nesting} term types.")
         self._antecedent = antecedent
         self._consequent = consequent
-        self._agents = {a for a in ant_vars | cons_vars if "agent" in a.type_tags}
+        self._vars = {a for a in ant_vars | cons_vars}
 
     @property
     def name(self) -> str:
@@ -492,8 +491,8 @@ class AncEff:
         return self._consequent
 
     @property
-    def agents(self) -> set[Agent]:
-        return self._agents
+    def vars(self) -> set[Variable]:
+        return self._vars
 
     @staticmethod
     def _get_vars(rml: SeparatedRMLTerm | MODLTermWNesting | Nesting | NOT_MODL):
