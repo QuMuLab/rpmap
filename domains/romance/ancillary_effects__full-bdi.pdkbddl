@@ -10,7 +10,7 @@
             :consequent (
                 :poscond ?pos
                 :negcond ?neg
-                :rml [d, ?a1](loves ?a2 ?a1)
+                :rml [des, ?a1](loves ?a2 ?a1)
                 :type add
             )
     )
@@ -19,13 +19,13 @@
         :antecedent (
             :poscond ?pos
             :negcond ?neg
-            :rml [i, ?a1](get-gift-for ?a2)
+            :rml [itn, ?a1](get-gift-for ?a2)
             :type add
         )
         :consequent (
-            :poscond ?pos + [b, ?a1](likes-gift ?a2 ?g)
+            :poscond ?pos + [bel, ?a1](likes-gift ?a2 ?g)
             :negcond ?neg
-            :rml [i, ?a1](retrieve-gift ?g)
+            :rml [itn, ?a1](retrieve-gift ?g)
             :type add
         )
     )
@@ -34,7 +34,7 @@
         :antecedent (
             :poscond ?pos
             :negcond ?neg
-            :rml [b, ?a1](loves ?a2 ?a3)
+            :rml [bel, ?a1](loves ?a2 ?a3)
             :type add
         )
         :consequent (

@@ -31,7 +31,7 @@
         (!benefit education alice)
         (benefit education cindy)
 
-        !<d, cindy>(listen cindy alice)
+        !<des, cindy>(listen cindy alice)
 
         (vote bob bob)
 

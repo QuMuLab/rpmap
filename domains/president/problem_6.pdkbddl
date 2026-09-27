@@ -36,7 +36,7 @@
     )
     (:goal
         (and
-            [dsd, alice][d, cindy](political-policy bob education)
+            [dsd, alice][des, cindy](political-policy bob education)
         )  
     )
     (:plan )

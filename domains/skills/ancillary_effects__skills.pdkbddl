@@ -10,7 +10,7 @@
         :consequent (
             :poscond ?pos
             :negcond ?neg
-            :rml {[d, ?a1][l, ?ag](rml) for ?ag in agents}
+            :rml {[des, ?a1][l, ?ag](rml) for ?ag in agents}
             :type add
         )
     )
@@ -19,13 +19,13 @@
         :antecedent (
             :poscond ?pos
             :negcond ?neg
-            :rml [b, ?a1][d, ?a2](rml)
+            :rml [bel, ?a1][des, ?a2](rml)
             :type add
         )
         :consequent (
-            :poscond ?pos + [d, ?a1][l, ?a2](rml)
+            :poscond ?pos + [des, ?a1][l, ?a2](rml)
             :negcond ?neg
-            :rml [l, ?a1][d, ?a2](rml)
+            :rml [l, ?a1][des, ?a2](rml)
             :type add
         )
     )
@@ -34,13 +34,13 @@
         :antecedent (
             :poscond ?pos
             :negcond ?neg
-            :rml [b, ?a1][b, ?a2](rml)
+            :rml [bel, ?a1][bel, ?a2](rml)
             :type add
         )
         :consequent (
-            :poscond ?pos + [d, ?a1][b, ?a1](rml)
+            :poscond ?pos + [des, ?a1][bel, ?a1](rml)
             :negcond ?neg
-            :rml [l, ?a1][b, ?a2](rml)
+            :rml [l, ?a1][bel, ?a2](rml)
             :type add
         )
     )
@@ -49,13 +49,13 @@
     ;;     :antecedent (
     ;;         :poscond ?pos
     ;;         :negcond ?neg
-    ;;         :rml [b, ?a1][d, ?a2](rml)
+    ;;         :rml [bel, ?a1][des, ?a2](rml)
     ;;         :type add
     ;;     )
     ;;     :consequent (
     ;;         :poscond ?pos
     ;;         :negcond ?neg
-    ;;         :rml [b, ?a1]<l, ?a2>(rml)
+    ;;         :rml [bel, ?a1]<l, ?a2>(rml)
     ;;         :type add
     ;;     )
     ;; )
@@ -65,13 +65,13 @@
     ;;     :antecedent (
     ;;         :poscond ?pos
     ;;         :negcond ?neg
-    ;;         :rml [b, ?a1][dsd, ?a2](rml)
+    ;;         :rml [bel, ?a1][dsd, ?a2](rml)
     ;;         :type add
     ;;     )
     ;;     :consequent (
     ;;         :poscond ?pos
     ;;         :negcond ?neg
-    ;;         :rml !<b, ?a1>[l, ?a2](rml)
+    ;;         :rml !<bel, ?a1>[l, ?a2](rml)
     ;;         :type add
     ;;     )
     ;; )
@@ -80,7 +80,7 @@
     ;;     :antecedent (
     ;;         :poscond ?pos
     ;;         :negcond ?neg
-    ;;         :rml [b, ?a1][l, ?a2](rml)
+    ;;         :rml [bel, ?a1][l, ?a2](rml)
     ;;         :type add
     ;;     )
     ;;     :consequent (
@@ -95,7 +95,7 @@
     ;;     :antecedent (
     ;;         :poscond ?pos
     ;;         :negcond ?neg
-    ;;         :rml [b, ?a1][dsd, ?a2](rml)
+    ;;         :rml [bel, ?a1][dsd, ?a2](rml)
     ;;         :type add
     ;;     )
     ;;     :consequent (

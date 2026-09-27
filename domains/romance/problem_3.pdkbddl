@@ -25,7 +25,7 @@
         (feel-chemistry cindy bob)
         (feel-chemistry alice bob)
         (gift-at chocolate l3)
-        [b, cindy](likes-gift bob chocolate)
+        [bel, cindy](likes-gift bob chocolate)
         (likes-gift bob chocolate)
     )
 

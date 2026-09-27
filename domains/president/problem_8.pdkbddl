@@ -29,15 +29,15 @@
         (benefit environment alice)
         (benefit education alice)
 
-        [d, cindy](listen cindy alice)
+        [des, cindy](listen cindy alice)
 
         (vote bob bob)
 
     )
     (:goal
         (and
-            [d, cindy](political-policy bob environment)
-            [d, cindy](political-policy bob education)
+            [des, cindy](political-policy bob environment)
+            [des, cindy](political-policy bob education)
         )  
     )
     (:plan )

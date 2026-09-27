@@ -47,7 +47,7 @@
     )
     (:goal
         (and
-            [b, derek][dsd, derek][d, alice](political-policy bob education)
+            [bel, derek][dsd, derek][des, alice](political-policy bob education)
             (president bob)
         )  
     )

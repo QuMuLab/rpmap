@@ -25,11 +25,11 @@
         (feel-chemistry cindy bob)
         (feel-chemistry alice bob)
         (gift-at chocolate l2)
-        [b, alice](likes-gift bob chocolate)
+        [bel, alice](likes-gift bob chocolate)
     )
 
     (:goal 
-        [i, cindy](get-gift-for bob)
+        [itn, cindy](get-gift-for bob)
         (bought-gift alice chocolate)
     )
 

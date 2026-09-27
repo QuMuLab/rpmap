@@ -27,7 +27,7 @@
 
         (expert cindy)
 
-        [d, bob](learn-skill bob guitar)
+        [des, bob](learn-skill bob guitar)
         (beginner bob guitar)
         (natural bob guitar)
 
@@ -39,7 +39,7 @@
     )
     (:goal
         (and
-            [b, cindy][b, bob][b, alice](interesting guitar)
+            [bel, cindy][bel, bob][bel, alice](interesting guitar)
         )  
     )
     (:plan )

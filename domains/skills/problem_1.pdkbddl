@@ -28,7 +28,7 @@
     )
     (:goal
         (and
-            [d, alice](learn-skill alice guitar)
+            [des, alice](learn-skill alice guitar)
         )  
     )
     (:plan )

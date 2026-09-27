@@ -18,7 +18,7 @@
         :derive-condition   always
         :parameters         (?a - agent ?l1 ?l2 - loc)
         :precondition       (and (at ?a ?l1) (connected ?l1 ?l2))
-        :effect             (and (at ?a ?l2) (!at ?a ?l1))
+        :effect             (and (at ?a ?l2) (not (at ?a ?l1)))
     )
 
     (:action adopt-disdain-for-policy
@@ -32,49 +32,49 @@
         :derive-condition   (at $agent$ ?l)
         :parameters         (?ag ?cd - agent ?p - policy ?l - loc)
         :precondition       (and (benefit ?p ?ag) (candidate ?cd) (at ?ag ?l))
-        :effect             (and [d, ?ag](political-policy ?cd ?p))
+        :effect             (and [des, ?ag](political-policy ?cd ?p))
     )
 
     (:action speak-for-policy
         :derive-condition   (at $agent$ ?l)
         :parameters         (?a1 ?a2 ?cd - agent ?p - policy ?l - loc)
-        :precondition       (and (at ?a1 ?l) (at ?a2 ?l) [d, ?a1][d, ?a2](political-policy ?cd ?p) (candidate ?cd))
+        :precondition       (and (at ?a1 ?l) (at ?a2 ?l) [des, ?a1][des, ?a2](political-policy ?cd ?p) (candidate ?cd))
         :effect             (and
-                                (when [d, ?a2](listen ?a2 ?a1) [d, ?a2](political-policy ?cd ?p))
-                                (when !<d, ?a2>(listen ?a2 ?a1) [d, ?a2](!political-policy ?cd ?p))
+                                (when [des, ?a2](listen ?a2 ?a1) [des, ?a2](political-policy ?cd ?p))
+                                (when !<des, ?a2>(listen ?a2 ?a1) [des, ?a2](!political-policy ?cd ?p))
                             )
     )
 
     (:action speak-against-policy
         :derive-condition   (at $agent$ ?l)
         :parameters         (?a1 ?a2 ?cd - agent ?p - policy ?l - loc)
-        :precondition       (and (at ?a1 ?l) (at ?a2 ?l) [d, ?a1][dsd, ?a2](political-policy ?cd ?p) (candidate ?cd))
+        :precondition       (and (at ?a1 ?l) (at ?a2 ?l) [des, ?a1][dsd, ?a2](political-policy ?cd ?p) (candidate ?cd))
         :effect             (and
-                                (when [d, ?a2](listen ?a2 ?a1) [dsd, ?a2](political-policy ?cd ?p))
-                                (when !<d, ?a2>(listen ?a2 ?a1) [dsd, ?a2](!political-policy ?cd ?p))
+                                (when [des, ?a2](listen ?a2 ?a1) [dsd, ?a2](political-policy ?cd ?p))
+                                (when !<des, ?a2>(listen ?a2 ?a1) [dsd, ?a2](!political-policy ?cd ?p))
                             )
     )
 
     ;; (:action become-political-opponent
     ;;     :derive-condition   never
     ;;     :parameters         (?a1 ?a2 ?cd - agent ?p - policy)
-    ;;     :precondition       (and (candidate ?cd) [dsd, ?a1][d, ?a2](vote ?a2 ?cd))
-    ;;     :effect             (and !<d, ?a1>(listen ?a1 ?a2))
+    ;;     :precondition       (and (candidate ?cd) [dsd, ?a1][des, ?a2](vote ?a2 ?cd))
+    ;;     :effect             (and !<des, ?a1>(listen ?a1 ?a2))
     ;; )
 
     (:action desire-vote
         :derive-condition   never
         :parameters         (?ag ?cd - agent)
-        :precondition       (and (candidate ?cd) (forall (?p - policy) [d, ?ag](political-policy ?cd ?p)))
-        :effect             (and [d, ?ag](vote ?ag ?cd) 
-                                (forall (?a2 - agent) (when (!candidate ?a2) [d, ?ag][d, ?a2](vote ?a2 ?cd)))
+        :precondition       (and (candidate ?cd) (forall (?p - policy) [des, ?ag](political-policy ?cd ?p)))
+        :effect             (and [des, ?ag](vote ?ag ?cd) 
+                                (forall (?a2 - agent) (when (!candidate ?a2) [des, ?ag][des, ?a2](vote ?a2 ?cd)))
                             )
     )
 
     (:action vote
         :derive-condition   never
         :parameters         (?ag ?cd - agent)
-        :precondition       (and (candidate ?cd) [d, ?ag](vote ?ag ?cd))
+        :precondition       (and (candidate ?cd) [des, ?ag](vote ?ag ?cd))
         :effect             (and (vote ?ag ?cd))
     )
 
@@ -82,7 +82,7 @@
         :derive-condition   never
         :parameters         (?ag ?cd - agent ?p - policy)
         :precondition       (and (candidate ?cd) (single-issue-voter ?ag ?p) (political-policy ?cd ?p))
-        :effect             (and [d, ?ag](vote ?ag ?cd))
+        :effect             (and [des, ?ag](vote ?ag ?cd))
     )
 
     (:action get-elected

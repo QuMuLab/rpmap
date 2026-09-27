@@ -39,7 +39,7 @@
     )
     (:goal
         (and
-            [b, derek][dsd, cindy][d, alice](political-policy bob environment)
+            [bel, derek][dsd, cindy][des, alice](political-policy bob environment)
         )  
     )
     (:plan )

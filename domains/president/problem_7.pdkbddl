@@ -36,7 +36,7 @@
     )
     (:goal
         (and
-            [d, alice](political-policy bob environment)
+            [des, alice](political-policy bob environment)
         )  
     )
     (:plan )

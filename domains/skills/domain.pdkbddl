@@ -17,13 +17,13 @@
         :derive-condition   always
         :parameters         (?a - agent ?l1 ?l2 - loc)
         :precondition       (and (at ?a ?l1) (connected ?l1 ?l2))
-        :effect             (and (at ?a ?l2) (!at ?a ?l1))
+        :effect             (and (at ?a ?l2) (not (at ?a ?l1)))
     )
 
     (:action adopt-love-for-skill
         :derive-condition   never
         :parameters         (?ag - agent ?sk - skill)
-        :precondition       (and [d, ?ag](learn-skill ?ag ?sk) (beginner ?ag ?sk) (natural ?ag ?sk))
+        :precondition       (and [des, ?ag](learn-skill ?ag ?sk) (beginner ?ag ?sk) (natural ?ag ?sk))
         :effect             (and [l, ?ag](learn-skill ?ag ?sk) (intermediate ?ag ?sk))
     )
 
@@ -34,8 +34,8 @@
         :effect             (and (expert ?intmd ?sk) 
                                  (forall (?ag - agent) 
                                  (and
-                                    [d, ?intmd][l, ?ag](learn-skill ?ag ?sk)
-                                    [d, ?intmd][b, ?ag](interesting ?sk)
+                                    [des, ?intmd][l, ?ag](learn-skill ?ag ?sk)
+                                    [des, ?intmd][bel, ?ag](interesting ?sk)
                                  )
                                 )
         )
@@ -46,8 +46,8 @@
         :parameters         (?exp ?ag - agent ?sk - skill ?l - loc)
         :precondition       (and (expert ?exp ?sk) (at ?exp ?l) (at ?ag ?l))
         :effect             (and 
-                                [b, ?ag](interesting ?sk)
-                                [d, ?ag](learn-skill ?ag ?sk)
+                                [bel, ?ag](interesting ?sk)
+                                [des, ?ag](learn-skill ?ag ?sk)
                             )
     )
 

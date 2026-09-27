@@ -32,7 +32,7 @@
     )
     (:goal
         (and
-            [b, bob][d, alice](learn-skill alice guitar)
+            [bel, bob][des, alice](learn-skill alice guitar)
         )  
     )
     (:plan )

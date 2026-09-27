@@ -30,7 +30,7 @@
 
         (expert evelyn)
 
-        [d, bob](learn-skill bob guitar)
+        [des, bob](learn-skill bob guitar)
         (interested bob guitar)
         (beginner bob guitar)
         (natural bob guitar)
@@ -45,8 +45,8 @@
     )
     (:goal
         (and
-            [b, evelyn][b, cindy][b, alice](interesting guitar)
-            [l, alice][b, bob](interesting guitar)
+            [bel, evelyn][bel, cindy][bel, alice](interesting guitar)
+            [l, alice][bel, bob](interesting guitar)
         )  
     )
     (:plan )

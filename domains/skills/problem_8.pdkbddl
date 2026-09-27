@@ -24,12 +24,12 @@
         (at bob l3)
         (at cindy l2)
 
-        [d, cindy](learn-skill cindy guitar)
+        [des, cindy](learn-skill cindy guitar)
         (interested cindy guitar)
         (beginner cindy guitar)
         (natural cindy guitar)
 
-        [d, bob](learn-skill bob guitar)
+        [des, bob](learn-skill bob guitar)
         (interested bob guitar)
         (beginner bob guitar)
         (natural bob guitar)
@@ -40,8 +40,8 @@
     )
     (:goal
         (and
-            [l, bob][b, alice](interesting guitar)
-            [l, cindy][b, alice](interesting guitar)
+            [l, bob][bel, alice](interesting guitar)
+            [l, cindy][bel, alice](interesting guitar)
         )  
     )
     (:plan )

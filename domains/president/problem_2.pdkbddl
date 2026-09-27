@@ -38,8 +38,8 @@
     )
     (:goal
         (and
-            [d, alice](vote alice bob)
-            ![d, cindy](vote cindy bob)
+            [des, alice](vote alice bob)
+            ![des, cindy](vote cindy bob)
         )  
     )
     (:plan )

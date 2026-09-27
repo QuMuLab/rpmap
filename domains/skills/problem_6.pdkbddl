@@ -25,7 +25,7 @@
         (at cindy l2)
 
         (expert cindy)
-        [d, bob](learn-skill bob guitar)
+        [des, bob](learn-skill bob guitar)
         (interested bob guitar)
         (beginner bob guitar)
         (natural bob guitar)

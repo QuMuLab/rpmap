@@ -1,6 +1,6 @@
-{include:ancillary_effects.pdkbddl}
-{include:ancillary_effects__full-bdi-1.pdkbddl}
 {include:domain.pdkbddl}
+{include:ae_default.pdkbddl}
+{include:ancillary_effects__full-bdi-1.pdkbddl}
 
 (define (problem paper2)
 
@@ -28,27 +28,19 @@
         (treasure-at coins island)
         (has-parrot alice)
 
-        (!got-treasure alice jewelry)
-        (!got-treasure alice coins)
-        (!got-treasure bob jewelry)
-        (!got-treasure bob coins)
-        (!defeated alice)
-        (!defeated bob)
-        (!defeated cindy)
+        !<itn, alice>(fight alice alice island)
+        !<itn, alice>(fight alice bob island)
+        !<itn, bob>(fight bob bob island)
+        !<itn, bob>(fight bob alice island)
 
-        !<i, alice>(fight alice alice island)
-        !<i, alice>(fight alice bob island)
-        !<i, bob>(fight bob bob island)
-        !<i, bob>(fight bob alice island)
-
-        [d, alice](got-treasure alice jewelry)
-        [d, bob](got-treasure bob coins)
+        [des, alice](got-treasure alice jewelry)
+        [des, bob](got-treasure bob coins)
         (stronger alice cindy)
         (stronger cindy bob)
     )
 
     (:goal 
-        [b, bob][i, alice](!fight alice cindy island)
+        (and [bel, bob][itn, alice](!fight alice cindy island))
     )
 
     (:plan

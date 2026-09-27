@@ -23,13 +23,13 @@
         (at bob l2)
         (feel-chemistry alice bob)
         (gift-at chocolate l3)
-        [b, alice](likes-gift bob chocolate)
+        [bel, alice](likes-gift bob chocolate)
         (!likes-gift bob chocolate)
     )
 
     (:goal 
         (sad alice)
-        [b, alice](!loves bob alice)
+        [bel, alice](!loves bob alice)
     )
 
     (:plan
