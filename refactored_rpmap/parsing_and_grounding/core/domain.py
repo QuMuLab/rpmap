@@ -51,7 +51,7 @@ def agents_transformer(self, args):
     return {"agents": self.agents}
 
 def check_pred_name(pred_name):
-    if pred_name in ["rml", "r"]:
+    if pred_name in ["rml", "r", "ag"] or "dlr__" in pred_name:
         raise PDDLValidationError(f"Cannot use the predicate name '{pred_name}'; it is reserved for ancillary effects.")
 
 def atomic_formula_skeleton(self, args):   
@@ -70,19 +70,22 @@ def terminal_predicate(self, args):
     domain_preds = self._predicates_by_name if hasattr(self, "_predicates_by_name") else self._domain_transformer._predicates_by_name
     pred_name = args[2].value
     check_pred_name(pred_name)
-    if pred_name not in domain_preds:
-        raise PDDLValidationError(f"Predicate {pred_name} not defined in the domain.")
     terms = args[3:-1]
-    for i in range(len(terms)):
-        terms[i]._type_tags = domain_preds[pred_name].terms[i].type_tags
-    pred = Predicate(pred_name, *terms, always_known=domain_preds[pred_name].always_known)
+    if pred_name not in domain_preds:
+        warnings.warn(f"Predicate {pred_name} not defined in the domain. Is it an action name?")
+        ak = False
+    else:
+        for i in range(len(terms)):
+            terms[i]._type_tags = domain_preds[pred_name].terms[i].type_tags
+        ak = domain_preds[pred_name].always_known
+    pred = Predicate(pred_name, *terms, always_known=ak)
     negated = True if args[1] is not None else False
     if negated and pred.always_known:
         raise PDDLValidationError("Cannot apply a '!' to a predicate that is always known.")
     return SeparatedRMLTerm([NOT_MODL()], pred) if negated else SeparatedRMLTerm(list(), pred)
 
 def dollar_term_transformer(self, args):
-    return Variable("dlr_agent", ["agent"])
+    return Variable(f"dlr__{args[1].value}")
 
 def return_token_val(self, args):
     return args.value
@@ -211,7 +214,7 @@ def new_domain_init(self, *args, **kwargs):
 @TypeChecker.check_type.register
 def _(self, rml: RML) -> None:
     """Check types annotations of an RML."""
-    self.check_type(rml.get_predicate())
+    self.check_type(rml._get_root())
 
 @TypeChecker.check_type.register
 def _(self, sep: SeparatedRMLTerm) -> None:
@@ -286,7 +289,7 @@ def modify_domain_classes():
     setattr(Predicate, "always_known", property(always_known))
     setattr(Predicate, "negated", property(negated))
     pddl.logic.predicates.Predicate._negate = negate_predicate
-    pddl.logic.predicates.Predicate.get_predicate = lambda self: self
+    pddl.logic.predicates.Predicate._get_root = lambda self: self
     pddl.action.Action.orig_init = pddl.action.Action.__init__
     pddl.action.Action.__init__ = new_action_init
     pddl.action.Action.__str__ = new_action_str
@@ -320,7 +323,7 @@ def construct_domain_grammar():
         ""
     )
     inject_domain_grammar("atomic_formula_skeleton", "[AK] LPAR NAME typed_list_variable RPAR", atomic_formula_skeleton)
-    inject_domain_grammar("dollar_term", "DLR agent DLR", dollar_term_transformer)
+    inject_domain_grammar("dollar_term", "DLR NAME DLR", dollar_term_transformer)
     inject_domain_grammar("DLR", "\"$\"", basic_token_transformer)
     inject_domain_grammar("derived_term", "const_or_var_term | dollar_term", return_option)
     inject_domain_grammar("ALWAYS", "\"always\"", return_token_val)
