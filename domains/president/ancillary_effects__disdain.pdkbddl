@@ -5,14 +5,14 @@
         (
             :poscond ?pos
             :negcond ?neg
-            :rml [dsd, ?a](rml)
+            :rml [dsd, ?a]{rml}
             :type wildcard
         )
         :consequent 
         (
             :poscond ?pos
             :negcond ?neg
-            :rml <dsd, ?a>(rml)
+            :rml <dsd, ?a>{rml}
             :type add
         )
     )
@@ -21,13 +21,13 @@
         :antecedent (
             :poscond ?pos
             :negcond ?neg
-            :rml <dsd, ?a>(rml)
+            :rml <dsd, ?a>{rml}
             :type wildcard
         )
         :consequent (
             :poscond ?pos
             :negcond ?neg
-            :rml [dsd, ?a](rml)
+            :rml [dsd, ?a]{rml}
             :type del
         )
     )

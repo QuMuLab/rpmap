@@ -1,5 +1,5 @@
 (define (domain presidents)
-	(:agents alice bob)
+	(:agents alice bob cindy derek)
     (:requirements :typing :universal-preconditions :disjunctive-preconditions)
     (:types loc policy)
     (:predicates
@@ -24,7 +24,7 @@
     (:action adopt-disdain-for-policy
         :derive-condition   (at $agent$ ?l)
         :parameters         (?ag ?cd - agent ?p - policy ?l - loc)
-        :precondition       (and (!benefit ?p ?ag) (candidate ?cd) (at ?ag ?l))
+        :precondition       (and (not (benefit ?p ?ag)) (candidate ?cd) (at ?ag ?l))
         :effect             (and [dsd, ?ag](political-policy ?cd ?p))
     )
 
@@ -55,26 +55,26 @@
                             )
     )
 
-    ;; (:action become-political-opponent
-    ;;     :derive-condition   never
-    ;;     :parameters         (?a1 ?a2 ?cd - agent ?p - policy)
-    ;;     :precondition       (and (candidate ?cd) [dsd, ?a1][des, ?a2](vote ?a2 ?cd))
-    ;;     :effect             (and !<des, ?a1>(listen ?a1 ?a2))
-    ;; )
+    (:action become-political-opponent
+        :derive-condition   never
+        :parameters         (?a1 ?a2 ?cd - agent ?p - policy)
+        :precondition       (and (candidate ?cd) [dsd, ?a1][des, ?a2](vote ?a2 ?cd))
+        :effect             (and !<des, ?a1>(listen ?a1 ?a2))
+    )
 
-    (:action desire-vote
+    (:action intend-vote
         :derive-condition   never
         :parameters         (?ag ?cd - agent)
         :precondition       (and (candidate ?cd) (forall (?p - policy) [des, ?ag](political-policy ?cd ?p)))
-        :effect             (and [des, ?ag](vote ?ag ?cd) 
-                                (forall (?a2 - agent) (when (!candidate ?a2) [des, ?ag][des, ?a2](vote ?a2 ?cd)))
+        :effect             (and [itn, ?ag](vote ?ag ?cd) 
+                                (forall (?a2 - agent) (when (not (candidate ?a2)) [des, ?ag][itn, ?a2](vote ?a2 ?cd)))
                             )
     )
 
     (:action vote
         :derive-condition   never
         :parameters         (?ag ?cd - agent)
-        :precondition       (and (candidate ?cd) [des, ?ag](vote ?ag ?cd))
+        :precondition       (and (candidate ?cd) [itn, ?ag](vote ?ag ?cd))
         :effect             (and (vote ?ag ?cd))
     )
 

@@ -15,14 +15,14 @@ from ..utils import return_option, basic_tokens_transformer
 class GenericMODLType(Enum):
     BEL = 1
     DES = 2
-    # DSD = 3
-    # LOV = 4
+    DSD = 3
+    LOV = 4
 
 class PossibleGenericMODLType(Enum):
     PBEL = 1
     PDES = 2
-    # PDSD = 3
-    # PLOV = 4
+    PDSD = 3
+    PLOV = 4
 
 class ActionMODLType(Enum):
     ITN = 1

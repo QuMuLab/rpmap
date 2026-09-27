@@ -1,7 +1,7 @@
-{include:ancillary_effects.pdkbddl}
+{include:domain.pdkbddl}
+{include:ae_default.pdkbddl}
 {include:ancillary_effects__love.pdkbddl}
 {include:ancillary_effects__skills.pdkbddl}
-{include:domain.pdkbddl}
 
 (define (problem depth_2_agents_3)
 
@@ -26,13 +26,13 @@
 
         (expert bob guitar)
         (expert cindy guitar)
-        (interested alice guitar)
+        [bel, alice](interesting guitar)
         (beginner alice guitar)
         (natural alice guitar)
     )
     (:goal
         (and
-            [l, alice](learn-skill alice guitar)
+            [lov, alice](learn-skill alice guitar)
         )  
     )
     (:plan )

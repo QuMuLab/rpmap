@@ -1,13 +1,13 @@
-{include:ancillary_effects.pdkbddl}
+{include:domain.pdkbddl}
+{include:ae_default.pdkbddl}
 {include:ancillary_effects__disdain.pdkbddl}
 {include:ancillary_effects__president.pdkbddl}
-{include:domain.pdkbddl}
 
 (define (problem depth_3_agents_4)
 
     (:domain presidents)
 
-    (:objects l1 l2 - loc environment education - policy)
+    (:objects l1 l2 l3 - loc environment education - policy)
 
     (:projection )
 	(:depth 3)
@@ -31,8 +31,6 @@
 
         (benefit environment alice)
         (benefit education alice)
-        (!benefit environment cindy)
-        (!benefit education cindy)
 
         (vote bob bob)
 

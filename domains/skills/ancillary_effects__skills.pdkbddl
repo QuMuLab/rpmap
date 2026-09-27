@@ -4,13 +4,13 @@
         :antecedent (
             :poscond ?pos
             :negcond ?neg
-            :rml [l, ?a1](rml)
+            :rml [lov, ?a1]{rml}
             :type add
         )
         :consequent (
             :poscond ?pos
             :negcond ?neg
-            :rml {[des, ?a1][l, ?ag](rml) for ?ag in agents}
+            :rml {[des, ?a1][lov, ?ag]{rml} for ?ag in ?agents}
             :type add
         )
     )
@@ -19,13 +19,13 @@
         :antecedent (
             :poscond ?pos
             :negcond ?neg
-            :rml [bel, ?a1][des, ?a2](rml)
+            :rml [bel, ?a1][des, ?a2]{rml}
             :type add
         )
         :consequent (
-            :poscond ?pos + [des, ?a1][l, ?a2](rml)
+            :poscond ?pos + [des, ?a1][lov, ?a2]{rml}
             :negcond ?neg
-            :rml [l, ?a1][des, ?a2](rml)
+            :rml [lov, ?a1][des, ?a2]{rml}
             :type add
         )
     )
@@ -34,13 +34,13 @@
         :antecedent (
             :poscond ?pos
             :negcond ?neg
-            :rml [bel, ?a1][bel, ?a2](rml)
+            :rml [bel, ?a1][bel, ?a2]{rml}
             :type add
         )
         :consequent (
-            :poscond ?pos + [des, ?a1][bel, ?a1](rml)
+            :poscond ?pos + [des, ?a1][bel, ?a1]{rml}
             :negcond ?neg
-            :rml [l, ?a1][bel, ?a2](rml)
+            :rml [lov, ?a1][bel, ?a2]{rml}
             :type add
         )
     )
@@ -49,13 +49,13 @@
     ;;     :antecedent (
     ;;         :poscond ?pos
     ;;         :negcond ?neg
-    ;;         :rml [bel, ?a1][des, ?a2](rml)
+    ;;         :rml [bel, ?a1][des, ?a2]{rml}
     ;;         :type add
     ;;     )
     ;;     :consequent (
     ;;         :poscond ?pos
     ;;         :negcond ?neg
-    ;;         :rml [bel, ?a1]<l, ?a2>(rml)
+    ;;         :rml [bel, ?a1]<lov, ?a2>{rml}
     ;;         :type add
     ;;     )
     ;; )
@@ -65,13 +65,13 @@
     ;;     :antecedent (
     ;;         :poscond ?pos
     ;;         :negcond ?neg
-    ;;         :rml [bel, ?a1][dsd, ?a2](rml)
+    ;;         :rml [bel, ?a1][dsd, ?a2]{rml}
     ;;         :type add
     ;;     )
     ;;     :consequent (
     ;;         :poscond ?pos
     ;;         :negcond ?neg
-    ;;         :rml !<bel, ?a1>[l, ?a2](rml)
+    ;;         :rml !<bel, ?a1>[lov, ?a2]{rml}
     ;;         :type add
     ;;     )
     ;; )
@@ -80,13 +80,13 @@
     ;;     :antecedent (
     ;;         :poscond ?pos
     ;;         :negcond ?neg
-    ;;         :rml [bel, ?a1][l, ?a2](rml)
+    ;;         :rml [bel, ?a1][lov, ?a2]{rml}
     ;;         :type add
     ;;     )
     ;;     :consequent (
-    ;;         :poscond ?pos + [dsd, ?a1](rml)
+    ;;         :poscond ?pos + [dsd, ?a1]{rml}
     ;;         :negcond ?neg
-    ;;         :rml [dsd, ?a1][l, ?a2](rml)
+    ;;         :rml [dsd, ?a1][lov, ?a2]{rml}
     ;;         :type add
     ;;     )
     ;; )
@@ -95,13 +95,13 @@
     ;;     :antecedent (
     ;;         :poscond ?pos
     ;;         :negcond ?neg
-    ;;         :rml [bel, ?a1][dsd, ?a2](rml)
+    ;;         :rml [bel, ?a1][dsd, ?a2]{rml}
     ;;         :type add
     ;;     )
     ;;     :consequent (
-    ;;         :poscond ?pos + [dsd, ?a1](rml)
+    ;;         :poscond ?pos + [dsd, ?a1]{rml}
     ;;         :negcond ?neg
-    ;;         :rml [l, ?a1][dsd, ?a2](rml)
+    ;;         :rml [lov, ?a1][dsd, ?a2]{rml}
     ;;         :type add
     ;;     )
     ;; )

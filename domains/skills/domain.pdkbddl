@@ -24,19 +24,26 @@
         :derive-condition   never
         :parameters         (?ag - agent ?sk - skill)
         :precondition       (and [des, ?ag](learn-skill ?ag ?sk) (beginner ?ag ?sk) (natural ?ag ?sk))
-        :effect             (and [l, ?ag](learn-skill ?ag ?sk) (intermediate ?ag ?sk))
+        :effect             (and [lov, ?ag](learn-skill ?ag ?sk) (intermediate ?ag ?sk))
+    )
+
+    (:action practice
+        :derive-condition   never
+        :parameters         (?intmd - agent ?sk - skill)
+        :precondition       (and [lov, ?intmd](learn-skill ?intmd ?sk) (intermediate ?intmd ?sk))
+        :effect             (and [itn, ?intmd](become-expert ?intmd ?sk))
     )
 
     (:action become-expert
         :derive-condition   never
         :parameters         (?intmd - agent ?sk - skill)
-        :precondition       (and [l, ?intmd](learn-skill ?intmd ?sk) (intermediate ?intmd ?sk))
+        :precondition       (and [itn, ?intmd](become-expert ?intmd ?sk))
         :effect             (and (expert ?intmd ?sk) 
                                  (forall (?ag - agent) 
-                                 (and
-                                    [des, ?intmd][l, ?ag](learn-skill ?ag ?sk)
-                                    [des, ?intmd][bel, ?ag](interesting ?sk)
-                                 )
+                                    (and
+                                        [des, ?intmd][lov, ?ag](learn-skill ?ag ?sk)
+                                        [des, ?intmd][bel, ?ag](interesting ?sk)
+                                    )
                                 )
         )
     )
@@ -51,5 +58,4 @@
                             )
     )
 
-    
 )

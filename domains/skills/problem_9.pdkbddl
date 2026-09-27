@@ -1,7 +1,7 @@
-{include:ancillary_effects.pdkbddl}
+{include:domain.pdkbddl}
+{include:ae_default.pdkbddl}
 {include:ancillary_effects__love.pdkbddl}
 {include:ancillary_effects__skills.pdkbddl}
-{include:domain.pdkbddl}
 
 (define (problem depth_3_agents_4)
 
@@ -25,7 +25,7 @@
         (at cindy l2)
         (at derek l3)
 
-        (expert cindy)
+        (expert cindy guitar)
 
         [des, bob](learn-skill bob guitar)
         (beginner bob guitar)
