@@ -14,7 +14,10 @@ def check_intention_error(srt: SeparatedRMLTerm, domain):
     action_names = [a.name for a in domain.actions]
     if srt.nestings:
         n = srt.nestings[-1]
-        if isinstance(n, Nesting) and (isinstance(n.mod_type, ActionMODLType) or isinstance(n.mod_type, PossibleActionMODLType)) and srt.term.name not in action_names:
+        if isinstance(n, Nesting) and (isinstance(n.mod_type, ActionMODLType) or isinstance(n.mod_type, PossibleActionMODLType)):
+            for action_name in action_names:
+                if action_name in srt.term.name:
+                    return
             raise PDDLValidationError(f"Cannot intend a predicate {srt.term}; you can only intend an action.")
 
 def ground_formula(formula: Sequence, assignment, domain, problem):
@@ -71,8 +74,8 @@ def ground_formula(formula: Sequence, assignment, domain, problem):
             for e in eff:
                 grounded_formulas.append(When(create_and(cond), create_and([e])))
         elif isinstance(fo, SeparatedRMLTerm):
-            check_intention_error(fo, domain)
             fo = SeparatedRMLTerm(list(ground_formula(fo.nestings, assignment, domain, problem)), list(ground_formula([fo.term], assignment, domain, problem))[0])
+            check_intention_error(fo, domain)
             grounded_formulas.append(fo)
         elif isinstance(fo, Nesting):
             if fo.child:
@@ -179,6 +182,8 @@ def create_itn_action_preds(operators, agents, problem, anc_effs):
     itn_preds.update(gather_itn_preds(problem.init))
     itn_preds.update(gather_itn_preds(problem.goal))
     for a in operators:
+        if isinstance(a.derive_condition, SeparatedRMLTerm):
+            itn_preds.update(gather_itn_preds([a.derive_condition]))
         itn_preds.update(gather_itn_preds(a.precondition.operands))
         itn_preds.update(gather_itn_preds(a.effect.operands))
     for ae in anc_effs:
@@ -190,7 +195,7 @@ def create_itn_action_preds(operators, agents, problem, anc_effs):
         o_name = f"({operators[i].name})"
         if o_name in itn_preds_strs:
             action_iaps = [SeparatedRMLTerm([NOT_MODL(), Nesting(PossibleActionMODLType.PITN, Agent(ag))], Predicate(operators[i].name)) for ag in agents]
-            operators[i] = Action(operators[i].name, operators[i].parameters, operators[i].precondition, create_and(list(operators[i].effect.operands) + action_iaps))
+            operators[i] = Action(operators[i].name, operators[i].parameters, operators[i].precondition, create_and(list(operators[i].effect.operands) + action_iaps), derive_condition=operators[i].derive_condition)
         action_intention_f.add(Predicate(operators[i].name))
     return set(operators), action_intention_f
 

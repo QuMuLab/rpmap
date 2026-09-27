@@ -542,7 +542,7 @@ class ApplyAncEffs:
         self.domain._predicates = [ApplyAncEffs.term_to_rml(p) for p in all_rmls.values()]
         anc_effs_count = 0
         for action in self.domain.actions:
-            # if action.name == "adopt-belief_alice_l1":
+            # if action.name == "fight_alice_cindy_island":
                 for o in action.effect.operands:
                     new_terms = self.apply_anc_effs_to_action(o, action.derive_condition, action.precondition)
                     if new_terms:

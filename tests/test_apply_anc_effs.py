@@ -45,7 +45,7 @@ class TestApplyAncEffsSingle:
         request.cls.pred2 = Predicate("secret2")
         request.cls.srt2 = SeparatedRMLTerm(list(), request.cls.pred2)
         request.cls.agents = grounded_domain.agents
-        request.cls.dlr_agent = Variable("dlr_agent", ["agent"])
+        request.cls.dlr_agent = Variable("dlr__agent", ["agent"])
         request.cls.derive_condition = SeparatedRMLTerm([Nesting(GenericMODLType.DES, Agent(self.dlr_agent))], self.pred)
 
     @pytest.fixture(autouse=True)

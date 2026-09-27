@@ -294,7 +294,7 @@ class ListCompVar:
 def detect_ag(term: SeparatedRMLTerm):
     for n in term.nestings:
         if isinstance(n, Nesting): # rule out NOT_MODL
-            if n.agent.term.name != "ag":
+            if n.agent.term.name == "ag":
                 return
     raise PDDLValidationError(f"No ?ag agent detected in the agent list comprehension nestings.")
 
@@ -459,7 +459,7 @@ class AncEff:
         for r in consequent.rml:
             cons_vars.update(AncEff._get_vars(r))
         for a in ant_vars | cons_vars:
-            if a.name != "ag" or "dlr__" in a.name:
+            if a.name == "ag" or "dlr__" in a.name:
                 continue
             if not self.parameters or a not in self.parameters:
                 raise PDDLValidationError(f"Variable {a} not in the ancillary effect {self.name} parameters, {self.parameters}.")
