@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 from .utils import create_valuations, cleaned_not, create_and
-from .core.anc_eff import ActionMODLType, PossibleActionMODLType, NOT_MODL, Agent, RMLOrPredTerm, ListCompVar, ListCompAgents, ListCompVarAgents, RML, Nesting, SeparatedRMLTerm
+from .core.anc_eff import ActionMODLType, PossibleActionMODLType, NOT_MODL, Agent, RMLOrPredTerm, ListCompVar, ListCompAgents, ListCompVarAgents, Nesting, SeparatedRMLTerm
 from pddl.action import Action
 from pddl.exceptions import PDDLValidationError
 from pddl.logic.base import And, Not, ForallCondition
@@ -10,55 +10,35 @@ from pddl.logic.predicates import Predicate
 import pddl.core as pddl_core
 
 
-def check_intention_error(rml: RML, domain):
+def check_intention_error(srt: SeparatedRMLTerm, domain):
     action_names = [a.name for a in domain.actions]
-    current = rml
-    while isinstance(current.child, RML):
-        current = current.child
-    if isinstance(current.mod_type, ActionMODLType) or isinstance(current.mod_type, PossibleActionMODLType):
-        if current.child.name not in action_names:
-            raise PDDLValidationError("Cannot intend a predicate; you can only intend an action.")
-
-def set_rml_deepest_child(rml: RML, new_child, assignment = None):
-    nestings = []
-    current = rml
-    while isinstance(current, RML):
-        grounded_agent = Agent(Constant(assignment[current.agent.term.name], "agent")) if assignment else current.agent
-        nestings.append(Nesting(current.mod_type, grounded_agent))
-        current = current.child
-    nestings.append(new_child)
-    for i in range(len(nestings) - 1, - 1, - 1):
-        if isinstance(nestings[i], Predicate):
-            continue
-        nestings[i] = nestings[i](nestings[i + 1])
-    return nestings[0]
+    if srt.nestings:
+        n = srt.nestings[-1]
+        if isinstance(n, Nesting) and (isinstance(n.mod_type, ActionMODLType) or isinstance(n.mod_type, PossibleActionMODLType)) and srt.term.name not in action_names:
+            raise PDDLValidationError(f"Cannot intend a predicate {srt.term}; you can only intend an action.")
 
 def ground_formula(formula: Sequence, assignment, domain, problem):
     grounded_formulas = []
     for fo in formula:
-        if isinstance(fo, Predicate):
+        if isinstance(fo, Constant):
+            grounded_formulas.append(fo)
+        elif isinstance(fo, Variable):
+            if "dlr__" not in fo.name:
+                if fo.name not in assignment:
+                    raise PDDLValidationError(f"Variable {fo.name} not defined; cannot ground.")
+                grounded_formulas.append(assignment[fo.name])
+            else:
+                grounded_formulas.append(fo)
+        elif isinstance(fo, Predicate):
             # no predicate should be negated yet, since everything is separated
             if fo.negated:
                 raise ValueError("Parsing error. Predicates should not be negated yet, as modalities (including negations) have not yet been applied.")
+            terms = ground_formula(fo.terms, assignment, domain, problem)
             # turn action predicate into atomic predicate
             if fo.name in domain.lifted_action_names:
-                grounded_formulas.append(Predicate(f"{fo.name}_{'_'.join(t.name for t in fo.terms)}"))
+                grounded_formulas.append(Predicate(f"{fo.name}_{'_'.join(t.name for t in terms)}"))
             else:
-                terms = list(fo.terms)
-                for i in range(len(terms)):
-                    if isinstance(terms[i], Variable) and "dlr__" not in terms[i].name:
-                        if terms[i].name not in assignment:
-                            raise PDDLValidationError(f"Variable {terms[i].name} not defined; cannot ground.")
-                        terms[i] = assignment[terms[i].name]
-                p = Predicate(fo.name, *terms, always_known=fo.always_known, negated=fo.negated)
-                grounded_formulas.append(p)
-        elif isinstance(fo, RML):
-            # need to set the base predicate of the RML to the grounded predicate
-            grounded_predicate = list(ground_formula([fo.get_predicate()], assignment, domain, problem))[0]
-            grounded_rml = set_rml_deepest_child(fo, grounded_predicate, assignment)
-            # need to ground the agents in the MODLs as well
-            check_intention_error(grounded_rml, domain)
-            grounded_formulas.append(grounded_rml)
+                grounded_formulas.append(Predicate(fo.name, *terms, always_known=fo.always_known, negated=fo.negated))
         elif isinstance(fo, ForallCondition):
             variables = {v for v in fo.variables}
             val_generator = create_valuations(domain.gathered_constants, variables)
@@ -81,8 +61,8 @@ def ground_formula(formula: Sequence, assignment, domain, problem):
             for o in fo.operands:
                 grounded_formulas.extend(ground_formula([o], assignment, domain, problem))
         elif isinstance(fo, Not):
-            if not isinstance(fo.argument, RML) and not isinstance(fo.argument, Predicate) and not isinstance(fo.argument, SeparatedRMLTerm):
-                raise PDDLValidationError(f"'Not' was applied to {type(fo.argument)}. 'Not' can only be applied to an RML or Predicate.")
+            if not isinstance(fo.argument, Predicate) and not isinstance(fo.argument, SeparatedRMLTerm):
+                raise PDDLValidationError(f"'Not' was applied to {type(fo.argument)}. 'Not' can only be applied to an SRT or Predicate.")
             grounded_formulas.append(cleaned_not(list(ground_formula(fo.argument.operands if isinstance(fo.argument, And) else [fo.argument], assignment, domain, problem))[0]))
         elif isinstance(fo, When):
             cond = ground_formula([fo.condition], assignment, domain, problem)
@@ -91,11 +71,13 @@ def ground_formula(formula: Sequence, assignment, domain, problem):
             for e in eff:
                 grounded_formulas.append(When(create_and(cond), create_and([e])))
         elif isinstance(fo, SeparatedRMLTerm):
-            grounded_formulas.append(SeparatedRMLTerm(list(ground_formula(fo.nestings, assignment, domain, problem)), list(ground_formula([fo.term], assignment, domain, problem))[0]))
+            check_intention_error(fo, domain)
+            fo = SeparatedRMLTerm(list(ground_formula(fo.nestings, assignment, domain, problem)), list(ground_formula([fo.term], assignment, domain, problem))[0])
+            grounded_formulas.append(fo)
         elif isinstance(fo, Nesting):
             if fo.child:
                 raise ValueError("Nestings should not yet be nested (stored in a list, not nested with children).")
-            grounded_formulas.append(Nesting(fo.mod_type, Agent(Constant(assignment[fo.agent.term.name], "agent") if isinstance(fo.agent.term, Variable) else fo.agent.term)))
+            grounded_formulas.append(Nesting(fo.mod_type, Agent(ground_formula([fo.agent.term], assignment, domain, problem)[0])))
         elif isinstance(fo, NOT_MODL):
             grounded_formulas.append(fo)
         else:
@@ -106,7 +88,7 @@ def create_grounded_fluents(domain, problem):
     formulas = set()
     for p in domain.predicates:
         val_generator = create_valuations(domain.gathered_constants, p.terms)
-        variables = p.terms if isinstance(p, Predicate) else p.get_predicate().terms
+        variables = p.terms if isinstance(p, Predicate) else p._get_root().terms
         var_names = [v.name for v in variables]
         for valuation in val_generator:
             assignment = {var_name: val for var_name, val in zip(var_names, valuation)}
@@ -156,11 +138,20 @@ def gather_itn_preds(formula):
     for fo in formula:
         if isinstance(fo, Predicate):
             pass
-        elif isinstance(fo, RML):
-            if isinstance(fo.mod_type, ActionMODLType) or isinstance(fo.mod_type, PossibleActionMODLType):
-                pred = fo.get_predicate()
-                if not isinstance(pred, RMLOrPredTerm):
-                    itn_preds.add(pred)
+        elif isinstance(fo, SeparatedRMLTerm):
+            if not isinstance(fo.term, RMLOrPredTerm):
+                if fo.nestings:
+                    for n in fo.nestings:
+                        if isinstance(n, NOT_MODL):
+                            continue
+                        elif isinstance(n, Nesting):
+                            mod_type = n.mod_type
+                        elif isinstance(n, MODLTermWNesting):
+                            mod_type = n.modl.mod_type
+                        else:
+                            raise PDDLValidationError(f"Unknown nesting type {type(n)}.")
+                        if isinstance(mod_type, ActionMODLType) or isinstance(mod_type, PossibleActionMODLType):
+                            itn_preds.add(fo.term)
         elif isinstance(fo, ForallCondition):
             itn_preds.update(gather_itn_preds([fo.condition]))
         elif isinstance(fo, Forall):
@@ -198,9 +189,9 @@ def create_itn_action_preds(operators, agents, problem, anc_effs):
     for i in range(len(operators)):
         o_name = f"({operators[i].name})"
         if o_name in itn_preds_strs:
-            action_iaps = [NOT_MODL()(RML(PossibleActionMODLType.PITN, Agent(Constant(ag, "agent")), Predicate(operators[i].name))) for ag in agents]
-            operators[i] = Action(operators[i].name, operators[i].parameters, operators[i].precondition, operators[i].effect + action_iaps)
-            action_intention_f.update(action_iaps)
+            action_iaps = [SeparatedRMLTerm([NOT_MODL(), Nesting(PossibleActionMODLType.PITN, Agent(ag))], Predicate(operators[i].name)) for ag in agents]
+            operators[i] = Action(operators[i].name, operators[i].parameters, operators[i].precondition, create_and(list(operators[i].effect.operands) + action_iaps))
+        action_intention_f.add(Predicate(operators[i].name))
     return set(operators), action_intention_f
 
 def ground(anc_effs, domain, problem):
@@ -211,7 +202,7 @@ def ground(anc_effs, domain, problem):
 
     g_formulas = create_grounded_fluents(domain, problem)
     g_operators = create_grounded_operators(domain, problem)
-    g_operators, action_intention_f = create_itn_action_preds(g_operators, domain.agents.keys(), problem, anc_effs)
+    g_operators, action_intention_f = create_itn_action_preds(g_operators, domain.agents.values(), problem, anc_effs)
     g_formulas.update(action_intention_f)
     grounded_domain = pddl_core.Domain(
         name=domain.name,
