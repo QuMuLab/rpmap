@@ -502,21 +502,22 @@ class ApplyAncEffs:
         return list(processed_conds.values())[1:]
 
     def generate_all_rmls(self):
-        curr = self.domain.predicates
-        pos_predicates = {ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(p)): SeparatedRMLTerm(list(), p) for p in curr}
+        preds_only = [p for p in self.domain.predicates if isinstance(p, Predicate)]
         variants = {}
-        variants.update(pos_predicates)
-        variants.update({ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(NOT_MODL()(p))): SeparatedRMLTerm([NOT_MODL()], p) for p in curr if not p.always_known})
+        variants.update({ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(p)): SeparatedRMLTerm(list(), p) for p in preds_only})
+        variants.update({ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(NOT_MODL()(p))): SeparatedRMLTerm([NOT_MODL()], p) for p in preds_only if not p.always_known})
         action_names = set(a.name for a in self.domain.actions)
-        for p in curr:
+        for p in preds_only:
             if p.name in action_names:
                 for action_modl in {*ActionMODLType, *PossibleActionMODLType}:
-                    for agent in self.agents.values():
-                        srt = SeparatedRMLTerm([action_modl], p)
-                        variants[ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(srt))] = srt
-
+                    for negation_status in (True, False):
+                        for agent in self.agents.values():
+                            variant_nestings = [NOT_MODL()] if negation_status else list()
+                            variant_nestings.append(Nesting(action_modl, Agent(agent)))
+                            srt = SeparatedRMLTerm(variant_nestings, p)
+                            variants[ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(srt))] = srt
         for depth in range(1, self.problem.depth + 1):
-            for p in curr:
+            for p in preds_only:
                 if not p.always_known:
                     for negation_status in (True, False):
                         for generic_modl_permutation in list(itertools.product({*GenericMODLType, *PossibleGenericMODLType}, repeat=depth)):
@@ -525,10 +526,10 @@ class ApplyAncEffs:
                                 variant_nestings.extend([Nesting(generic_modl_permutation[i], Agent(Constant(agent_permutation[i], "agent"))) for i in range(depth)])
                                 srt_variant = SeparatedRMLTerm(variant_nestings, p)
                                 variants[ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(srt_variant))] = srt_variant
-                                if depth + 1 < self.problem.depth and p.name in action_names:
+                                if depth + 1 <= self.problem.depth and p.name in action_names and not isinstance(variant_nestings[-1], ActionMODLType) and not isinstance(variant_nestings[-1], PossibleActionMODLType):
                                     for action_modl in {*ActionMODLType, *PossibleActionMODLType}:
                                         for agent in self.agents.values():
-                                            am_variant_nestings = variant_nestings
+                                            am_variant_nestings = [v for v in variant_nestings]
                                             am_variant_nestings.append(Nesting(action_modl, Agent(agent)))
                                             srt_variant = SeparatedRMLTerm(am_variant_nestings, p)
                                             variants[ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(srt_variant))] = srt_variant
