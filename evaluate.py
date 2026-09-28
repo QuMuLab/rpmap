@@ -25,9 +25,8 @@ def get_num_agents(prob):
 def get_agents_str(num_agents):
     return f"\t(:agents {' '.join(['alice', 'bob', 'cindy', 'derek', 'evelyn'][:num_agents])})"
 
-def write_plan_output(dom, prob):
+def write_plan_output(dom):
     time_output_path = "time_output.txt"
-    plan_output_path = os.path.join("domains", dom, f"plan_{prob}.txt")
     db_path = os.path.join("evaluation_data", f"{dom}_evaluation.csv")
 
     with open(time_output_path, "r") as f:
@@ -124,6 +123,6 @@ if __name__ == "__main__":
     if args[-1] == "solve":
         evaluate(*args[:-1])
     elif args[-1] == "write-plan":
-        write_plan_output(*args[:-1])
+        write_plan_output(args[0])
     else:
         raise ValueError("Unexpected arguments.")

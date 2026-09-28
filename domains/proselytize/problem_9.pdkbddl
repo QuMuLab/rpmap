@@ -1,5 +1,6 @@
 {include:domain.pdkbddl}
 {include:ae_default.pdkbddl}
+{include:ae_desire.pdkbddl}
 {include:ancillary_effects__belief-desire.pdkbddl}
 
 (define (problem depth_3_agents_4)

@@ -499,6 +499,8 @@ class ApplyAncEffs:
                                 new_term.comment = anc_eff.name + f" id({new_term.id}) / parent({next_term.id})"
                                 condleft.append(new_term)
                     self.reset()
+            if time.time() - self.start > self.timeout:
+                raise TimeoutError("Preprocessing exceeded 30-minute time limit.")
         return list(processed_conds.values())[1:]
 
     def generate_all_rmls(self):
@@ -537,8 +539,8 @@ class ApplyAncEffs:
         return variants
 
     def apply_anc_effs(self):
-        start = time.time()
-        timeout = 30 * 60
+        self.start = time.time()
+        self.timeout = 30 * 60
         all_rmls = self.generate_all_rmls()
         self.domain._predicates = [ApplyAncEffs.term_to_rml(p) for p in all_rmls.values()]
         anc_effs_count = 0
@@ -550,12 +552,12 @@ class ApplyAncEffs:
                         action.effect._operands.extend(new_terms)
                         # print(anc_effs_count)
                         anc_effs_count += len(new_terms)
-                    if time.time() - start > timeout:
+                    if time.time() - self.start > self.timeout:
                         raise TimeoutError("Preprocessing exceeded 30-minute time limit.")
 
         # apply closure to everything in the initial state
         self.problem._init = list(self.problem.init)
-        closure_anc_effs = ["kd45closure__belief"]#, "kd45closure__desire", "kd45closure__intention"]
+        closure_anc_effs = ["kd45closure__belief", "kd45closure__desire"]#, "kd45closure__intention"]
         init_closure = []
         for init_rml in self.problem.init:
             init_closure.extend(self.apply_anc_effs_to_action(init_rml, "never", And(), closure_anc_effs))
