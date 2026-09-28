@@ -1,16 +1,16 @@
-from rpmap.core.domain import construct_domain_grammar
-from rpmap.core.problem import construct_problem_grammar
-from rpmap.parsing_injection import write_no_duplicate, read_pdkbddl_file, AncEffDomProbParser, ground, write, solve
-from rpmap.apply_cond_effs import apply_cond_effs
+from refactored_rpmap.parsing_and_grounding.parser_setup import AncEffDomProbParser, read_pdkbddl_file
+from refactored_rpmap.parsing_and_grounding.ground import ground
+from refactored_rpmap.parsing_and_grounding.core.domain import construct_domain_grammar
+from refactored_rpmap.parsing_and_grounding.core.problem import construct_problem_grammar
+from refactored_rpmap.parsing_and_grounding.core.anc_eff import GenericMODLType, PossibleGenericMODLType, ActionMODLType, PossibleActionMODLType
+from refactored_rpmap.parsing_and_grounding.utils import write
+from refactored_rpmap.parsing_and_grounding.apply_anc_effs import ApplyAncEffs
 from pddl.parser import GRAMMAR_FILE
-import csv
-import os
 import pddl
-import time
-import time
+import os
 import sys
-
-
+import time
+import csv
 
 def get_num_agents(prob):
     if prob == 1:
@@ -21,6 +21,9 @@ def get_num_agents(prob):
         return 4
     elif prob == 10:
         return 5
+
+def get_agents_str(num_agents):
+    return f"\t(:agents {' '.join(['alice', 'bob', 'cindy', 'derek', 'evelyn'][:num_agents])})"
 
 def write_plan_output(dom, prob):
     time_output_path = "time_output.txt"
@@ -39,20 +42,40 @@ def write_plan_output(dom, prob):
     # append the time value to the last row
     rows[-1].append(time)
 
-    with open(plan_output_path, "r", newline="") as f:
-        lines = f.readlines()
-
-    # append the plan length to the last row
-    rows[-1].append(len(lines) - 1)
-
     # write the updated rows back to the CSV
     with open(db_path, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerows(rows)
 
+def create_updated_grammar_file():
+    # read the original grammar file
+    original_path = os.path.join("refactored_rpmap", "parsing_and_grounding", "grammar.lark")
+    with open(original_path, "r") as f:
+        original_grammar = f.read()
 
-def get_agents_str(num_agents):
-    return f"\t(:agents {' '.join(['alice', 'bob', 'cindy', 'derek', 'evelyn'][:num_agents])})"
+    # read the ancillary effects grammar file and add to the main grammar file
+    lark_path = os.path.join("refactored_rpmap", "parsing_and_grounding", "ancillary_effects.lark")
+    with open(lark_path, "r") as f:
+        anceff_grammar = f.read()
+
+    with open(GRAMMAR_FILE, "w") as f:
+        f.write(original_grammar + "\n" + anceff_grammar)
+
+    # modify the domain and problem grammar files to add in the new rules
+    construct_domain_grammar()
+    construct_problem_grammar() 
+    # read the lark file
+    with open(GRAMMAR_FILE, "r") as f:
+        grammar = f.read()
+    return grammar
+
+def parse(grammar, pdkbddl_str):
+    parser = AncEffDomProbParser(grammar)
+    return parser(pdkbddl_str)
+
+def get_parsing_result(pdkbddl_str):
+    grammar = create_updated_grammar_file()
+    return parse(grammar, pdkbddl_str)
 
 def eval_single(dom, problem_num, num_agents, parser):
     base_path = os.path.join("domains", dom)
@@ -74,15 +97,12 @@ def eval_single(dom, problem_num, num_agents, parser):
     problem_name = f"problem_{problem_num}" 
     pddl_str = "\n".join(read_pdkbddl_file(os.path.join(base_path, f"{problem_name}.pdkbddl")))
     
-    result = parser(pddl_str)
+    parse_result = parser(pddl_str)
     grounded_dom_path = os.path.join(base_path, "pdkb-domain.pddl")
     grounded_prob_path = os.path.join(base_path, "pdkb-problem.pddl")
-    anc_effs, domain, problem = (result[0].children, *ground(result[1], result[2], grounded_dom_path))
-    num_fluents_before_pre = len(domain.predicates)
+    anc_effs, grounded_domain, grounded_problem = ([anc_eff for anc_eff_set in parse_result[1] for anc_eff in anc_eff_set], *ground(parse_result[1][0], parse_result[0], parse_result[2]))
     print("Applying conditional effects...")
-    domain, problem = apply_cond_effs(anc_effs, domain, problem)
-    print("Done preprocessing!")
-    num_fluents_after_pre = len(domain.predicates)
+    domain, problem, anc_effs_count = ApplyAncEffs(anc_effs, grounded_domain, grounded_problem).apply_anc_effs()
     pddl.core.Domain.grounded_print = True
     pddl.core.Action.grounded_print = True
     write(grounded_dom_path, str(domain))
@@ -90,36 +110,16 @@ def eval_single(dom, problem_num, num_agents, parser):
     preprocessing_time = time.time() - t0
     with open(db_path, "a", newline="") as file:
         writer = csv.writer(file)
-        writer.writerows([[dom, problem_num, num_agents, problem.depth, num_fluents_before_pre, num_fluents_after_pre, round(preprocessing_time, 2)]])
+        writer.writerows([[dom, problem_num, num_agents, problem.depth, anc_effs_count, round(preprocessing_time, 2)]])
+    print("Done preprocessing! Planning...")
 
-def evaluate(domain, prob):
-    # --- GENERAL PARSING SETUP ---
-    # read the ancillary effects grammar file and add to the main grammar file
-    lark_path = os.path.join("rpmap", "ancillary_effects.lark")
-    with open(lark_path, "r") as f:
-        anceff_grammar = f.read()
-    write_no_duplicate("\n" + anceff_grammar, GRAMMAR_FILE)
-    # modify the domain and problem grammar files to add in the new rules
-    construct_domain_grammar()
-    construct_problem_grammar() 
-    # read the lark file
-    with open(GRAMMAR_FILE, "r") as f:
-        grammar = f.read()
-    # set up the parser with the lark and parse the PDDL
-    parser = AncEffDomProbParser(grammar)
-    
-    # to create a new database
-    # with open("evaluation.csv", "w", newline="") as file:
-    #     writer = csv.writer(file)
-    #     writer.writerows([["Domain Name", "Problem Name", "Number of Agents", "Depth", "Number of Fluents before Preprocessing", "Number of Fluents after Preprocessing", "Preprocessing Time", "Solve Time", "Plan Length"]])
-
-    # --- MAIN EVALUATION BODY ---
-    num_agents = get_num_agents(prob)
-    eval_single(domain, prob, num_agents, parser)
+def evaluate(dom, prob):
+    eval_single(dom, prob, get_num_agents(prob), AncEffDomProbParser(create_updated_grammar_file()))
 
 if __name__ == "__main__":
+    # single_file_run("\n".join(read_pdkbddl_file(os.path.join("refactored_rpmap", "test_files", "problem_1.pdkbddl"))))
     args = sys.argv[1:]   # everything after the script name
-    args = ["bdi-grapevine", "1", "solve"] # for testing
+    # args = ["bdi-grapevine", "1", "solve"] # for testing
     args[1] = int(args[1]) # problem number (args[0] is the domain name)
     if args[-1] == "solve":
         evaluate(*args[:-1])
