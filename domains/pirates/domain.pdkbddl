@@ -1,7 +1,7 @@
 
 (define (domain pirates)
 
-	(:agents alice bob cindy derek evelyn)
+	(:agents alice bob)
     (:requirements :typing :universal-preconditions)
     (:types loc agent treasure)
     (:constants )

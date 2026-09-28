@@ -557,7 +557,7 @@ class ApplyAncEffs:
 
         # apply closure to everything in the initial state
         self.problem._init = list(self.problem.init)
-        closure_anc_effs = ["kd45closure__belief", "kd45closure__desire"]#, "kd45closure__intention"]
+        closure_anc_effs = ["kd45closure__belief"]#, "kd45closure__desire"]#, "kd45closure__intention"]
         init_closure = []
         for init_rml in self.problem.init:
             init_closure.extend(self.apply_anc_effs_to_action(init_rml, "never", And(), closure_anc_effs))
