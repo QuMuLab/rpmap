@@ -1,5 +1,7 @@
 {include:domain_template.pdkbddl}
 {include:ae_default.pdkbddl}
+{include:ae_desire.pdkbddl}
+{include:ae_intention.pdkbddl}
 ;; {insert here}
 (define (problem depth_2_agents_2)
     (:domain grapevine)

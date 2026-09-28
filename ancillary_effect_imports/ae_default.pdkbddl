@@ -46,45 +46,6 @@
             :type add
         )
     )
-    (:anceff kd45closure__desire
-        :parameters (?a - agent)
-        :antecedent 
-        (
-            :poscond ?pos
-            :negcond ?neg
-            ; agent a desires (rml)
-            :rml {nesting}[des, ?a]{nesting}{rml}
-            :type add
-        )
-        :consequent 
-        (
-            :poscond ?pos
-            :negcond ?neg
-            ; agent a possibly desires (rml)
-            :rml {nesting}<des, ?a>{nesting}{rml}
-            :type add
-        )
-    )
-    (:anceff kd45closure__intention
-        :parameters (?a - agent)
-        :antecedent 
-        (
-            :poscond ?pos
-            :negcond ?neg
-            ; agent a intends (rml)
-            :rml {nesting}[itn, ?a]{nesting}{rml}
-            :type add
-        )
-        :consequent 
-        (
-            :poscond ?pos
-            :negcond ?neg
-            ; agent a possibly intends (rml)
-            :rml {nesting}<itn, ?a>{nesting}{rml}
-            :type add
-        )
-    )
-
     ;; ; KD45 UNCLOSURE
     (:anceff kd45-un-closure__belief
         :parameters (?a - agent)
@@ -101,37 +62,6 @@
             :type del
         )
     )
-    (:anceff kd45-un-closure__desire
-        :parameters (?a - agent)
-        :antecedent (
-            :poscond ?pos
-            :negcond ?neg
-            :rml {nesting}<des, ?a>{nesting}{rml}
-            :type del
-        )
-        :consequent (
-            :poscond ?pos
-            :negcond ?neg
-            :rml {nesting}[des, ?a]{nesting}{rml}
-            :type del
-        )
-    )
-    (:anceff kd45-un-closure__intention
-        :parameters (?a - agent)
-        :antecedent (
-            :poscond ?pos
-            :negcond ?neg
-            :rml {nesting}<itn, ?a>{nesting}{rml}
-            :type del
-        )
-        :consequent (
-            :poscond ?pos
-            :negcond ?neg
-            :rml {nesting}[itn, ?a]{nesting}{rml}
-            :type del
-        )
-    )
-
     ;; ; MUTUAL AWARENESS (BELIEF ONLY)
     (:anceff mutual-awareness-pos__belief
         :antecedent (

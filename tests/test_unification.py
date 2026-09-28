@@ -19,7 +19,7 @@ class TestUnification:
             grammar = f.read()
         # we instantiate the ApplyAncEffs class with empty templates for the ancillary effects, domain, and problem
         result = parse(grammar, "\n".join(read_pdkbddl_file(os.path.join(*(os.getcwd().split() + ["tests", "parsing_templates", "problem_template.pdkbddl"])))))
-        anc_effs, grounded_domain, grounded_problem = (result[1][0], *ground(result[1][0], result[0], result[2]))
+        anc_effs, grounded_domain, grounded_problem = ([anc_eff for anc_eff_set in result[1] for anc_eff in anc_eff_set], *ground(result[1][0], result[0], result[2]))
         request.cls.apply_anc_effs = ApplyAncEffs(anc_effs, grounded_domain, grounded_problem)
         # set up some template data
         request.cls.bel = Nesting(GenericMODLType.BEL, Agent(Variable("a", ["agent"])))

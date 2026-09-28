@@ -19,7 +19,7 @@ class TestApplyAncEffsSingle:
             grammar = f.read()
         # we instantiate the ApplyAncEffs class with empty templates for the ancillary effects, domain, and problem
         result = parse(grammar, "\n".join(read_pdkbddl_file(os.path.join(*(os.getcwd().split() + ["tests", "parsing_templates", "problem_template_default_anc_effs.pdkbddl"])))))
-        anc_effs, grounded_domain, grounded_problem = (result[1][0], *ground(result[1][0], result[0], result[2]))
+        anc_effs, grounded_domain, grounded_problem = ([anc_eff for anc_eff_set in result[1] for anc_eff in anc_eff_set], *ground(result[1][0], result[0], result[2]))
         for anc_eff in anc_effs:
             setattr(request.cls, anc_eff.name.replace("-", "_"), anc_eff)
         request.cls.apply_anc_effs = ApplyAncEffs(anc_effs, grounded_domain, grounded_problem)
