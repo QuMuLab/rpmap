@@ -2,17 +2,15 @@ from lark.exceptions import VisitError
 from lark.exceptions import UnexpectedCharacters
 from pddl.exceptions import PDDLValidationError
 from pddl.logic.predicates import Predicate
-from pddl.logic.base import And, Or, Not, Imply, ExistsCondition, ForallCondition, Formula
+from pddl.logic.base import And, Or, Imply, ExistsCondition, ForallCondition, Formula
 from pddl.logic.effects import When, Forall
 from pddl.logic.terms import Variable, Constant
 from pddl.action import Action
-from pddl.parser.domain import Domain
 from pddl.parser import GRAMMAR_FILE
 from refactored_rpmap.parsing_and_grounding.core.anc_eff import *
 from refactored_rpmap.parsing_and_grounding.parser_setup import read_pdkbddl_file
-from refactored_rpmap.parsing_and_grounding.apply_anc_effs import ApplyAncEffs
 from refactored_rpmap.parsing_and_grounding.utils import cleaned_not
-from evaluate_updated import parse, get_parsing_result
+from evaluate import parse
 from enum import Enum
 import pytest
 import os
