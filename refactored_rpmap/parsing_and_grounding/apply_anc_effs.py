@@ -525,7 +525,8 @@ class ApplyAncEffs:
                                 variant_nestings = [NOT_MODL()] if negation_status else list() 
                                 variant_nestings.extend([Nesting(generic_modl_permutation[i], Agent(Constant(agent_permutation[i], "agent"))) for i in range(depth)])
                                 srt_variant = SeparatedRMLTerm(variant_nestings, p)
-                                variants[ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(srt_variant))] = srt_variant
+                                if p.name not in action_names:
+                                    variants[ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(srt_variant))] = srt_variant
                                 if depth + 1 <= self.problem.depth and p.name in action_names and not isinstance(variant_nestings[-1], ActionMODLType) and not isinstance(variant_nestings[-1], PossibleActionMODLType):
                                     for action_modl in {*ActionMODLType, *PossibleActionMODLType}:
                                         for agent in self.agents.values():
@@ -547,14 +548,14 @@ class ApplyAncEffs:
                     new_terms = self.apply_anc_effs_to_action(o, action.derive_condition, action.precondition)
                     if new_terms:
                         action.effect._operands.extend(new_terms)
-                        print(anc_effs_count)
+                        # print(anc_effs_count)
                         anc_effs_count += len(new_terms)
                     if time.time() - start > timeout:
                         raise TimeoutError("Preprocessing exceeded 30-minute time limit.")
 
         # apply closure to everything in the initial state
         self.problem._init = list(self.problem.init)
-        closure_anc_effs = ["kd45closure__belief", "kd45closure__desire", "kd45closure__intention"]
+        closure_anc_effs = ["kd45closure__belief"]#, "kd45closure__desire", "kd45closure__intention"]
         init_closure = []
         for init_rml in self.problem.init:
             init_closure.extend(self.apply_anc_effs_to_action(init_rml, "never", And(), closure_anc_effs))
@@ -586,4 +587,4 @@ class ApplyAncEffs:
             self.problem._goal[i] = ApplyAncEffs.term_to_rml(self.problem.goal[i])
         self.problem._init = frozenset(self.problem.init)
         self.problem._goal = [create_and(self.problem.goal)]
-        return self.domain, self.problem
+        return self.domain, self.problem, anc_effs_count
