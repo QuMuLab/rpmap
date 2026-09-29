@@ -1,6 +1,8 @@
 {include:domain.pdkbddl}
 {include:ae_default.pdkbddl}
-{include:ancillary_effects__disdain.pdkbddl}
+{include:ae_desire.pdkbddl}
+{include:ae_intention.pdkbddl}
+{include:ae_disdain.pdkbddl}
 {include:ancillary_effects__president.pdkbddl}
 
 (define (problem depth_2_agents_3)
@@ -30,14 +32,11 @@
         (benefit environment cindy)
 
         (single-issue-voter alice environment)
-
-        (vote bob bob)
-
     )
     (:goal
         (and
-            [des, alice](vote alice bob)
-            ![des, cindy](vote cindy bob)
+            [itn, alice](vote alice bob)
+            ![itn, cindy](vote cindy bob)
         )  
     )
     (:plan )

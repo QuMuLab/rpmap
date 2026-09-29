@@ -1,6 +1,8 @@
 {include:domain.pdkbddl}
 {include:ae_default.pdkbddl}
-{include:ancillary_effects__disdain.pdkbddl}
+{include:ae_desire.pdkbddl}
+{include:ae_intention.pdkbddl}
+{include:ae_disdain.pdkbddl}
 {include:ancillary_effects__president.pdkbddl}
 
 (define (problem depth_3_agents_4)
@@ -32,7 +34,7 @@
         (benefit environment alice)
         (benefit education alice)
 
-        (vote bob bob)
+        (placed-vote bob bob)
 
     )
     (:goal

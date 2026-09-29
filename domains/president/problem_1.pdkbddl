@@ -1,6 +1,8 @@
 {include:domain.pdkbddl}
 {include:ae_default.pdkbddl}
-{include:ancillary_effects__disdain.pdkbddl}
+{include:ae_desire.pdkbddl}
+{include:ae_intention.pdkbddl}
+{include:ae_disdain.pdkbddl}
 {include:ancillary_effects__president.pdkbddl}
 
 (define (problem depth_2_agents_2)
@@ -29,7 +31,7 @@
 
         (single-issue-voter alice environment)
 
-        (vote bob bob)
+        (placed-vote bob bob)
 
     )
     (:goal

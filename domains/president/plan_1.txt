@@ -1,4 +1,5 @@
-(desire-single-issue-vote_alice_bob_environment )
+(adopt-desire-for-policy_alice_bob_environment_l1 )
+(decide-vote-single-issue_alice_bob_environment )
 (vote_alice_bob )
 (get-elected_bob )
-; cost = 3 (unit cost)
+; cost = 4 (unit cost)
