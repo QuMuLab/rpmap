@@ -1,5 +1,7 @@
 {include:domain.pdkbddl}
 {include:ae_default.pdkbddl}
+{include:ae_desire.pdkbddl}
+{include:ae_intention.pdkbddl}
 {include:ancillary_effects__full-bdi-1.pdkbddl}
 
 (define (problem paper2)
