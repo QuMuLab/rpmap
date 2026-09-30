@@ -29,7 +29,7 @@
     )
 
     (:action grab-flag
-        :derive-condition   never
+        :derive-condition   (at $agent$ ?l)
         :parameters         (?ag - agent ?l - loc)
         :precondition       (and (capturer ?ag) (flag-at ?l) (at ?ag ?l) (not (caught ?ag)) [bel, ?ag](flag-at ?l))
         :effect             (and 
@@ -39,7 +39,7 @@
     )
 
     (:action capture-and-win
-        :derive-condition   (at $agent$ ?l)
+        :derive-condition   never
         :parameters         (?ag - agent ?l - loc)
         :precondition       (and (capturer ?ag) (holding-flag ?ag) (at ?ag ?l) (not (caught ?ag)) (home-base ?l))
         :effect             (and 
