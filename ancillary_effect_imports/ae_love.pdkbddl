@@ -5,14 +5,16 @@
         (
             :poscond ?pos
             :negcond ?neg
-            :rml [lov, ?a]{rml}
-            :type wildcard
+            ; agent a intends (rml)
+            :rml {nesting}[lov, ?a]{nesting}{rml}
+            :type add
         )
         :consequent 
         (
             :poscond ?pos
             :negcond ?neg
-            :rml <lov, ?a>{rml}
+            ; agent a possibly intends (rml)
+            :rml {nesting}<lov, ?a>{nesting}{rml}
             :type add
         )
     )
@@ -21,15 +23,14 @@
         :antecedent (
             :poscond ?pos
             :negcond ?neg
-            :rml <lov, ?a>{rml}
-            :type wildcard
+            :rml {nesting}<lov, ?a>{nesting}{rml}
+            :type del
         )
         :consequent (
             :poscond ?pos
             :negcond ?neg
-            :rml [lov, ?a]{rml}
+            :rml {nesting}[lov, ?a]{nesting}{rml}
             :type del
         )
     )
 )
-

@@ -1,6 +1,11 @@
-{include:ancillary_effects.pdkbddl}
-{include:ancillary_effects__full-bdi.pdkbddl}
 {include:domain.pdkbddl}
+{include:ae_default.pdkbddl}
+{include:ae_desire.pdkbddl}
+{include:ae_intention.pdkbddl}
+{include:ae_disdain.pdkbddl}
+{include:ae_love.pdkbddl}
+{include:ancillary_effects__full-bdi.pdkbddl}
+
 
 (define (problem paper2)
 
@@ -30,15 +35,17 @@
         (gift-at teddy_bear l1)
         [bel, cindy](likes-gift alice teddy_bear)
         [bel, alice](likes-gift bob chocolate)
-        (!likes-gift bob chocolate)
         (likes-gift alice teddy_bear)
     )
 
     (:goal 
-        [bel, alice](!loves bob alice)
-        (loves alice cindy)
-        (loves derek alice)
-        (together alice cindy)
+        (and
+            [bel, alice]![lov, bob](agent alice)
+            [lov, alice](agent cindy)
+            [lov, derek](agent alice)
+            [bel, derek][bel, alice]![lov, bob](agent alice)
+            (together alice cindy)
+        )
     )
 
     (:plan

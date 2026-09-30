@@ -1,6 +1,11 @@
-{include:ancillary_effects.pdkbddl}
-{include:ancillary_effects__full-bdi.pdkbddl}
 {include:domain.pdkbddl}
+{include:ae_default.pdkbddl}
+{include:ae_desire.pdkbddl}
+{include:ae_intention.pdkbddl}
+{include:ae_disdain.pdkbddl}
+{include:ae_love.pdkbddl}
+{include:ancillary_effects__full-bdi.pdkbddl}
+
 
 (define (problem paper2)
 
@@ -24,12 +29,13 @@
         (feel-chemistry alice bob)
         (gift-at chocolate l3)
         [bel, alice](likes-gift bob chocolate)
-        (!likes-gift bob chocolate)
     )
 
     (:goal 
-        (sad alice)
-        [bel, alice](!loves bob alice)
+        (and
+            (sad alice)
+            [bel, alice]![lov, bob](agent alice)
+        )
     )
 
     (:plan

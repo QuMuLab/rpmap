@@ -1,7 +1,7 @@
 
 (define (domain romance)
 
-	(:agents alice bob cindy)
+	(:agents alice bob cindy derek evelyn)
     (:requirements :typing)
     (:types loc agent gift)
     (:constants )
@@ -13,11 +13,9 @@
         {AK}(together ?a1 ?a2 - agent)
         {AK}(bought-gift ?ag - agent ?g - gift)
         {AK}(feel-chemistry ?a1 ?a2 - agent)
-        (rivals ?a1 ?a2 - agent)
         (get-gift-for ?ag - agent)
-        (retrieve-gift ?g - gift)
         (likes-gift ?ag - agent ?g - gift)
-        (loves ?a1 ?a2 - agent)
+        (agent ?ag - agent)
         (sad ?ag - agent)
     )
 
@@ -29,56 +27,50 @@
     )
 
     (:action fall-in-love
-        :derive-condition   never
+        :derive-condition   (at $agent$ ?l)
         :parameters         (?a1 ?a2 - agent ?l - loc)
         :precondition       (and (at ?a1 ?l) (at ?a2 ?l) (feel-chemistry ?a1 ?a2))
         :effect             (and
-                                (loves ?a1 ?a2)
-                                (forall (?ag - agent) (when (at ?ag ?l) [bel, ?ag](loves ?a1 ?a2)))
+                                [lov, ?a1](agent ?a2)
                             )
     )
 
     (:action confess
         :derive-condition   (at $agent$ ?l)
         :parameters         (?a1 ?a2 - agent ?l - loc)
-        :precondition       (and (at ?a1 ?l) (at ?a2 ?l) (loves ?a1 ?a2) <bel, ?a1>(loves ?a2 ?a1))
+        :precondition       (and (at ?a1 ?l) (at ?a2 ?l) [lov, ?a1](agent ?a2) <bel, ?a1>[lov, ?a2](agent ?a1))
         :effect             (and
-                                (when (loves ?a2 ?a1) (together ?a1 ?a2))
-                                (when (loves ?a2 ?a1) [bel, ?a1](loves ?a2 ?a1))
-                                (when (!loves ?a2 ?a1) (sad ?a1))
-                                (when (!loves ?a2 ?a1) [bel, ?a1](!loves ?a2 ?a1))
+                                (when [lov, ?a2](agent ?a1) (and (together ?a1 ?a2) [bel, ?a1][lov, ?a2](agent ?a1)))
+                                (when (not [lov, ?a2](agent ?a1)) (and (sad ?a1) [bel, ?a1]![lov, ?a2](agent ?a1)))
                             )
     )
 
     (:action intend-get-gift
         :derive-condition   never
-        :parameters         (?a1 ?a2 - agent)
-        :precondition       (and (loves ?a1 ?a2) [des, ?a1](loves ?a2 ?a1))
+        :parameters         (?a1 ?a2 - agent ?g - gift ?l - loc)
+        :precondition       (and [lov, ?a1](agent ?a2) [des, ?a1][lov, ?a2](agent ?a1) [bel, ?a1](likes-gift ?a2 ?g) (gift-at ?g ?l))
         :effect             (and
-                                [itn, ?a1](get-gift-for ?a2)
+                                [itn, ?a1](retrieve-gift ?a1 ?a2 ?g ?l)
                             )
     )
 
-    (:action get-gift
+    (:action retrieve-gift
         :derive-condition   never
-        :parameters         (?ag - agent ?g - gift ?l - loc)
-        :precondition       (and [itn, ?ag](retrieve-gift ?g) (at ?ag ?l) (gift-at ?g ?l))
+        :parameters         (?a1 ?a2 - agent ?g - gift ?l - loc)
+        :precondition       (and [itn, ?a1](retrieve-gift ?a1 ?a2 ?g ?l) (at ?a1 ?l) (gift-at ?g ?l))
         :effect             (and
                                 (not (gift-at ?g ?l))
-                                (bought-gift ?ag ?g)
-                                !<itn, ?ag>(retrieve-gift ?g)
+                                (bought-gift ?a1 ?g)
                             )
     )
 
     (:action gift
         :derive-condition   never
         :parameters         (?a1 ?a2 - agent ?g - gift ?l - loc)
-        :precondition       (and [itn, ?a1](get-gift-for ?a2) (bought-gift ?a1 ?g) (at ?a1 ?l) (at ?a2 ?l))
+        :precondition       (and (bought-gift ?a1 ?g) [des, ?a1][lov, ?a2](agent ?a1) (at ?a1 ?l) (at ?a2 ?l))
         :effect             (and
-                                (when (likes-gift ?a2 ?g) (loves ?a2 ?a1))
-                                (when (likes-gift ?a2 ?g) [bel, ?a2](loves ?a2 ?a1))
-                                (when (!likes-gift ?a2 ?g) (!loves ?a2 ?a1))
-                                (when (!likes-gift ?a2 ?g) [bel, ?a2](!loves ?a2 ?a1))
+                                (when (likes-gift ?a2 ?g) (and [lov, ?a2](agent ?a1) [bel, ?a2][lov, ?a2](agent ?a1)))
+                                (when (not (likes-gift ?a2 ?g)) (and (not [lov, ?a2](agent ?a1)) [bel, ?a2]![lov, ?a2](agent ?a1)))
                             )
 
     )

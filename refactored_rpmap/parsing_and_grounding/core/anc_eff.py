@@ -14,23 +14,23 @@ from ..utils import return_option
 
 class GenericMODLType(Enum):
     BEL = 1
-    # DES = 2
-    # DSD = 3
-    # LOV = 4
+    DES = 2
+    DSD = 3
+    LOV = 4
 
 class PossibleGenericMODLType(Enum):
     PBEL = 1
-    # PDES = 2
-    # PDSD = 3
-    # PLOV = 4
+    PDES = 2
+    PDSD = 3
+    PLOV = 4
 
 class ActionMODLType(Enum):
-    # ITN = 1
-    pass
+    ITN = 1
+    # pass
 
 class PossibleActionMODLType(Enum):
-    # PITN = 1
-    pass
+    PITN = 1
+    # pass
 
 class AncEffType(Enum):
     ADD = 1

@@ -1,6 +1,11 @@
-{include:ancillary_effects.pdkbddl}
-{include:ancillary_effects__full-bdi.pdkbddl}
 {include:domain.pdkbddl}
+{include:ae_default.pdkbddl}
+{include:ae_desire.pdkbddl}
+{include:ae_intention.pdkbddl}
+{include:ae_disdain.pdkbddl}
+{include:ae_love.pdkbddl}
+{include:ancillary_effects__full-bdi.pdkbddl}
+
 
 (define (problem paper2)
 
@@ -33,10 +38,13 @@
     )
 
     (:goal 
-        !<itn, cindy>(retrieve-gift teddy_bear)
-        (bought-gift alice chocolate)
-        (bought-gift cindy teddy_bear)
-        (together bob cindy)
+        (and
+            !<itn, cindy>(retrieve-gift cindy bob teddy_bear l3)
+            (bought-gift alice chocolate)
+            (bought-gift cindy teddy_bear)
+            [bel, cindy][lov, bob](agent cindy)
+            (together bob cindy)
+        )
     )
 
     (:plan
