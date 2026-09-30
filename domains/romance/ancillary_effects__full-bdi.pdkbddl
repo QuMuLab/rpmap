@@ -4,43 +4,28 @@
             :antecedent (
                 :poscond ?pos
                 :negcond ?neg
-                :rml (loves ?a1 ?a2)
+                :rml [lov, ?a1](agent ?a2)
                 :type add
             )
             :consequent (
                 :poscond ?pos
                 :negcond ?neg
-                :rml [des, ?a1](loves ?a2 ?a1)
+                :rml [des, ?a1][lov, ?a2](agent ?a1)
                 :type add
             )
-    )
-    (:anceff decide-gift
-        :parameters (?a1 ?a2 - agent ?g - gift)
-        :antecedent (
-            :poscond ?pos
-            :negcond ?neg
-            :rml [itn, ?a1](get-gift-for ?a2)
-            :type add
-        )
-        :consequent (
-            :poscond ?pos + [bel, ?a1](likes-gift ?a2 ?g)
-            :negcond ?neg
-            :rml [itn, ?a1](retrieve-gift ?g)
-            :type add
-        )
     )
     (:anceff become-rival
         :parameters (?a1 ?a2 ?a3 - agent)
         :antecedent (
             :poscond ?pos
             :negcond ?neg
-            :rml [bel, ?a1](loves ?a2 ?a3)
+            :rml [bel, ?a1][lov, ?a2](agent ?a3)
             :type add
         )
         :consequent (
-            :poscond ?pos + (loves ?a1 ?a3) + (!together ?a1 ?a3) + (!together ?a2 ?a3)
+            :poscond ?pos + [lov, ?a1](agent ?a3) + (not (together ?a1 ?a3)) + (not (together ?a2 ?a3))
             :negcond ?neg
-            :rml (rivals ?a1 ?a2)
+            :rml [dsd, ?a1](agent ?a2)
             :type add
         )
     )
