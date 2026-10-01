@@ -10,4 +10,4 @@ Parsing...
 translate exit code: 30
 
 Driver aborting after translate
-INFO     Planner time: 0.26s
+INFO     Planner time: 0.21s

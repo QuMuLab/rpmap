@@ -26,11 +26,9 @@ class PossibleGenericMODLType(Enum):
 
 class ActionMODLType(Enum):
     ITN = 1
-    # pass
 
 class PossibleActionMODLType(Enum):
     PITN = 1
-    # pass
 
 class AncEffType(Enum):
     ADD = 1
