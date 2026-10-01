@@ -9,6 +9,7 @@ from refactored_rpmap.parsing_and_grounding.utils import cleaned_not, create_and
 from evaluate import parse, ground
 import pytest
 import os
+import time
 
 
 class TestApplyAncEffsSingle:
@@ -23,6 +24,7 @@ class TestApplyAncEffsSingle:
         for anc_eff in anc_effs:
             setattr(request.cls, anc_eff.name.replace("-", "_"), anc_eff)
         request.cls.apply_anc_effs = ApplyAncEffs(anc_effs, grounded_domain, grounded_problem)
+        request.cls.apply_anc_effs.timeout = 30 * 60
         # set up some template data
         request.cls.bel_a = Nesting(GenericMODLType.BEL, Agent(Variable("a", ["agent"])))
         request.cls.pbel_a = Nesting(PossibleGenericMODLType.PBEL, Agent(Variable("a", ["agent"])))
@@ -54,10 +56,12 @@ class TestApplyAncEffsSingle:
         self.apply_anc_effs.reset()
 
     def apply_anc_eff_helper(self, anc_eff, next_term, awareness = False, derive_condition = "never"):
+        self.apply_anc_effs.start = time.time()
         if self.apply_anc_effs.check_ant_match(anc_eff.antecedent.rml, anc_eff.antecedent.anceff_type, next_term, awareness, derive_condition):
             return [self.apply_anc_effs.sorted_str(self.apply_anc_effs.term_to_rml(term)) for term in self.apply_anc_effs.apply_anc_eff_all_anceff_vars(anc_eff, next_term, awareness, derive_condition)]
 
     def apply_anc_effs_helper(self, next_term, derive_condition = "never", anc_effs = None):
+        self.apply_anc_effs.start = time.time()
         return [self.apply_anc_effs.sorted_str(self.apply_anc_effs.term_to_rml(term)) for term in self.apply_anc_effs.apply_anc_effs_to_action(next_term, derive_condition, And(), anc_effs)]
 
     # ----- NEGATION REMOVAL -----
