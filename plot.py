@@ -32,7 +32,7 @@ def plot(data):
         # plot the data as a scatter plot with domain on x-axis and percentage on y-axis
         # plt.scatter([domain] * len(percentage), percentage, label=f"Domain {domain}", s=1000, alpha=0.25)
         sns.swarmplot(x=[domain] * len(percentage), y=percentage, label=f"Domain {domain}", s=15, alpha=0.75)
-    plt.xlabel("Domain Number")
+    plt.xlabel("Domain")
     plt.ylabel("Percentage of Preprocessing Time of Solve Time")
     plt.title("Percentage of Preprocessing Time of Solve Time by Domain")
     plt.legend()
@@ -45,7 +45,9 @@ def plot(data):
         # get the number of ancillary effects from the first column
         num_ancillary_effects = [row[0] for row in df]
         # plot the data as a line plot with problem number on x-axis and number of ancillary effects on y-axis
-        plt.plot(range(1, len(num_ancillary_effects) + 1), num_ancillary_effects, label=f"Domain {domain}")
+        plt.plot(range(1, len(num_ancillary_effects) + 1), num_ancillary_effects, label=f"Domain {domain}", linewidth=4.0)
+    # Change x-axis tick positions
+    plt.xticks(range(1, 11))
     plt.xlabel("Problem Number")
     plt.ylabel("Number of Ancillary Effects")
     plt.title("Number of Ancillary Effects by Problem Number and Domain")
