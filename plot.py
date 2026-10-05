@@ -18,9 +18,12 @@ def plot(data):
     """Plot the time data where the domain number (each file) is on the x-axis, and the percentage of preprocessing time of the solve time is the y-axis.
     Each domain has 10 problem files, so there are 10 points on the y-axis for each domain on the x-axis, in a scatter plot format.
     
-    Also, plot a second line plot where the y-axis is the number of ancillary effects, and the x-axis is the problem number (1-10) for each domain.
+    Plot a second line plot where the y-axis is the number of ancillary effects, and the x-axis is the problem number (1-10) for each domain.
     There are n lines in the plot (one for each domain, and each is a different color), and the legend shows which line corresponds to which domain.
+
+    Finally, plot a third line plot where the x-axis is the time and the y-axis is the problem number.
     """
+    # % of preprocessing time of solve time plot
     x_ticks = []
     x_ticks_vals = []
     _, ax = plt.subplots()
@@ -54,7 +57,7 @@ def plot(data):
             plt.plot(x_axis_timeout, timeout, label=f"preprocessing timeout", linestyle="", marker="x", markersize=15, color="red", markeredgewidth=3)
             last_x = x_axis_timeout[-1]
     # Change both axes at the same time
-    ax.tick_params(axis='both', labelsize=25)
+    ax.tick_params(axis="both", labelsize=25)
     # For a specific axes object
     ax.set_xlabel("Domain", fontsize=35)
     ax.set_ylabel("Percentage of Preprocessing Time of Solve Time", fontsize=35)
@@ -78,7 +81,7 @@ def plot(data):
     if timeout_handle:
         unique_labels["preprocessing timeout"] = timeout_handle
     # 3. Pass the unique handles and labels to the legend
-    ax.legend(unique_labels.values(), unique_labels.keys(), fontsize=15, loc="upper left")
+    ax.legend(unique_labels.values(), unique_labels.keys(), fontsize=25, loc="upper left")
     plt.show()
 
     _, ax = plt.subplots()
@@ -89,15 +92,35 @@ def plot(data):
         # get the number of ancillary effects from the first column
         num_ancillary_effects = [row[0] for row in df]
         # plot the data as a line plot with problem number on x-axis and number of ancillary effects on y-axis
-        plt.plot(range(1, len(num_ancillary_effects) + 1), num_ancillary_effects, label=f"{domain}", linewidth=4.0)
+        plt.plot(range(1, len(num_ancillary_effects) + 1), num_ancillary_effects, label=f"{domain}", linewidth=4.0, marker="o", markersize=10)
     plt.xticks(range(1, 11))
     plt.xlim(left=1, right=10)
-    ax.set_yscale('log')
-    ax.tick_params(axis='both', labelsize=25)
+    ax.set_yscale("log")
+    ax.tick_params(axis="both", labelsize=25)
     ax.set_xlabel("Problem Number", fontsize=35)
     ax.set_ylabel("Number of Ancillary Effects", fontsize=35)
     ax.set_title("Number of Ancillary Effects by Problem Number and Domain", fontsize=50)
-    ax.legend(fontsize=15, loc="upper left")
+    ax.legend(fontsize=25, loc="lower right")
+    plt.show()
+
+    # coverage plot
+    _, ax = plt.subplots()
+    data_sum_time = {file: [] for file in data}
+    for file in data:
+        for row in data[file]:
+            data_sum_time[file].append(row[1] + row[2])
+    for file in data_sum_time:
+        # get the domain number from the file name 
+        domain = file.split("_")[1]
+        # plot the data as a line plot with the time on the x-axis and the problem number on the y-axis
+        plt.plot(data_sum_time[file], range(1, len(data_sum_time[file]) + 1), label=f"{domain}", linewidth=4.0, marker="o", markersize=10)
+    plt.ylim(bottom=1, top=10)
+    ax.set_xscale("log")
+    ax.tick_params(axis="both", labelsize=25)
+    ax.set_xlabel("Time (s)", fontsize=35)
+    ax.set_ylabel("Coverage (# of Problems Solved)", fontsize=35)
+    ax.set_title("Coverage Against Time for each Domain", fontsize=50)
+    ax.legend(fontsize=25, loc="upper left")
     plt.show()
 
 
