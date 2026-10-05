@@ -1,12 +1,11 @@
 import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sns
 import os
 
 def get_data():
     """Gather the run data for every csv file in the evaluation_data folder."""
     data = {}
-    for file in os.listdir("evaluation_data"):
+    for file in sorted(os.listdir("evaluation_data")):
         df = pd.read_csv(os.path.join("evaluation_data", file), header=None)
         # only take columns 5-7 (number of ancillary effects, preprocessing time, and solve time)
         # store the results as a list
@@ -22,36 +21,83 @@ def plot(data):
     Also, plot a second line plot where the y-axis is the number of ancillary effects, and the x-axis is the problem number (1-10) for each domain.
     There are n lines in the plot (one for each domain, and each is a different color), and the legend shows which line corresponds to which domain.
     """
-    
+    x_ticks = []
+    x_ticks_vals = []
+    _, ax = plt.subplots()
+    # separate the domains with this distance on the x-axis, so that the points for each domain are not too close together
+    domain_width = 0.1
+    # value of the last value placed on the x-axis
+    last_x = 0
     # time data plot
-    for file, df in data.items():
+    for i in range(len(data)):
+        file = list(data.keys())[i]
+        df = data[file]
         # get the domain number from the file name
-        domain = file.split("_")[0]
+        domain = file.split("_")[1]
         percentage = [row[1] / (row[1] + row[2]) for row in df]
-        
+        # Add a vertical dashed line spanning the whole plot to differentiate the domains
+        if i > 0:
+            x_axis = [round(domain_width + i + (0.1 * j), 2) for j in range(len(percentage))]
+            x_ticks_vals.append(last_x + round((x_axis[0] - last_x) / 2, 2))
+            plt.axvline(x=x_ticks_vals[-1], color='grey', linestyle='--', linewidth=1)
+        else:
+            x_ticks_vals.append(0)
+            x_axis = [round(i + (0.1 * j), 2) for j in range(len(percentage))]
+        last_x = x_axis[-1]
+        x_ticks.append(domain)
         # plot the data as a scatter plot with domain on x-axis and percentage on y-axis
-        # plt.scatter([domain] * len(percentage), percentage, label=f"Domain {domain}", s=1000, alpha=0.25)
-        sns.swarmplot(x=[domain] * len(percentage), y=percentage, label=f"Domain {domain}", s=15, alpha=0.75)
-    plt.xlabel("Domain")
-    plt.ylabel("Percentage of Preprocessing Time of Solve Time")
-    plt.title("Percentage of Preprocessing Time of Solve Time by Domain")
-    plt.legend()
+        plt.plot(x_axis, percentage, label=domain, linestyle="", marker="o", markersize=10)
+        # add the points that timed out with a special marker
+        timeout = [1.0] * (10 - len(percentage))
+        if timeout:
+            x_axis_timeout = [round(domain_width + i + (0.1 * j), 2) for j in range(len(percentage), 10)]
+            plt.plot(x_axis_timeout, timeout, label=f"preprocessing timeout", linestyle="", marker="x", markersize=15, color="red", markeredgewidth=3)
+            last_x = x_axis_timeout[-1]
+    # Change both axes at the same time
+    ax.tick_params(axis='both', labelsize=25)
+    # For a specific axes object
+    ax.set_xlabel("Domain", fontsize=35)
+    ax.set_ylabel("Percentage of Preprocessing Time of Solve Time", fontsize=35)
+    ax.set_title("Percentage of Preprocessing Time of Solve Time by Domain", fontsize=50)
+    # Add a horizontal dotted line at y = 1.0
+    plt.axhline(y=1.0, color='black', linestyle=':', linewidth=1)
+    plt.xticks(x_ticks_vals, x_ticks)
+    plt.xlim(left=-0.1)
+    plt.ylim(bottom=0)
+    # 1. Get all handles and labels
+    handles, labels = ax.get_legend_handles_labels()
+    # 2. Filter out duplicates while preserving order
+    # create a dictionary excluding the Timeout label
+    unique_labels = {}
+    timeout_handle = None
+    for handle, label in zip(handles, labels):
+        if label != "preprocessing timeout":
+            unique_labels[label] = handle
+        else:
+            timeout_handle = handle
+    if timeout_handle:
+        unique_labels["preprocessing timeout"] = timeout_handle
+    # 3. Pass the unique handles and labels to the legend
+    ax.legend(unique_labels.values(), unique_labels.keys(), fontsize=15, loc="upper left")
     plt.show()
 
+    _, ax = plt.subplots()
     # ancillary effects plot
     for file, df in data.items():
-        # get the domain number from the file name
-        domain = file.split("_")[0]
+        # get the domain number from the file name 
+        domain = file.split("_")[1]
         # get the number of ancillary effects from the first column
         num_ancillary_effects = [row[0] for row in df]
         # plot the data as a line plot with problem number on x-axis and number of ancillary effects on y-axis
-        plt.plot(range(1, len(num_ancillary_effects) + 1), num_ancillary_effects, label=f"Domain {domain}", linewidth=4.0)
-    # Change x-axis tick positions
+        plt.plot(range(1, len(num_ancillary_effects) + 1), num_ancillary_effects, label=f"{domain}", linewidth=4.0)
     plt.xticks(range(1, 11))
-    plt.xlabel("Problem Number")
-    plt.ylabel("Number of Ancillary Effects")
-    plt.title("Number of Ancillary Effects by Problem Number and Domain")
-    plt.legend()
+    plt.xlim(left=1, right=10)
+    ax.set_yscale('log')
+    ax.tick_params(axis='both', labelsize=25)
+    ax.set_xlabel("Problem Number", fontsize=35)
+    ax.set_ylabel("Number of Ancillary Effects", fontsize=35)
+    ax.set_title("Number of Ancillary Effects by Problem Number and Domain", fontsize=50)
+    ax.legend(fontsize=15, loc="upper left")
     plt.show()
 
 
