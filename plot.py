@@ -2,6 +2,12 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import os
 
+TITLE_SIZE = 30
+XY_LABEL_SIZE = 25
+TICK_SIZE = 23
+MARKERSIZE = 15
+MARKERSTYLE = "s"
+
 def get_data():
     """Gather the run data for every csv file in the evaluation_data folder."""
     data = {}
@@ -49,24 +55,26 @@ def plot(data):
         last_x = x_axis[-1]
         x_ticks.append(domain)
         # plot the data as a scatter plot with domain on x-axis and percentage on y-axis
-        plt.plot(x_axis, percentage, label=domain, linestyle="", marker="o", markersize=10)
+        plt.plot(x_axis, percentage, label=domain, linestyle="", marker=".", markersize=25)
         # add the points that timed out with a special marker
         timeout = [1.0] * (10 - len(percentage))
         if timeout:
             x_axis_timeout = [round(domain_width + i + (0.1 * j), 2) for j in range(len(percentage), 10)]
-            plt.plot(x_axis_timeout, timeout, label=f"preprocessing timeout", linestyle="", marker="x", markersize=15, color="red", markeredgewidth=3)
+            plt.plot(x_axis_timeout, timeout, label=f"preprocessing timeout", linestyle="", marker="x", markersize=MARKERSIZE, color="red", markeredgewidth=3)
             last_x = x_axis_timeout[-1]
     # Change both axes at the same time
-    ax.tick_params(axis="both", labelsize=25)
+    ax.tick_params(axis="y", labelsize=TICK_SIZE)
     # For a specific axes object
-    ax.set_xlabel("Domain", fontsize=35)
-    ax.set_ylabel("Percentage of Preprocessing Time of Solve Time", fontsize=35)
-    ax.set_title("Percentage of Preprocessing Time of Solve Time by Domain", fontsize=50)
+    # ax.set_xlabel("Domain", fontsize=XY_LABEL_SIZE)
+    ax.set_xlabel(None)
+    ax.tick_params(labelbottom=False)
+    ax.set_ylabel("Preprocessing Time over Total Time", fontsize=XY_LABEL_SIZE)
+    ax.set_title("Preprocessing Time over Total Time by Domain", fontsize=TITLE_SIZE)
     # Add a horizontal dotted line at y = 1.0
     plt.axhline(y=1.0, color='black', linestyle=':', linewidth=1)
-    plt.xticks(x_ticks_vals, x_ticks)
+    # plt.xticks(x_ticks_vals, x_ticks)
     plt.xlim(left=-0.1)
-    plt.ylim(bottom=0)
+    plt.ylim(bottom=-0.01)
     # 1. Get all handles and labels
     handles, labels = ax.get_legend_handles_labels()
     # 2. Filter out duplicates while preserving order
@@ -81,7 +89,7 @@ def plot(data):
     if timeout_handle:
         unique_labels["preprocessing timeout"] = timeout_handle
     # 3. Pass the unique handles and labels to the legend
-    ax.legend(unique_labels.values(), unique_labels.keys(), fontsize=25, loc="upper left")
+    ax.legend(unique_labels.values(), unique_labels.keys(), fontsize=TICK_SIZE, loc="upper left")
     plt.show()
 
     _, ax = plt.subplots()
@@ -92,15 +100,15 @@ def plot(data):
         # get the number of ancillary effects from the first column
         num_ancillary_effects = [row[0] for row in df]
         # plot the data as a line plot with problem number on x-axis and number of ancillary effects on y-axis
-        plt.plot(range(1, len(num_ancillary_effects) + 1), num_ancillary_effects, label=f"{domain}", linewidth=4.0, marker="o", markersize=10)
+        plt.plot(range(1, len(num_ancillary_effects) + 1), num_ancillary_effects, label=f"{domain}", linewidth=4.0, marker=MARKERSTYLE, markersize=MARKERSIZE)
     plt.xticks(range(1, 11))
-    plt.xlim(left=1, right=10)
+    # plt.xlim(left=1, right=10)
     ax.set_yscale("log")
-    ax.tick_params(axis="both", labelsize=25)
-    ax.set_xlabel("Problem Number", fontsize=35)
-    ax.set_ylabel("Number of Ancillary Effects", fontsize=35)
-    ax.set_title("Number of Ancillary Effects by Problem Number and Domain", fontsize=50)
-    ax.legend(fontsize=25, loc="lower right")
+    ax.tick_params(axis="both", labelsize=TICK_SIZE*1.5)
+    ax.set_xlabel("Problem Number", fontsize=XY_LABEL_SIZE*1.5)
+    ax.set_ylabel("Number of Ancillary Effects", fontsize=XY_LABEL_SIZE*1.5)
+    ax.set_title("Number of Ancillary Effects by Domain and Problem Number", fontsize=TITLE_SIZE*1.5)
+    ax.legend(fontsize=TICK_SIZE*1.1, loc="lower right")
     plt.show()
 
     # coverage plot
@@ -113,14 +121,14 @@ def plot(data):
         # get the domain number from the file name 
         domain = file.split("_")[1]
         # plot the data as a line plot with the time on the x-axis and the problem number on the y-axis
-        plt.plot(data_sum_time[file], range(1, len(data_sum_time[file]) + 1), label=f"{domain}", linewidth=4.0, marker="o", markersize=10)
-    plt.ylim(bottom=1, top=10)
+        plt.plot(data_sum_time[file], range(1, len(data_sum_time[file]) + 1), label=f"{domain}", linewidth=4.0, marker=MARKERSTYLE, markersize=MARKERSIZE)
+    # plt.ylim(bottom=1, top=10)
     ax.set_xscale("log")
-    ax.tick_params(axis="both", labelsize=25)
-    ax.set_xlabel("Time (s)", fontsize=35)
-    ax.set_ylabel("Coverage (# of Problems Solved)", fontsize=35)
-    ax.set_title("Coverage Against Time for each Domain", fontsize=50)
-    ax.legend(fontsize=25, loc="upper left")
+    ax.tick_params(axis="both", labelsize=TICK_SIZE)
+    ax.set_xlabel("Time (s)", fontsize=XY_LABEL_SIZE)
+    ax.set_ylabel("Coverage (# of Problems Solved)", fontsize=XY_LABEL_SIZE)
+    ax.set_title("Coverage Against Time for each Domain", fontsize=TITLE_SIZE)
+    ax.legend(fontsize=TICK_SIZE, loc="lower right")
     plt.show()
 
 
