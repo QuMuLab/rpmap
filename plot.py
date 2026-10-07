@@ -63,13 +63,14 @@ def plot(data):
             plt.plot(x_axis_timeout, timeout, label=f"preprocessing timeout", linestyle="", marker="x", markersize=MARKERSIZE, color="red", markeredgewidth=3)
             last_x = x_axis_timeout[-1]
     # Change both axes at the same time
-    ax.tick_params(axis="y", labelsize=TICK_SIZE)
+    ax.tick_params(axis="y", labelsize=TICK_SIZE*1.3)
     # For a specific axes object
     # ax.set_xlabel("Domain", fontsize=XY_LABEL_SIZE)
-    ax.set_xlabel(None)
+    # ax.set_xlabel(None)
+    ax.set_xticks([])
     ax.tick_params(labelbottom=False)
     ax.set_ylabel("Preprocessing Time over Total Time", fontsize=XY_LABEL_SIZE)
-    ax.set_title("Preprocessing Time over Total Time by Domain", fontsize=TITLE_SIZE)
+    # ax.set_title("Preprocessing Time over Total Time by Domain", fontsize=TITLE_SIZE)
     # Add a horizontal dotted line at y = 1.0
     plt.axhline(y=1.0, color='black', linestyle=':', linewidth=1)
     # plt.xticks(x_ticks_vals, x_ticks)
@@ -107,7 +108,7 @@ def plot(data):
     ax.tick_params(axis="both", labelsize=TICK_SIZE*1.5)
     ax.set_xlabel("Problem Number", fontsize=XY_LABEL_SIZE*1.5)
     ax.set_ylabel("Number of Ancillary Effects", fontsize=XY_LABEL_SIZE*1.5)
-    ax.set_title("Number of Ancillary Effects by Domain and Problem Number", fontsize=TITLE_SIZE*1.5)
+    # ax.set_title("Number of Ancillary Effects by Domain and Problem Number", fontsize=TITLE_SIZE*1.5)
     ax.legend(fontsize=TICK_SIZE*1.1, loc="lower right")
     plt.show()
 
@@ -127,8 +128,8 @@ def plot(data):
     ax.tick_params(axis="both", labelsize=TICK_SIZE)
     ax.set_xlabel("Time (s)", fontsize=XY_LABEL_SIZE)
     ax.set_ylabel("Coverage (# of Problems Solved)", fontsize=XY_LABEL_SIZE)
-    ax.set_title("Coverage Against Time for each Domain", fontsize=TITLE_SIZE)
-    ax.legend(fontsize=TICK_SIZE, loc="lower right")
+    # ax.set_title("Coverage Against Time for each Domain", fontsize=TITLE_SIZE)
+    ax.legend(fontsize=TICK_SIZE*1.1, loc="lower right")
     plt.show()
 
 
