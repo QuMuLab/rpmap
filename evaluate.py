@@ -99,7 +99,8 @@ def eval_single(dom, problem_num, num_agents, parser):
     parse_result = parser(pddl_str)
     grounded_dom_path = os.path.join(base_path, "pdkb-domain.pddl")
     grounded_prob_path = os.path.join(base_path, "pdkb-problem.pddl")
-    anc_effs, grounded_domain, grounded_problem = ([anc_eff for anc_eff_set in parse_result[1] for anc_eff in anc_eff_set], *ground(parse_result[1][0], parse_result[0], parse_result[2]))
+    anc_effs = [anc_eff for anc_eff_set in parse_result[1] for anc_eff in anc_eff_set]
+    anc_effs, grounded_domain, grounded_problem = (anc_effs, *ground(anc_effs, parse_result[0], parse_result[2]))
     print("Applying conditional effects...")
     domain, problem, anc_effs_count = ApplyAncEffs(anc_effs, grounded_domain, grounded_problem).apply_anc_effs()
     pddl.core.Domain.grounded_print = True
@@ -117,8 +118,8 @@ def evaluate(dom, prob):
 
 if __name__ == "__main__":
     # single_file_run("\n".join(read_pdkbddl_file(os.path.join("refactored_rpmap", "test_files", "problem_1.pdkbddl"))))
-    args = sys.argv[1:]   # everything after the script name
-    # args = ["romance", "1", "solve"] # for testing
+    # args = sys.argv[1:]   # everything after the script name
+    args = ["pirates", "8", "solve"] # for testing
     args[1] = int(args[1]) # problem number (args[0] is the domain name)
     if args[-1] == "solve":
         evaluate(*args[:-1])

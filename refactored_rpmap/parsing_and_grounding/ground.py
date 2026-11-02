@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 from .utils import create_valuations, cleaned_not, create_and
-from .core.anc_eff import ActionMODLType, PossibleActionMODLType, NOT_MODL, Agent, RMLOrPredTerm, ListCompVar, ListCompAgents, ListCompVarAgents, Nesting, SeparatedRMLTerm
+from .core.anc_eff import ActionMODLType, PossibleActionMODLType, NOT_MODL, Agent, RMLOrPredTerm, ListCompVar, ListCompAgents, ListCompVarAgents, Nesting, SeparatedRMLTerm, MODLTermWNesting
 from pddl.action import Action
 from pddl.exceptions import PDDLValidationError
 from pddl.logic.base import And, Not, ForallCondition
@@ -169,8 +169,6 @@ def gather_itn_preds(formula):
             itn_preds.update(gather_itn_preds([fo.effect]))
         elif isinstance(fo, ListCompVar) or isinstance(fo, ListCompAgents) or isinstance(fo, ListCompVarAgents):
             itn_preds.update(gather_itn_preds([fo.term]))
-        elif isinstance(fo, SeparatedRMLTerm):
-            continue
         else:
             raise NotImplementedError("Unknown formula type: " + str(type(fo)))
     return itn_preds

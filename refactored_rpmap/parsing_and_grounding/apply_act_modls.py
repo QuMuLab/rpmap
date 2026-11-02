@@ -1,12 +1,14 @@
+from collections.abc import Sequence
+
 import pddl.core as pddl_core
 from pddl.action import Action
 from pddl.exceptions import PDDLValidationError
 from pddl.logic.base import And, Not, ForallCondition
 from pddl.logic.effects import Forall, When
 from pddl.logic.predicates import Predicate
-from pddl.logic.terms import Constant, Variable
+from pddl.logic.terms import Variable, Term
 from .core.anc_eff import ActionMODLType, PossibleActionMODLType, NOT_MODL, Agent, RMLOrPredTerm, ListCompVar, ListCompAgents, ListCompVarAgents, Nesting, SeparatedRMLTerm, MODLTermWNesting
-from .utils import create_and
+from .utils import create_and, cleaned_not
 
 
 def act_to_pred(action):
@@ -70,17 +72,68 @@ def create_itn_action_preds(act_dict, problem, anc_effs):
         if operators[i].name in itn_preds:
             action_iap = SeparatedRMLTerm([NOT_MODL(), Nesting(PossibleActionMODLType.PITN, Agent(Variable("itn_ag", ["agent"])))], itn_preds[operators[i].name])
             operators[i] = Action(operators[i].name, operators[i].parameters, operators[i].precondition, create_and(list(operators[i].effect.operands) + [action_iap]), derive_condition=operators[i].derive_condition)
-        action_intention_f.add(act_to_pred(operators[i]))
+            action_intention_f.add(act_to_pred(operators[i]))
     return set(operators), action_intention_f
+
+def check_intention_error(srt: SeparatedRMLTerm, action_names: Sequence[str]):
+    if srt.nestings:
+        n = srt.nestings[-1]
+        if isinstance(n, Nesting) and (isinstance(n.mod_type, ActionMODLType) or isinstance(n.mod_type, PossibleActionMODLType)):
+            for action_name in action_names:
+                if action_name in srt.term.name:
+                    return
+            raise PDDLValidationError(f"Cannot intend a predicate {srt.term}; you can only intend an action.")
+
+def check_format(formula: Sequence, action_names: Sequence[str]):
+    formulas = set()
+    for fo in formula:
+        if isinstance(fo, NOT_MODL) or isinstance(fo, Term):
+            formulas.add(fo)
+        elif isinstance(fo, Predicate):
+            # no predicate should be negated yet, since everything is separated
+            if fo.negated:
+                raise ValueError("Parsing error. Predicates should not be negated yet, as modalities (including negations) have not yet been applied.")
+            formulas.add(fo)
+        elif isinstance(fo, ForallCondition):
+            formulas.add(ForallCondition(create_and(check_format(fo.condition.operands if isinstance(fo.condition, And) else [fo.condition], action_names)), fo.variables))
+        elif isinstance(fo, Forall):
+            formulas.add(Forall(create_and(check_format(fo.effect.operands if isinstance(fo.effect, And) else [fo.effect], action_names)), fo.variables))
+        elif isinstance(fo, And):
+            formulas.add(create_and(check_format(fo.operands, action_names)))
+        elif isinstance(fo, Not):
+            if not isinstance(fo.argument, Predicate) and not isinstance(fo.argument, SeparatedRMLTerm):
+                raise PDDLValidationError(f"'Not' was applied to {type(fo.argument)}. 'Not' can only be applied to an SRT or Predicate.")
+            formulas.add(cleaned_not(list(check_format([fo.argument], action_names))[0]))
+        elif isinstance(fo, When):
+            # for formatting/consistency reasons, we want to force this into being an "And"
+            for e in fo.effect.operands if isinstance(fo.effect, And) else [fo.effect]:
+                formulas.add(When(create_and(check_format([fo.condition], action_names)), create_and(check_format([e], action_names))))
+        elif isinstance(fo, SeparatedRMLTerm):
+            fo = SeparatedRMLTerm(list(check_format(fo.nestings, action_names)), list(check_format([fo.term], action_names))[0])
+            check_intention_error(fo, action_names)
+            formulas.add(fo)
+        elif isinstance(fo, Nesting):
+            if fo.child:
+                raise ValueError("Nestings should not yet be nested (stored in a list, not nested with children).")
+            formulas.add(Nesting(fo.mod_type, Agent(list(check_format([fo.agent.term], action_names))[0])))
+        else:
+            raise NotImplementedError("Unknown formula type: " + str(type(fo)))
+    return formulas
+
+def check_action_format(action: Action, action_names: Sequence[str]):
+    precondition = create_and(check_format(action.precondition.operands, action_names))
+    effect = create_and(check_format(action.effect.operands, action_names))
+    derive_condition = check_format([action.derive_condition], action_names) if action.derive_condition and type(action.derive_condition) != str else action.derive_condition
+    return Action(action.name, action.parameters, precondition, effect, derive_condition=derive_condition)
 
 def normalize_action_form(action):
     precondition = action.precondition if isinstance(action.precondition, And) else create_and([action.precondition])
     effect = action.effect if isinstance(action.effect, And) else create_and([action.effect])
     return Action(action.name, action.parameters, precondition, effect, derive_condition=action.derive_condition)
 
-def apply_action_modls(anc_effs, domain, problem):
+def apply_and_check_intention(anc_effs, domain, problem):
     # ensure the preconditions and actions are all in "And" form
-    actions, action_intention_f = create_itn_action_preds({a.name: a for a in [normalize_action_form(a) for a in domain.actions]}, problem, anc_effs)
+    actions, action_intention_f = create_itn_action_preds({a.name: a for a in [check_action_format(normalize_action_form(a), [a.name for a in domain.actions]) for a in domain.actions]}, problem, anc_effs)
     domain = pddl_core.Domain(
         name=domain.name,
         requirements=domain.requirements,
