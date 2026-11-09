@@ -51,7 +51,7 @@ def agents_transformer(self, args):
     return {"agents": self.agents}
 
 def check_pred_name(pred_name):
-    if pred_name in ["rml", "r", "ag"] or "dlr__" in pred_name:
+    if pred_name in ["rml", "r", "ag"] or "dlr__" in pred_name or "_anc_eff" in pred_name:
         raise PDDLValidationError(f"Cannot use the predicate name '{pred_name}'; it is reserved for ancillary effects.")
 
 def atomic_formula_skeleton(self, args):   
@@ -95,7 +95,7 @@ def return_token_val(self, args):
 def new_action_str(self):
     """New action string adapted from the pddl.action.Action.__str__ method."""
     operator_str = "(:action {0}\n".format(self.name)
-    if not self.grounded_print:
+    if not self.post_processing_print:
         if self.derive_condition:
             operator_str += f"    :derive-condition {recursive_print(self.derive_condition)}\n"
     operator_str += f"    :parameters ({_typed_parameters(self.parameters)})\n"
@@ -111,33 +111,47 @@ def new_action_str(self):
     operator_str += ")"
     return operator_str
 
-def new_predicate_str_rmls_str(self):
+def new_predicate_str_rmls_lifted(self):
     """New predicate string adapted from the pddl.logic.Predicate.__str__ method."""
     p_str = f"{self.name}"
     if self.arity == 0:
         p_str += f")"
     else:
-        terms = f"{'_'.join(map(str, self.terms))})" 
-        p_str = f"{p_str}_{terms}"
+        terms = f"{' '.join(map(str, self.terms))})" 
+        p_str = f"{p_str} {terms}"
     if self.negated:
         p_str = f"(not_{p_str}"
     else:
         p_str = f"({p_str}"
     return p_str   
 
-def new_predicate_str_rmls_repr(self):
-    """New predicate string adapted from the pddl.logic.Predicate.__str__ method."""
-    p_str = f"{self.name}"
-    if self.arity == 0:
-        p_str += f")"
-    else:
-        terms = f"{'_'.join(map(str, self.terms))})" 
-        p_str = f"{p_str}_{terms}"
-    if self.negated:
-        p_str = f"(!{p_str}"
-    else:
-        p_str = f"({p_str}"
-    return p_str   
+# def new_predicate_str_rmls_str(self):
+#     """New predicate string adapted from the pddl.logic.Predicate.__str__ method."""
+#     p_str = f"{self.name}"
+#     if self.arity == 0:
+#         p_str += f")"
+#     else:
+#         terms = f"{'_'.join(map(str, self.terms))})" 
+#         p_str = f"{p_str}_{terms}"
+#     if self.negated:
+#         p_str = f"(not_{p_str}"
+#     else:
+#         p_str = f"({p_str}"
+#     return p_str   
+
+# def new_predicate_str_rmls_repr(self):
+#     """New predicate string adapted from the pddl.logic.Predicate.__str__ method."""
+#     p_str = f"{self.name}"
+#     if self.arity == 0:
+#         p_str += f")"
+#     else:
+#         terms = f"{'_'.join(map(str, self.terms))})" 
+#         p_str = f"{p_str}_{terms}"
+#     if self.negated:
+#         p_str = f"(!{p_str}"
+#     else:
+#         p_str = f"({p_str}"
+#     return p_str   
 
 def new_not_str(self):
     return f"(not {str(self.argument)})"
@@ -161,7 +175,7 @@ def new_domain_str(self):
     result = f"(define (domain {self.name})"
     body = ""
     body += sort_and_print_collection("(:requirements ", self.requirements, ")\n")
-    if not self.grounded_print:
+    if not self.post_processing_print:
         body += f"(:agents {' '.join(sorted(self.agents.keys())) if self.agents.keys() else ''})\n"
     self._types = Types(self.types, self._requirements)
     types_str = print_types_or_functions_with_parents("(:types", self.types, ")\n")
@@ -282,8 +296,9 @@ def modify_domain_classes():
     pddl.logic.effects.When.__repr__ = new_when_repr
     pddl.logic.predicates.Predicate.orig_init = pddl.logic.predicates.Predicate.__init__
     pddl.logic.predicates.Predicate.__init__ = new_predicate_init
-    pddl.logic.predicates.Predicate.__str__ = new_predicate_str_rmls_str
-    pddl.logic.predicates.Predicate.__repr__ = new_predicate_str_rmls_repr
+    pddl.logic.predicates.Predicate.__str__ = new_predicate_str_rmls_lifted
+    # pddl.logic.predicates.Predicate.__str__ = new_predicate_str_rmls_str
+    # pddl.logic.predicates.Predicate.__repr__ = new_predicate_str_rmls_repr
     pddl.logic.predicates.Predicate.__eq__ = new_predicate_eq
     pddl.logic.predicates.Predicate.__hash__ = new_predicate_hash
     setattr(Predicate, "always_known", property(always_known))
@@ -297,8 +312,8 @@ def modify_domain_classes():
     pddl.core.Domain.orig_init = pddl.core.Domain.__init__
     pddl.core.Domain.__init__ = new_domain_init
     pddl.core.Domain.__str__ = new_domain_str
-    pddl.core.Domain.grounded_print = False
-    pddl.core.Action.grounded_print = False
+    pddl.core.Domain.post_processing_print = False
+    pddl.core.Action.post_processing_print = False
 
 def modify_domain_classes_and_transformer():
     modify_domain_classes()

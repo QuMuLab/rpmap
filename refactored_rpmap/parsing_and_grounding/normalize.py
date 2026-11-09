@@ -85,37 +85,37 @@ def check_intention_error(srt: SeparatedRMLTerm, action_names: Sequence[str]):
             raise PDDLValidationError(f"Cannot intend a predicate {srt.term}; you can only intend an action.")
 
 def check_format(formula: Sequence, action_names: Sequence[str]):
-    formulas = set()
+    formulas = []
     for fo in formula:
         if isinstance(fo, NOT_MODL) or isinstance(fo, Term):
-            formulas.add(fo)
+            formulas.append(fo)
         elif isinstance(fo, Predicate):
             # no predicate should be negated yet, since everything is separated
             if fo.negated:
                 raise ValueError("Parsing error. Predicates should not be negated yet, as modalities (including negations) have not yet been applied.")
-            formulas.add(fo)
+            formulas.append(fo)
         elif isinstance(fo, ForallCondition):
-            formulas.add(ForallCondition(create_and(check_format(fo.condition.operands if isinstance(fo.condition, And) else [fo.condition], action_names)), fo.variables))
+            formulas.extend(check_format(fo.condition.operands if isinstance(fo.condition, And) else [fo.condition], action_names))
         elif isinstance(fo, Forall):
-            formulas.add(Forall(create_and(check_format(fo.effect.operands if isinstance(fo.effect, And) else [fo.effect], action_names)), fo.variables))
+            formulas.extend(check_format(fo.effect.operands if isinstance(fo.effect, And) else [fo.effect], action_names))
         elif isinstance(fo, And):
-            formulas.add(create_and(check_format(fo.operands, action_names)))
+            formulas.append(create_and(check_format(fo.operands, action_names)))
         elif isinstance(fo, Not):
             if not isinstance(fo.argument, Predicate) and not isinstance(fo.argument, SeparatedRMLTerm):
                 raise PDDLValidationError(f"'Not' was applied to {type(fo.argument)}. 'Not' can only be applied to an SRT or Predicate.")
-            formulas.add(cleaned_not(list(check_format([fo.argument], action_names))[0]))
+            formulas.append(cleaned_not(list(check_format([fo.argument], action_names))[0]))
         elif isinstance(fo, When):
             # for formatting/consistency reasons, we want to force this into being an "And"
             for e in fo.effect.operands if isinstance(fo.effect, And) else [fo.effect]:
-                formulas.add(When(create_and(check_format([fo.condition], action_names)), create_and(check_format([e], action_names))))
+                formulas.append(When(create_and(check_format([fo.condition], action_names)), create_and(check_format([e], action_names))))
         elif isinstance(fo, SeparatedRMLTerm):
             fo = SeparatedRMLTerm(list(check_format(fo.nestings, action_names)), list(check_format([fo.term], action_names))[0])
             check_intention_error(fo, action_names)
-            formulas.add(fo)
+            formulas.append(fo)
         elif isinstance(fo, Nesting):
             if fo.child:
                 raise ValueError("Nestings should not yet be nested (stored in a list, not nested with children).")
-            formulas.add(Nesting(fo.mod_type, Agent(list(check_format([fo.agent.term], action_names))[0])))
+            formulas.append(Nesting(fo.mod_type, Agent(list(check_format([fo.agent.term], action_names))[0])))
         else:
             raise NotImplementedError("Unknown formula type: " + str(type(fo)))
     return formulas
@@ -129,7 +129,16 @@ def check_action_format(action: Action, action_names: Sequence[str]):
 def normalize_action_form(action):
     precondition = action.precondition if isinstance(action.precondition, And) else create_and([action.precondition])
     effect = action.effect if isinstance(action.effect, And) else create_and([action.effect])
-    return Action(action.name, action.parameters, precondition, effect, derive_condition=action.derive_condition)
+    parameters = list(action.parameters)
+    # gather any special derived condition variables (dlr__*) and add them to the parameters list
+    if action.derive_condition:
+        dc_vars = set()
+        if isinstance(action.derive_condition, SeparatedRMLTerm):
+            dc_vars.update([n.agent.term for n in action.derive_condition.nestings if isinstance(n, Nesting)])
+            dc_vars.update(action.derive_condition.term.terms)
+        dlr_vars = {v for v in dc_vars if "dlr__" in v.name}
+        parameters.extend(dlr_vars)
+    return Action(action.name, parameters, precondition, effect, derive_condition=action.derive_condition)
 
 def apply_and_check_intention(anc_effs, domain, problem):
     # ensure the preconditions and actions are all in "And" form

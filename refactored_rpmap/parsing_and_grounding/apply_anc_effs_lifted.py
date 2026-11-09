@@ -23,14 +23,14 @@ class ApplyAncEffs:
         self.pred: Predicate = None
         self.nesting_terms: list[list[list[Nesting]]] = None
         self.raw_conds: list[Not | SeparatedRMLTerm | Predicate] = None
-        self.assignment: dict[Variable, str] = {}
+        self.var_match: dict[Variable, Variable] = {}
         self.max_depth_detected = 0
 
     def reset(self):
         self.rml = None
         self.pred = None
         self.nesting_terms = None
-        self.assignment = {}
+        self.var_match = {}
         self.raw_conds = None
         self.max_depth_detected = 0
 
@@ -57,7 +57,7 @@ class ApplyAncEffs:
                     self.nesting_terms.append([])
                     self.nesting_terms.append(nesting_terms)
                     self.nesting_terms = [self.nesting_terms]
-                    self.assignment[nesting_term.modl.agent.term] = cond.nestings[0].agent.term
+                    self.var_match[nesting_term.modl.agent.term] = cond.nestings[0].agent.term
                     return True
                 self.nesting_terms = None
                 return False
@@ -67,7 +67,7 @@ class ApplyAncEffs:
                     self.nesting_terms.append(nesting_terms)
                     self.nesting_terms.append([])
                     self.nesting_terms = [self.nesting_terms]
-                    self.assignment[nesting_term.modl.agent.term] = cond.nestings[-1].agent.term
+                    self.var_match[nesting_term.modl.agent.term] = cond.nestings[-1].agent.term
                     return True
                 self.nesting_terms = None
                 return False
@@ -76,12 +76,12 @@ class ApplyAncEffs:
                 if not found_idxs:
                     self.nesting_terms = None
                     return False
-                self.assignment[nesting_term.modl.agent.term] = list()
+                self.var_match[nesting_term.modl.agent.term] = list()
                 for i in found_idxs:
                     nesting_terms = [cond.nestings[:i]]
                     nesting_terms.append(cond.nestings[i + 1:]  if i < len(cond.nestings) - 1 else [])
                     self.nesting_terms.append(nesting_terms)
-                    self.assignment[nesting_term.modl.agent.term].append(cond.nestings[i].agent.term)
+                    self.var_match[nesting_term.modl.agent.term].append(cond.nestings[i].agent.term)
                 return True
             else:
                 raise PDDLValidationError("Unknown {nesting} term type " + str(type(nesting_term)))
@@ -98,13 +98,13 @@ class ApplyAncEffs:
                 if ant_rml.nestings[i].mod_type != cond.nestings[i].mod_type:
                     return False
                 if isinstance(ant_rml.nestings[i], Nesting):
-                    self.assignment[ant_rml.nestings[i].agent.term] = cond.nestings[i].agent.term
+                    self.var_match[ant_rml.nestings[i].agent.term] = cond.nestings[i].agent.term
             return True
 
     def check_ant_match(self, ant_rml: SeparatedRMLTerm, ant_rml_type: str, next_term: Not | When | SeparatedRMLTerm, awareness: bool = False, derive_condition: str | SeparatedRMLTerm = "never"):
         # if dealing with a When statement, we need to compare against the When effect.
         if isinstance(next_term, When):
-            # note that When formulas already been grounded such that every When has only one effect
+            # note that When formulas already been normalized such that every When has only one effect
             # there is a possibility it is a Not instead though
             next_term = next_term.effect.operands[0] if isinstance(next_term.effect, And) else next_term.effect
         # compare Not status with the antecedent type status
@@ -112,7 +112,7 @@ class ApplyAncEffs:
             return False
         # if dealing with a Not statement, we need to compare against the argument.
         if isinstance(next_term, Not): 
-            # Not has been checked in grounding such that it can take an RML, Predicate, or SeparatedRMLTerm
+            # Not has been checked in normalization such that it can take an RML, Predicate, or SeparatedRMLTerm
             next_term = next_term.argument
         if awareness:
             if derive_condition == "never":
@@ -171,7 +171,7 @@ class ApplyAncEffs:
                         return False
                 if ant_rml.term.name == next_term.term.name and ant_rml.term.arity == next_term.term.arity:
                     for i in range(len(ant_rml.term.terms)):
-                        self.assignment[ant_rml.term.terms[i]] = next_term.term.terms[i]
+                        self.var_match[ant_rml.term.terms[i]] = next_term.term.terms[i]
                     return True
                 return False
             else:
@@ -193,24 +193,37 @@ class ApplyAncEffs:
         else:
             raise ValueError(f"Unknown variable {var}.")
 
+    def get_var_match(self, var: Variable):
+        """Match an ancillary effect variable to the corresponding variable in the action's precondition/effect."""
+        if var in self.var_match:
+            return self.var_match[var]
+        else:
+            # we need to come up with a new variable name, so that the meaning isn't accidentally overloaded with an existing action parameter...
+            # these variables will be added to the action parameters downstream.
+            # since multiple ancillary effects can introduce new variables, we want to combine these as much as possible,
+            # and just generalize based on the variable type.
+            self.var_match[var] = Variable("_".join(var.type_tags) + "_anc_eff", var.type_tags)
+            self.parameters.add(self.var_match[var])
+            return self.var_match[var]
+
     def ground_srt(self, new_rml: SeparatedRMLTerm):
+        # note: a variable is not in self.var_match, then the ancillary effect introduced a new variable.
+        # this is OK, it just means there are variables not strictly used for unification.
         nestings = []
         for n in new_rml.nestings:
             if isinstance(n, Nesting):
-                nestings.append(Nesting(n.mod_type, Agent(self.assignment[n.agent.term])) if isinstance(n.agent.term, Variable) else n)
+                nestings.append(Nesting(n.mod_type, Agent(self.get_var_match(n.agent.term))) if isinstance(n.agent.term, Variable) else n)
             elif isinstance(n, MODLTermWNesting):
-                nestings.append(n.__class__(Nesting(n.modl.mod_type, Agent(self.assignment[n.modl.agent.term]))) if isinstance(n.modl.agent.term, Variable) else n)
+                nestings.append(n.__class__(Nesting(n.modl.mod_type, Agent(self.get_var_match(n.modl.agent.term)))) if isinstance(n.modl.agent.term, Variable) else n)
             elif isinstance(n, NOT_MODL):
                 nestings.append(n)
             else:
                 raise ValueError(f"Unknown nesting type {type(n)}.")
         if isinstance(new_rml.term, Predicate):
             terms = list(new_rml.term.terms)
-            ak = new_rml.term.always_known
-            negated = new_rml.term.negated
             for i in range(len(terms)):
                 if isinstance(terms[i], Variable):
-                    terms[i] = self.assignment[terms[i]]
+                    terms[i] = self.get_var_match(terms[i])
             term = Predicate(new_rml.term.name, *tuple(terms), always_known=new_rml.term.always_known, negated=new_rml.term.negated)
         else:
             term = new_rml.term
@@ -295,14 +308,14 @@ class ApplyAncEffs:
         elif isinstance(cond_or_rml, ListCompAgents):
             rmls = []
             for ag in self.agents.values():
-                self.assignment[Variable("ag", ["agent"])] = ag
+                # self.assignment[Variable("ag", ["agent"])] = ag
                 rmls.append(self.apply_rml(cond_or_rml.term))
             return rmls
         elif isinstance(cond_or_rml, ListCompVarAgents):
             rmls = []
             pos_or_neg_conds = self.get_pos_or_neg_conds(cond_or_rml.var)
             for ag in self.agents.values():
-                self.assignment[Variable("ag", ["agent"])] = ag
+                # self.assignment[Variable("ag", ["agent"])] = ag
                 for c in pos_or_neg_conds:
                     self.r = c
                     rmls.append(self.apply_rml(cond_or_rml.term))
@@ -349,12 +362,8 @@ class ApplyAncEffs:
                 term._operands[i] = ApplyAncEffs.simplify_always_known(term.operands[i])
             return list({ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(t)): self.simplify_and_check_depth(t) for t in term.operands}.values())
         elif isinstance(term, When):
-            cond = self.simplify_and_check_depth(term.condition)
-            eff = self.simplify_and_check_depth(term.effect)
             when = When(create_and(self.simplify_and_check_depth(term.condition)), create_and(self.simplify_and_check_depth(term.effect)))
-            if len(when.effect.operands) > 1:
-                return [When(when.condition, create_and([e])) for e in when.effect.operands]
-            return [when]
+            return [When(when.condition, create_and([e])) for e in when.effect.operands] if len(when.effect.operands) > 1 else [when]
         else:
             raise ValueError(f"Unknown type {type(term)}.")
 
@@ -372,34 +381,17 @@ class ApplyAncEffs:
     def apply_anc_eff_all_nestings(self, anc_eff_cons: Consequent, next_term, awareness: bool, derive_condition: str | SeparatedRMLTerm):
         if self.nesting_terms:
             all_nesting_terms = [n for n in self.nesting_terms]
-            all_nesting_assignments = {var: cond for var, cond in self.assignment.items()}
+            all_nesting_assignments = {var: cond for var, cond in self.var_match.items()}
             results = []
-            for n in self.nesting_terms:
+            for _ in self.nesting_terms:
                 self.nesting_terms = all_nesting_terms.pop(0)
                 for var in all_nesting_assignments:
                     if type(all_nesting_assignments[var]) == list:
-                        self.assignment[var] = all_nesting_assignments[var].pop(0)
+                        self.var_match[var] = all_nesting_assignments[var].pop(0)
                 results.extend(self.apply_anc_eff(anc_eff_cons, next_term, awareness, derive_condition))
             return results
         else:
             return self.apply_anc_eff(anc_eff_cons, next_term, awareness, derive_condition)
-
-    def apply_anc_eff_all_anceff_vars(self, anc_eff: AncEff, next_term, awareness: bool, derive_condition: str | SeparatedRMLTerm):
-        all_relevant_vars = anc_eff.vars
-        if isinstance(derive_condition, SeparatedRMLTerm):
-            all_relevant_vars.update([n.agent.term for n in derive_condition.nestings if isinstance(n, Nesting)])
-        dlr_vars = {v for v in all_relevant_vars if "dlr__" in v.name}
-        if dlr_vars:
-            results = []
-            val_generator = create_valuations(self.domain.gathered_constants, dlr_vars)
-            for valuation in val_generator:
-                for var, val in zip(dlr_vars, valuation):
-                    self.assignment[var] = val
-                results.extend(self.apply_anc_eff_all_nestings(anc_eff.consequent, next_term, awareness, derive_condition))
-            return results
-        else:
-            return self.apply_anc_eff_all_nestings(anc_eff.consequent, next_term, awareness, derive_condition)
-
 
     @staticmethod
     def sort_operands(term: And):
@@ -477,27 +469,25 @@ class ApplyAncEffs:
                     for td in to_del:
                         del processed_conds[ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(td))]
                     
-                # if next_term_rep == "(when (and (at_bob_l1)) (and [BEL, bob](secret_alice)))":
-                #     print()
                 processed_conds[next_term_rep] = next_term
 
-                # if len(processed_conds) > 5000:
-                    # return list(processed_conds.values())[1:]
-                # print("anceffs for action: ", len(processed_conds))
                 for anc_eff in anc_effs.values():
                     if self.check_ant_match(anc_eff.antecedent.rml, anc_eff.antecedent.anceff_type, next_term, anc_eff.antecedent.awareness, derive_condition):
-                        new_terms = self.apply_anc_eff_all_anceff_vars(anc_eff, next_term, anc_eff.antecedent.awareness, derive_condition)
-                        # if anc_eff.name == "mutual-awareness-pos__belief":
-                        #     print()
+                        if anc_eff.name == "scout-share-flag-info":
+                            print()
+                        print(f"Applying {anc_eff.name} to {next_term_rep}...")
+                        new_terms = self.apply_anc_eff_all_nestings(anc_eff.consequent, next_term, anc_eff.antecedent.awareness, derive_condition)
                         if self.max_depth_detected > self.problem.depth:
-                            # print("DEPTH TOO HIGH")
                             self.reset()
                             continue
+                        print("New terms generated:")
                         for new_term in new_terms:
                             if ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(new_term)) not in processed_conds:
                                 new_term.id = ApplyAncEffs.gen_id(new_term)
                                 new_term.comment = anc_eff.name + f" id({new_term.id}) / parent({next_term.id})"
                                 condleft.append(new_term)
+                            print(ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(new_term)))
+                        print()
                     self.reset()
             if time.time() - self.start > self.timeout:
                 raise TimeoutError("Preprocessing exceeded 30-minute time limit.")
@@ -557,19 +547,20 @@ class ApplyAncEffs:
         self.domain._predicates = [ApplyAncEffs.term_to_rml(p) for p in all_rmls.values()]
         anc_effs_count = 0
         for action in self.domain.actions:
-            # if action.name == "fight_alice_cindy_island":
-                for o in action.effect.operands:
-                    new_terms = self.apply_anc_effs_to_action(o, action.derive_condition, action.precondition)
-                    if new_terms:
-                        action.effect._operands.extend(new_terms)
-                        # print(anc_effs_count)
-                        anc_effs_count += len(new_terms)
-                    if time.time() - self.start > self.timeout:
-                        raise TimeoutError("Preprocessing exceeded 30-minute time limit.")
+            self.parameters = set(action.parameters)
+            for o in action.effect.operands:
+                new_terms = self.apply_anc_effs_to_action(o, action.derive_condition, action.precondition)
+                if new_terms:
+                    action.effect._operands.extend(new_terms)
+                    # print(anc_effs_count)
+                    anc_effs_count += len(new_terms)
+                if time.time() - self.start > self.timeout:
+                    raise TimeoutError("Preprocessing exceeded 30-minute time limit.")
+            action._parameters = self.parameters
 
         # apply closure to everything in the initial state
         self.problem._init = list(self.problem.init)
-        closure_anc_effs = ["kd45closure__belief", "kd45closure__desire", "kd45closure__intention"]#, "kd45closure__disdain", "kd45closure__love"]
+        closure_anc_effs = ["kd45closure__belief", "kd45closure__desire"]#, "kd45closure__intention"]#, "kd45closure__disdain", "kd45closure__love"]
         init_closure = []
         for init_rml in self.problem.init:
             init_closure.extend(self.apply_anc_effs_to_action(init_rml, "never", And(), closure_anc_effs))

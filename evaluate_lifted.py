@@ -3,7 +3,7 @@ from refactored_rpmap.parsing_and_grounding.core.domain import construct_domain_
 from refactored_rpmap.parsing_and_grounding.core.problem import construct_problem_grammar
 from refactored_rpmap.parsing_and_grounding.utils import write
 from refactored_rpmap.parsing_and_grounding.apply_anc_effs_lifted import ApplyAncEffs
-from refactored_rpmap.parsing_and_grounding.apply_act_modls import apply_and_check_intention
+from refactored_rpmap.parsing_and_grounding.normalize import apply_and_check_intention
 from pddl.parser import GRAMMAR_FILE
 import pddl
 import os
@@ -102,6 +102,8 @@ def eval_single(dom, problem_num, num_agents, parser):
     anc_effs, domain, problem = [anc_eff for anc_eff_set in parse_result[1] for anc_eff in anc_eff_set], parse_result[0], parse_result[2]
     domain = apply_and_check_intention(anc_effs, domain, problem)
     domain, problem, anc_effs_count = ApplyAncEffs(anc_effs, domain, problem).apply_anc_effs()
+    pddl.core.Domain.post_processing_print = True
+    pddl.core.Action.post_processing_print = True
     write(new_dom_path, str(domain))
     write(new_prob_path, str(problem))
     preprocessing_time = time.time() - t0
@@ -116,7 +118,7 @@ def evaluate(dom, prob):
 if __name__ == "__main__":
     # single_file_run("\n".join(read_pdkbddl_file(os.path.join("refactored_rpmap", "test_files", "problem_1.pdkbddl"))))
     # args = sys.argv[1:]   # everything after the script name
-    args = ["pirates", "8", "solve"] # for testing
+    args = ["capture-the-flag", "10", "solve"] # for testing
     args[1] = int(args[1]) # problem number (args[0] is the domain name)
     if args[-1] == "solve":
         evaluate(*args[:-1])

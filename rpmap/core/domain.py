@@ -114,7 +114,7 @@ def new_action_str(self):
     """New action string adapted from the pddl.action.Action.__str__ method."""
     # TODO: add support for derived conditions
     operator_str = "(:action {0}\n".format(self.name)
-    if not self.grounded_print:
+    if not self.post_processing_print:
         if self.derive_condition:
             operator_str += f"    :derive-condition {recursive_print(self.derive_condition)}\n"
     operator_str += f"    :parameters ({_typed_parameters(self.parameters)})\n"
@@ -174,7 +174,7 @@ def new_domain_str(self):
     result = f"(define (domain {self.name})"
     body = ""
     body += sort_and_print_collection("(:requirements ", self.requirements, ")\n")
-    if not self.grounded_print:
+    if not self.post_processing_print:
         body += f"(:agents {' '.join(sorted(self._agents)) if self._agents else ''})\n"
     # del self.types["agent"]  # remove agents from types
     self._types = Types(self.types, self._requirements)
@@ -296,7 +296,7 @@ def construct_domain_grammar(print_rml_style=True):
     pddl.core.Domain.orig_init = pddl.core.Domain.__init__
     pddl.core.Domain.__init__ = new_init_domain
     pddl.core.Domain.__str__ = new_domain_str
-    pddl.core.Domain.grounded_print = False
-    pddl.core.Action.grounded_print = False
+    pddl.core.Domain.post_processing_print = False
+    pddl.core.Action.post_processing_print = False
     # delete the start attribute (a new start rule will be made)
     delattr(domain.DomainTransformer, "start")

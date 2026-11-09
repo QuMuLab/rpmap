@@ -15,14 +15,14 @@ from ..utils import return_option
 class GenericMODLType(Enum):
     BEL = 1
     DES = 2
-    DSD = 3
-    LOV = 4
+    # DSD = 3
+    # LOV = 4
 
 class PossibleGenericMODLType(Enum):
     PBEL = 1
     PDES = 2
-    PDSD = 3
-    PLOV = 4
+    # PDSD = 3
+    # PLOV = 4
 
 class ActionMODLType(Enum):
     ITN = 1
@@ -463,9 +463,9 @@ class AncEff:
                 continue
             if not self.parameters or a not in self.parameters:
                 raise PDDLValidationError(f"Variable {a} not in the ancillary effect {self.name} parameters, {self.parameters}.")
-        diff = {d for d in cons_vars - ant_vars if d.name != "ag" and "dlr__" not in d.name}
-        if diff:
-            raise PDDLValidationError(f"The consequent in the ancillary effect {name} contains variables {diff} not referenced in the antecedent.")
+        # diff = {d for d in cons_vars - ant_vars if d.name != "ag" and "dlr__" not in d.name}
+        # if diff:
+        #     raise PDDLValidationError(f"The consequent in the ancillary effect {name} contains variables {diff} not referenced in the antecedent.")
         ant_terms_w_nesting_types = {type(term) for term in antecedent.rml.nestings if isinstance(term, MODLTermWNesting)}
         cons_terms_w_nesting_types = {type(term) for rml in consequent.rml if isinstance(rml, SeparatedRMLTerm) for term in rml.nestings if isinstance(term, MODLTermWNesting)}
         if ant_terms_w_nesting_types != cons_terms_w_nesting_types:

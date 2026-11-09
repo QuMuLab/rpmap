@@ -103,8 +103,8 @@ def eval_single(dom, problem_num, num_agents, parser):
     anc_effs, grounded_domain, grounded_problem = (anc_effs, *ground(anc_effs, parse_result[0], parse_result[2]))
     print("Applying conditional effects...")
     domain, problem, anc_effs_count = ApplyAncEffs(anc_effs, grounded_domain, grounded_problem).apply_anc_effs()
-    pddl.core.Domain.grounded_print = True
-    pddl.core.Action.grounded_print = True
+    pddl.core.Domain.post_processing_print = True
+    pddl.core.Action.post_processing_print = True
     write(grounded_dom_path, str(domain))
     write(grounded_prob_path, str(problem))
     preprocessing_time = time.time() - t0
@@ -119,7 +119,7 @@ def evaluate(dom, prob):
 if __name__ == "__main__":
     # single_file_run("\n".join(read_pdkbddl_file(os.path.join("refactored_rpmap", "test_files", "problem_1.pdkbddl"))))
     # args = sys.argv[1:]   # everything after the script name
-    args = ["pirates", "8", "solve"] # for testing
+    args = ["capture-the-flag", "2", "solve"] # for testing
     args[1] = int(args[1]) # problem number (args[0] is the domain name)
     if args[-1] == "solve":
         evaluate(*args[:-1])
