@@ -1,5 +1,5 @@
 from .core.anc_eff import *
-from .utils import cleaned_not, create_and, create_valuations
+from .utils import cleaned_not, create_and
 from pddl.core import Domain, Problem
 from pddl.exceptions import PDDLValidationError
 from pddl.logic.base import Not, And
@@ -230,6 +230,24 @@ class ApplyAncEffs:
         return SeparatedRMLTerm(nestings, term)
 
     @staticmethod
+    def rml_to_lifted_rml(rml: Predicate | RML | Not):
+        if isinstance(rml, Predicate):
+            return rml
+        elif isinstance(rml, Not):
+            return cleaned_not(ApplyAncEffs.rml_to_lifted_rml(rml.argument))
+        else:
+            modls = {rml.mod_type.name: rml.agent.term}
+            current = rml
+            while isinstance(current.child, RML):
+                current = current.child
+                if isinstance(current, RML):
+                    modls[current.mod_type.name] = current.agent.term
+            modl_names = list(modls.keys())
+            if current._get_root().negated:
+                modl_names.append("not")
+            return Predicate("_".join(modl_names) + "_" + current._get_root().name, *modls.values(), *current._get_root().terms)
+
+    @staticmethod
     def terms_to_rml(terms: list[Nesting | NOT_MODL | Predicate]):
         for i in range(len(terms) - 2, - 1, - 1):
             terms[i] = cleaned_not(terms[i + 1]) if terms[i] == Not else terms[i](terms[i + 1])
@@ -251,15 +269,18 @@ class ApplyAncEffs:
         return ApplyAncEffs.terms_to_rml(rml_terms)
 
     @staticmethod
-    def term_to_rml(term: And | When | SeparatedRMLTerm | Not | Predicate, existing_nestings: list[Nesting | NOT_MODL] = None):
+    def term_to_rml(term: And | When | SeparatedRMLTerm | Not | Predicate, existing_nestings: list[Nesting | NOT_MODL] = None, to_lifted=False):
         if isinstance(term, Predicate):
             return term
-        elif isinstance(term, SeparatedRMLTerm) or isinstance(term, Not):
-            return ApplyAncEffs.srt_to_rml(term, existing_nestings)
+        elif isinstance(term, Not):
+            return cleaned_not(ApplyAncEffs.term_to_rml(term.argument, existing_nestings, to_lifted))
+        elif isinstance(term, SeparatedRMLTerm):
+            rml = ApplyAncEffs.srt_to_rml(term, existing_nestings)
+            return ApplyAncEffs.rml_to_lifted_rml(rml) if to_lifted else rml
         elif isinstance(term, And):
-            return create_and([ApplyAncEffs.term_to_rml(o, existing_nestings) for o in term.operands])
+            return create_and([ApplyAncEffs.term_to_rml(o, existing_nestings, to_lifted) for o in term.operands])
         elif isinstance(term, When):
-            return When(ApplyAncEffs.term_to_rml(term.condition, existing_nestings), ApplyAncEffs.term_to_rml(term.effect, existing_nestings))
+            return When(ApplyAncEffs.term_to_rml(term.condition, existing_nestings, to_lifted), ApplyAncEffs.term_to_rml(term.effect, existing_nestings, to_lifted))
         else:
             raise ValueError(f"Invalid term type: {type(term)}")
 
@@ -347,7 +368,7 @@ class ApplyAncEffs:
         if isinstance(operand_term, SeparatedRMLTerm):
             return SeparatedRMLTerm([n for n in operand_term.nestings if isinstance(n, NOT_MODL)], operand_term.term) if operand_term.term.always_known and operand_term.nestings else operand_term
         elif isinstance(operand_term, Not):
-            return Not(ApplyAncEffs.simplify_always_known(operand_term.argument))
+            return cleaned_not(ApplyAncEffs.simplify_always_known(operand_term.argument))
         else:
             raise ValueError(f"Unknown term type type(term)")
 
@@ -575,21 +596,16 @@ class ApplyAncEffs:
                 if not rml.term.always_known and ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(neg_rml)) not in init_strs and rml_str[0] == "<":
                     self.problem._init.append(rml)
 
-        # now we need to convert everything to RMLs
+        # now we need to convert everything to lifted RMLs
+        self.domain._predicates = [ApplyAncEffs.rml_to_lifted_rml(p) for p in self.domain.predicates]
         for action in self.domain.actions:
-            action._derive_condition = ApplyAncEffs.term_to_rml(action.derive_condition) if isinstance(action.derive_condition, SeparatedRMLTerm) else action.derive_condition
+            action._derive_condition = ApplyAncEffs.term_to_rml(action.derive_condition, to_lifted=True) if isinstance(action.derive_condition, SeparatedRMLTerm) else action.derive_condition
             for i in range(len(action.precondition._operands)):
-                action.precondition._operands[i] = ApplyAncEffs.term_to_rml(action.precondition._operands[i])
+                action.precondition._operands[i] = ApplyAncEffs.term_to_rml(action.precondition._operands[i], to_lifted=True)
             for i in range(len(action.effect._operands)):
                 comment = action.effect._operands[i].comment if hasattr(action.effect._operands[i], "comment") else None
-                action.effect._operands[i] = ApplyAncEffs.term_to_rml(action.effect._operands[i])
+                action.effect._operands[i] = ApplyAncEffs.term_to_rml(action.effect._operands[i], to_lifted=True)
                 action.effect._operands[i].comment = comment
-        self.problem._init = list(self.problem.init)
-        self.problem._goal = list(self.problem.goal)
-        for i in range(len(self.problem.init)):
-            self.problem._init[i] = ApplyAncEffs.term_to_rml(self.problem.init[i])
-        for i in range(len(self.problem.goal)):
-            self.problem._goal[i] = ApplyAncEffs.term_to_rml(self.problem.goal[i])
-        self.problem._init = frozenset(self.problem.init)
-        self.problem._goal = [create_and(self.problem.goal)]
+        self.problem._init = frozenset([ApplyAncEffs.term_to_rml(init_rml, to_lifted=True) for init_rml in self.problem.init])
+        self.problem._goal = [create_and([ApplyAncEffs.term_to_rml(goal_rml, to_lifted=True) for goal_rml in self.problem.goal])]
         return self.domain, self.problem, anc_effs_count

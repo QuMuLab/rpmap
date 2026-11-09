@@ -334,9 +334,9 @@ class ApplyAncEffs:
         if isinstance(operand_term, SeparatedRMLTerm):
             return SeparatedRMLTerm([n for n in operand_term.nestings if isinstance(n, NOT_MODL)], operand_term.term) if operand_term.term.always_known and operand_term.nestings else operand_term
         elif isinstance(operand_term, Not):
-            return Not(ApplyAncEffs.simplify_always_known(operand_term.argument))
+            return cleaned_not(ApplyAncEffs.simplify_always_known(operand_term.argument))
         else:
-            raise ValueError(f"Unknown term type type(term)")
+            raise ValueError(f"Unknown term type {type(operand_term)}")
 
     def simplify_and_check_depth(self, term: When | And | Not | SeparatedRMLTerm):
         if isinstance(term, Predicate) or isinstance(term, Not):

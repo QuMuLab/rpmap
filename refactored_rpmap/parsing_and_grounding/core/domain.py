@@ -111,19 +111,19 @@ def new_action_str(self):
     operator_str += ")"
     return operator_str
 
-def new_predicate_str_rmls_lifted(self):
-    """New predicate string adapted from the pddl.logic.Predicate.__str__ method."""
-    p_str = f"{self.name}"
-    if self.arity == 0:
-        p_str += f")"
-    else:
-        terms = f"{' '.join(map(str, self.terms))})" 
-        p_str = f"{p_str} {terms}"
-    if self.negated:
-        p_str = f"(not_{p_str}"
-    else:
-        p_str = f"({p_str}"
-    return p_str   
+# def new_predicate_str_rmls_lifted(self):
+#     """New predicate string adapted from the pddl.logic.Predicate.__str__ method."""
+#     p_str = f"{self.name}"
+#     if self.arity == 0:
+#         p_str += f")"
+#     else:
+#         terms = f"{' '.join(map(str, self.terms))})" 
+#         p_str = f"{p_str} {terms}"
+#     if self.negated:
+#         p_str = f"(not_{p_str}"
+#     else:
+#         p_str = f"({p_str}"
+#     return p_str   
 
 # def new_predicate_str_rmls_str(self):
 #     """New predicate string adapted from the pddl.logic.Predicate.__str__ method."""
@@ -139,19 +139,19 @@ def new_predicate_str_rmls_lifted(self):
 #         p_str = f"({p_str}"
 #     return p_str   
 
-# def new_predicate_str_rmls_repr(self):
-#     """New predicate string adapted from the pddl.logic.Predicate.__str__ method."""
-#     p_str = f"{self.name}"
-#     if self.arity == 0:
-#         p_str += f")"
-#     else:
-#         terms = f"{'_'.join(map(str, self.terms))})" 
-#         p_str = f"{p_str}_{terms}"
-#     if self.negated:
-#         p_str = f"(!{p_str}"
-#     else:
-#         p_str = f"({p_str}"
-#     return p_str   
+def new_predicate_str_rmls_repr(self):
+    """New predicate string adapted from the pddl.logic.Predicate.__str__ method."""
+    p_str = f"{self.name}"
+    if self.arity == 0:
+        p_str += f")"
+    else:
+        terms = f"{' '.join(map(str, self.terms))})" 
+        p_str = f"{p_str} {terms}"
+    if self.negated:
+        p_str = f"(!{p_str}"
+    else:
+        p_str = f"({p_str}"
+    return p_str   
 
 def new_not_str(self):
     return f"(not {str(self.argument)})"
@@ -296,9 +296,9 @@ def modify_domain_classes():
     pddl.logic.effects.When.__repr__ = new_when_repr
     pddl.logic.predicates.Predicate.orig_init = pddl.logic.predicates.Predicate.__init__
     pddl.logic.predicates.Predicate.__init__ = new_predicate_init
-    pddl.logic.predicates.Predicate.__str__ = new_predicate_str_rmls_lifted
+    # pddl.logic.predicates.Predicate.__str__ = new_predicate_str_rmls_lifted
     # pddl.logic.predicates.Predicate.__str__ = new_predicate_str_rmls_str
-    # pddl.logic.predicates.Predicate.__repr__ = new_predicate_str_rmls_repr
+    pddl.logic.predicates.Predicate.__repr__ = new_predicate_str_rmls_repr
     pddl.logic.predicates.Predicate.__eq__ = new_predicate_eq
     pddl.logic.predicates.Predicate.__hash__ = new_predicate_hash
     setattr(Predicate, "always_known", property(always_known))
