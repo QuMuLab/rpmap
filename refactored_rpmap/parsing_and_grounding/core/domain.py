@@ -9,6 +9,7 @@ from pddl.formatter import (
     print_types_or_functions_with_parents,
     remove_empty_lines,
     sort_and_print_collection,
+    print_predicates_with_types
 )
 from pddl.helpers.base import _typed_parameters
 from pddl.logic.predicates import Predicate
@@ -168,6 +169,25 @@ def new_and_repr(self):
 
 def new_when_repr(self):
     return f"(when {repr(self.condition)} {repr(self.effect)})"
+
+def single_predicate_print_types(p: Predicate):
+    """Taken from the pddl.formatter.print_predicates_with_types function, but modified to only print a single predicate."""
+    if p.arity == 0:
+        result = f"({p.name})"
+    else:
+        result = f"({p.name}"
+        for t in p.terms:
+            if len(t.type_tags) > 1:
+                result += f" ?{t.name} - (either {' '.join(sorted(t.type_tags))})"
+            else:
+                result += (
+                    f" ?{t.name} - {sorted(t.type_tags)[0]}"
+                    if t.type_tags
+                    else f" ?{t.name}"
+                )
+        result += ") "
+    result += " "
+    return result
     
 def new_domain_str(self):
     """New domain string adapted from the pddl.core.Domain.__str__ method."""
@@ -183,8 +203,8 @@ def new_domain_str(self):
     body += types_str
     body += print_constants("(:constants", self.constants, ")\n")
     if self.predicates:
-        predicates_str = NL_AND_TAB.join([str(p) for p in self.predicates])
-        body += f"(:predicates{NL_AND_TAB}{predicates_str}\n)\n"
+        pred_strs = NL_AND_TAB.join([single_predicate_print_types(p) for p in self.predicates])
+        body += f"(:predicates{NL_AND_TAB}{pred_strs}\n)\n"
     if self.functions:
         body += print_types_or_functions_with_parents(
             "(:functions", self.functions, ")\n", print_function_skeleton

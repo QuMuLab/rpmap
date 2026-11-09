@@ -32,7 +32,7 @@ def goal_transformer(self, args):
 def init_type_transformer(self, args):
     """Transformer for the problem init type."""
     args = basic_tokens_transformer(self, args)
-    return ("init_type", args[2].value) 
+    return ("init_type", args[2].value if args[2] else "") 
 
 def plan_transformer(self, args):
 #     """Transformer for the problem plan."""
@@ -188,7 +188,7 @@ def construct_problem_grammar():
     inject_problem_grammar("projection", "LPAR PROJECTION RPAR", projection_transformer)
     inject_problem_grammar("depth", "LPAR DEPTH NUMBER RPAR", depth_transformer)
     inject_problem_grammar("task", "LPAR TASK require_task_key RPAR", task_transformer)
-    inject_problem_grammar("init_type", "LPAR INIT_TYPE COMPLETE RPAR", init_type_transformer)
+    inject_problem_grammar("init_type", "LPAR INIT_TYPE [COMPLETE] RPAR", init_type_transformer)
     inject_problem_grammar("plan_def", "LPAR PLAN init_f* RPAR", plan_transformer)
     inject_problem_grammar("goal", "LPAR GOAL problem__gd RPAR", goal_transformer)
     inject_problem_grammar("and_init_f", "LPAR AND init_f* RPAR", problem__gd)

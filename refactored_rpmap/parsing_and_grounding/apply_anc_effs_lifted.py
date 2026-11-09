@@ -202,8 +202,15 @@ class ApplyAncEffs:
             # these variables will be added to the action parameters downstream.
             # since multiple ancillary effects can introduce new variables, we want to combine these as much as possible,
             # and just generalize based on the variable type.
-            self.var_match[var] = Variable("_".join(var.type_tags) + "_anc_eff", var.type_tags)
-            self.parameters.add(self.var_match[var])
+            var_name = "_".join(var.type_tags) + "_anc_eff"
+            for existing_var in reversed(list(self.var_match.values())):
+                if var_name in existing_var.name:
+                    var_name, idx = existing_var.name.split("__")
+                    self.var_match[var] = Variable(f"{var_name}__{int(idx) + 1}", var.type_tags)
+                    self.parameters.append(self.var_match[var])
+                    return self.var_match[var]
+            self.var_match[var] = Variable(f"{var_name}__0", var.type_tags)
+            self.parameters.append(self.var_match[var])
             return self.var_match[var]
 
     def ground_srt(self, new_rml: SeparatedRMLTerm):
@@ -494,21 +501,19 @@ class ApplyAncEffs:
 
                 for anc_eff in anc_effs.values():
                     if self.check_ant_match(anc_eff.antecedent.rml, anc_eff.antecedent.anceff_type, next_term, anc_eff.antecedent.awareness, derive_condition):
-                        if anc_eff.name == "scout-share-flag-info":
-                            print()
-                        print(f"Applying {anc_eff.name} to {next_term_rep}...")
+                        # print(f"Applying {anc_eff.name} to {next_term_rep}...")
                         new_terms = self.apply_anc_eff_all_nestings(anc_eff.consequent, next_term, anc_eff.antecedent.awareness, derive_condition)
                         if self.max_depth_detected > self.problem.depth:
                             self.reset()
                             continue
-                        print("New terms generated:")
+                        # print("New terms generated:")
                         for new_term in new_terms:
                             if ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(new_term)) not in processed_conds:
                                 new_term.id = ApplyAncEffs.gen_id(new_term)
                                 new_term.comment = anc_eff.name + f" id({new_term.id}) / parent({next_term.id})"
                                 condleft.append(new_term)
-                            print(ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(new_term)))
-                        print()
+                        #     print(ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(new_term)))
+                        # print()
                     self.reset()
             if time.time() - self.start > self.timeout:
                 raise TimeoutError("Preprocessing exceeded 30-minute time limit.")
@@ -568,7 +573,7 @@ class ApplyAncEffs:
         self.domain._predicates = [ApplyAncEffs.term_to_rml(p) for p in all_rmls.values()]
         anc_effs_count = 0
         for action in self.domain.actions:
-            self.parameters = set(action.parameters)
+            self.parameters = list(action.parameters)
             for o in action.effect.operands:
                 new_terms = self.apply_anc_effs_to_action(o, action.derive_condition, action.precondition)
                 if new_terms:
@@ -577,7 +582,7 @@ class ApplyAncEffs:
                     anc_effs_count += len(new_terms)
                 if time.time() - self.start > self.timeout:
                     raise TimeoutError("Preprocessing exceeded 30-minute time limit.")
-            action._parameters = self.parameters
+            action._parameters = list(dict.fromkeys(self.parameters)) 
 
         # apply closure to everything in the initial state
         self.problem._init = list(self.problem.init)
@@ -608,4 +613,6 @@ class ApplyAncEffs:
                 action.effect._operands[i].comment = comment
         self.problem._init = frozenset([ApplyAncEffs.term_to_rml(init_rml, to_lifted=True) for init_rml in self.problem.init])
         self.problem._goal = [create_and([ApplyAncEffs.term_to_rml(goal_rml, to_lifted=True) for goal_rml in self.problem.goal])]
+        objects = set(self.problem.objects)
+        self.problem._objects = objects.union(self.agents.values())
         return self.domain, self.problem, anc_effs_count
