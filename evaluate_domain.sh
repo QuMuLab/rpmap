@@ -1,19 +1,21 @@
 #!/bin/bash
 
 for ((i=1; i<=10; i++)); do
-    echo "Running: python3 evaluate_updated.py \"$1\" $i"
-    python3 -W ignore evaluate.py "$1" "$i" solve
+    echo "Running: python3 evaluate_lifted.py \"$1\" $i"
+    python3 -W ignore evaluate_lifted.py "$1" "$i" solve
     echo "Running the planner..."
-    plan_out=$(lama-first --search-time-limit 30m domains/$1/pdkb-domain.pddl domains/$1/pdkb-problem.pddl --translate-options --invariant-generation-max-time 10)
+    plan_out=$(lama-first --search-time-limit 30m domains/$1/pdkb-domain.pddl domains/$1/pdkb-problem.pddl --translate-options --invariant-generation-max-time 1)
     printf "%s\n" "$plan_out" > "domains/$1/output_$i.txt"
     if [ -f "sas_plan" ]; then
         echo "Plan found!"
         last_line="$(printf "%s\n" "$plan_out" | tail -n 1)"
         printf "%s\n" "$last_line" > time_output.txt
         mv sas_plan domains/$1/plan_$i.txt
-        python3 evaluate.py "$1" "$i" write-plan
-        rm domains/$1/pdkb-domain.pddl
-        rm domains/$1/pdkb-problem.pddl
+        python3 evaluate_lifted.py "$1" "$i" write-plan
+        # rm domains/$1/pdkb-domain.pddl
+        # rm domains/$1/pdkb-problem.pddl
         rm time_output.txt
+    else
+        echo "No plan found."
     fi  
 done

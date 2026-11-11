@@ -106,8 +106,9 @@ def check_format(formula: Sequence, action_names: Sequence[str]):
             formulas.append(cleaned_not(list(check_format([fo.argument], action_names))[0]))
         elif isinstance(fo, When):
             # for formatting/consistency reasons, we want to force this into being an "And"
+            condition = create_and(check_format(fo.condition.operands, action_names) if isinstance(fo.condition, And) else check_format([fo.condition], action_names))
             for e in fo.effect.operands if isinstance(fo.effect, And) else [fo.effect]:
-                formulas.append(When(create_and(check_format([fo.condition], action_names)), create_and(check_format([e], action_names))))
+                formulas.append(When(condition, create_and(check_format([e], action_names))))
         elif isinstance(fo, SeparatedRMLTerm):
             fo = SeparatedRMLTerm(list(check_format(fo.nestings, action_names)), list(check_format([fo.term], action_names))[0])
             check_intention_error(fo, action_names)
@@ -123,22 +124,22 @@ def check_format(formula: Sequence, action_names: Sequence[str]):
 def check_action_format(action: Action, action_names: Sequence[str]):
     precondition = create_and(check_format(action.precondition.operands, action_names))
     effect = create_and(check_format(action.effect.operands, action_names))
-    derive_condition = check_format([action.derive_condition], action_names) if action.derive_condition and type(action.derive_condition) != str else action.derive_condition
+    derive_condition = check_format([action.derive_condition], action_names)[0] if action.derive_condition and isinstance(action.derive_condition, SeparatedRMLTerm) else action.derive_condition
     return Action(action.name, action.parameters, precondition, effect, derive_condition=derive_condition)
 
 def normalize_action_form(action):
     precondition = action.precondition if isinstance(action.precondition, And) else create_and([action.precondition])
     effect = action.effect if isinstance(action.effect, And) else create_and([action.effect])
-    parameters = list(action.parameters)
-    # gather any special derived condition variables (dlr__*) and add them to the parameters list
-    if action.derive_condition:
-        dc_vars = set()
-        if isinstance(action.derive_condition, SeparatedRMLTerm):
-            dc_vars.update([n.agent.term for n in action.derive_condition.nestings if isinstance(n, Nesting)])
-            dc_vars.update(action.derive_condition.term.terms)
-        dlr_vars = {v for v in dc_vars if "dlr__" in v.name}
-        parameters.extend(dlr_vars)
-    return Action(action.name, parameters, precondition, effect, derive_condition=action.derive_condition)
+    # parameters = list(action.parameters)
+    # # gather any special derived condition variables (dlr__*) and add them to the parameters list
+    # if action.derive_condition:
+    #     dc_vars = set()
+    #     if isinstance(action.derive_condition, SeparatedRMLTerm):
+    #         dc_vars.update([n.agent.term for n in action.derive_condition.nestings if isinstance(n, Nesting)])
+    #         dc_vars.update(action.derive_condition.term.terms)
+    #     dlr_vars = {v for v in dc_vars if "dlr__" in v.name}
+    #     parameters.extend(dlr_vars)
+    return Action(action.name, action.parameters, precondition, effect, derive_condition=action.derive_condition)
 
 def apply_and_check_intention(anc_effs, domain, problem):
     # ensure the preconditions and actions are all in "And" form
