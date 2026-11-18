@@ -10,13 +10,14 @@ import time
 
 
 class ApplyAncEffs:
-    def __init__(self, anc_effs: list[AncEff], domain: Domain, problem: Problem, effs_to_apply: list[str] = None):
+    def __init__(self, anc_effs: list[AncEff], domain: Domain, problem: Problem, agent_ref_cap: int, effs_to_apply: list[str] = None, ):
         anc_effs = {a.name: a for a in anc_effs}
         self.anc_effs = (
             {a: anc_effs[a] for a in anc_effs if a in effs_to_apply}
             if effs_to_apply
             else anc_effs
         )
+        self.agent_ref_cap = agent_ref_cap
         self.domain = domain
         self.problem = problem
         self.agents = domain.agents
@@ -204,12 +205,11 @@ class ApplyAncEffs:
             # we need to come up with a new variable name, so that the meaning isn't accidentally overloaded with an existing action parameter...
             # these variables will be used to construct a Forall downstream.
             var_name = "_".join(var.type_tags) + "_anc_eff"
-            for existing_var in reversed(sorted(list(self.current_vars))):
-                if var_name in existing_var.name:
-                    var_name, idx = existing_var.name.split("__")
-                    self.var_match[var] = Variable(f"{var_name}__{int(idx) + 1}", var.type_tags)
-                    return self.var_match[var]
-            self.var_match[var] = Variable(f"{var_name}__0", var.type_tags)
+            relevant_vars = [v for v in self.current_vars if var_name in v.name]
+            max_idx = 0
+            for v in relevant_vars:
+                max_idx = max(int(v.name.split("__")[1]), max_idx)
+            self.var_match[var] = Variable(f"{var_name}__{max_idx + 1}", var.type_tags)
             return self.var_match[var]
 
     def ground_srt(self, new_rml: SeparatedRMLTerm):
@@ -335,19 +335,15 @@ class ApplyAncEffs:
                 pos_or_neg_conds[i] = self.apply_rml(cond_or_rml.term)
             return pos_or_neg_conds
         elif isinstance(cond_or_rml, ListCompAgents):
-            rmls = []
-            for ag in self.agents.values():
-                # self.assignment[Variable("ag", ["agent"])] = ag
-                rmls.append(self.apply_rml(cond_or_rml.term))
-            return rmls
+            self.var_match[Variable("ag", ["agent"])] = Variable("ag", ["agent"])
+            return [self.apply_rml(cond_or_rml.term)]
         elif isinstance(cond_or_rml, ListCompVarAgents):
+            self.var_match[Variable("ag", ["agent"])] = Variable("ag", ["agent"])
             rmls = []
             pos_or_neg_conds = self.get_pos_or_neg_conds(cond_or_rml.var)
-            for ag in self.agents.values():
-                # self.assignment[Variable("ag", ["agent"])] = ag
-                for c in pos_or_neg_conds:
-                    self.r = c
-                    rmls.append(self.apply_rml(cond_or_rml.term))
+            for c in pos_or_neg_conds:
+                self.r = c
+                rmls.append(self.apply_rml(cond_or_rml.term))
             return rmls
         elif isinstance(cond_or_rml, SeparatedRMLTerm):
             return [self.apply_rml(cond_or_rml)]
@@ -470,15 +466,13 @@ class ApplyAncEffs:
         next_term.comment = f" id({next_term.id})"
         condleft = [next_term]
         processed_conds = dict()
-        
+        parent_trace = {next_term.id: None}
+        anc_effs_count = 0
         while condleft:
-            next_term_rep = ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(next_term))
-
-            # if next_term_rep == "(when (and (and (not (skeptical ?a2 ?a1)) <BEL, ?a2>(book-teachings))) (and [BEL, ?a2](book-teachings)))":
-            #     print()
-
             next_term = condleft.pop(0)
             next_term_rep = ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(next_term))
+            # if "(skeptical ?agent_anc_eff__10 ?agent_anc_eff__9)" in next_term_rep:
+            #     print()
             if next_term_rep not in processed_conds:
                 if isinstance(next_term, When):
                     next_term = ApplyAncEffs.simplify_against_precondition(next_term, act_precondition)
@@ -511,10 +505,11 @@ class ApplyAncEffs:
                 processed_conds[next_term_rep] = next_term
 
                 for anc_eff in anc_effs.values():
+                    # if anc_eff.name == "mutual-awareness-pos__belief" and "(and [BEL, ?agent_anc_eff__10](book-teachings))" in next_term_rep:
+                    #     print(next_term_rep)
+                    #     print()
                     if self.check_ant_match(anc_eff.antecedent.rml, anc_eff.antecedent.anceff_type, next_term, anc_eff.antecedent.awareness, derive_condition):
                         # print(f"Applying {anc_eff.name} to {next_term_rep}...")
-                        # if anc_eff.name == "negation-removal":
-                        #     print()
                         self.current_vars.update(ApplyAncEffs.get_vars(next_term))
                         new_terms = self.apply_anc_eff_all_nestings(anc_eff.consequent, next_term, anc_eff.antecedent.awareness, derive_condition)
                         if self.max_depth_detected > self.problem.depth:
@@ -523,9 +518,20 @@ class ApplyAncEffs:
                         # print("New terms generated:")
                         for new_term in new_terms:
                             if ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(new_term)) not in processed_conds:
-                                new_term.id = ApplyAncEffs.gen_id(new_term)
-                                new_term.comment = anc_eff.name + f" id({new_term.id}) / parent({next_term.id})"
-                                condleft.append(new_term)
+                                if len([v for v in ApplyAncEffs.get_vars(new_term) if "agent" in v.type_tags]) <= self.agent_ref_cap:
+                                    anc_effs_count += 1
+                                    new_term.id = ApplyAncEffs.gen_id(new_term)
+                                    new_term.comment = anc_eff.name + f" id({new_term.id}) / parent({next_term.id})"
+                                    condleft.append(new_term)
+                                    parent_trace[new_term.id] = (anc_eff.name, next_term.id)
+                                else:
+                                    print("\nVAR CAP EXCEEDED! Printing trace...")
+                                    print(anc_eff.name)
+                                    trace_id = next_term.id
+                                    while parent_trace[trace_id]:
+                                        print(f"{parent_trace[trace_id][0]} triggered by...")
+                                        trace_id = parent_trace[trace_id][1]
+
                         #     print(ApplyAncEffs.sorted_str(ApplyAncEffs.term_to_rml(new_term)))
                         # print()
                     self.reset()
@@ -683,3 +689,25 @@ class ApplyAncEffs:
         objects = set(self.problem.objects)
         self.problem._objects = objects.union(self.agents.values())
         return self.domain, self.problem, anc_effs_count
+
+    # def check_cycles(self):
+    #     graph = {anc_eff: list() for anc_eff in self.anc_effs}
+    #     for anc_eff in self.anc_effs.values():
+    #         print("\nantecedent: ", anc_eff.antecedent.rml)
+    #         for o_anc_eff in self.anc_effs.values():
+    #             for crml in o_anc_eff.consequent.rml:
+    #                 print("consequent: ", crml)
+    #                 # if the antecedent of anc_eff matches a consequent of o_anc_eff, then o_anc_eff can trigger anc_eff.
+    #                 # note: we set the derived condition to "always" so we check for all possibilities.
+    #                 if isinstance(crml, ListCompAgents):
+    #                     crml = crml.term
+    #                 if self.check_ant_match(anc_eff.antecedent.rml, anc_eff.antecedent.anceff_type, crml, anc_eff.antecedent.awareness, "always"):
+    #                     graph[o_anc_eff.name].append(anc_eff.name)
+    #                     print("match!\n")
+    #     for g in graph:
+    #         print(g)
+    #     return graph
+
+    # def check_cycles_apply_anc_effs(self):
+    #     # graph = self.check_cycles()
+    #     return self.apply_anc_effs()

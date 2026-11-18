@@ -3,10 +3,10 @@ from pddl.logic.effects import When
 from pddl.logic.terms import Variable
 from pddl.parser import GRAMMAR_FILE
 from refactored_rpmap.parsing_and_grounding.core.anc_eff import *
-from refactored_rpmap.parsing_and_grounding.apply_anc_effs import ApplyAncEffs
+from refactored_rpmap.parsing_and_grounding.apply_anc_effs_grounded import ApplyAncEffs
 from refactored_rpmap.parsing_and_grounding.parser_setup import read_pdkbddl_file
 from refactored_rpmap.parsing_and_grounding.utils import cleaned_not, create_and
-from evaluate import parse, ground
+from evaluate_grounded import parse, ground
 import pytest
 import os
 

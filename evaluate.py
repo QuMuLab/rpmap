@@ -1,16 +1,22 @@
-from refactored_rpmap.parsing_and_grounding.parser_setup import AncEffDomProbParser, read_pdkbddl_file
-from refactored_rpmap.parsing_and_grounding.ground import ground
+from refactored_rpmap.parsing_and_grounding.core.anc_eff import GenericMODLType, PossibleGenericMODLType, ActionMODLType, PossibleActionMODLType
+from refactored_rpmap.parsing_and_grounding import apply_anc_effs_grounded
+from refactored_rpmap.parsing_and_grounding import apply_anc_effs_lifted
 from refactored_rpmap.parsing_and_grounding.core.domain import construct_domain_grammar
 from refactored_rpmap.parsing_and_grounding.core.problem import construct_problem_grammar
-from refactored_rpmap.parsing_and_grounding.core.anc_eff import GenericMODLType, PossibleGenericMODLType, ActionMODLType, PossibleActionMODLType
+from refactored_rpmap.parsing_and_grounding.ground import ground
+from refactored_rpmap.parsing_and_grounding.normalize import apply_and_check_intention
+from refactored_rpmap.parsing_and_grounding.parser_setup import AncEffDomProbParser, read_pdkbddl_file
 from refactored_rpmap.parsing_and_grounding.utils import write
-from refactored_rpmap.parsing_and_grounding.apply_anc_effs import ApplyAncEffs
 from pddl.parser import GRAMMAR_FILE
-import pddl
+import argparse
+import csv
 import os
+import pddl
 import sys
 import time
-import csv
+
+AGENT_REF_CAP = 10
+
 
 def get_num_agents(prob):
     if prob == 1:
@@ -76,7 +82,7 @@ def get_parsing_result(pdkbddl_str):
     grammar = create_updated_grammar_file()
     return parse(grammar, pdkbddl_str)
 
-def eval_single(dom, problem_num, num_agents, parser):
+def eval_single(dom, problem_num, num_agents, parser, grounded, agent_ref_cap):
     base_path = os.path.join("domains", dom)
     domain_path = os.path.join(base_path, "domain.pdkbddl")
     db_path = os.path.join("evaluation_data", f"{dom}_evaluation.csv")
@@ -99,10 +105,15 @@ def eval_single(dom, problem_num, num_agents, parser):
     parse_result = parser(pddl_str)
     grounded_dom_path = os.path.join(base_path, "pdkb-domain.pddl")
     grounded_prob_path = os.path.join(base_path, "pdkb-problem.pddl")
-    anc_effs = [anc_eff for anc_eff_set in parse_result[1] for anc_eff in anc_eff_set]
-    anc_effs, grounded_domain, grounded_problem = (anc_effs, *ground(anc_effs, parse_result[0], parse_result[2]))
+    anc_effs, domain, problem = [anc_eff for anc_eff_set in parse_result[1] for anc_eff in anc_eff_set], parse_result[0], parse_result[2]
     print("Applying conditional effects...")
-    domain, problem, anc_effs_count = ApplyAncEffs(anc_effs, grounded_domain, grounded_problem).apply_anc_effs()
+    
+    if grounded:
+        anc_effs, domain, problem = (anc_effs, *ground(anc_effs, parse_result[0], parse_result[2]))
+        domain, problem, anc_effs_count = apply_anc_effs_grounded.ApplyAncEffs(anc_effs, domain, problem).apply_anc_effs()
+    else:
+        domain = apply_and_check_intention(anc_effs, domain, problem)
+        domain, problem, anc_effs_count = apply_anc_effs_lifted.ApplyAncEffs(anc_effs, domain, problem, agent_ref_cap).apply_anc_effs()
     pddl.core.Domain.post_processing_print = True
     pddl.core.Action.post_processing_print = True
     write(grounded_dom_path, str(domain))
@@ -113,17 +124,25 @@ def eval_single(dom, problem_num, num_agents, parser):
         writer.writerows([[dom, problem_num, num_agents, problem.depth, anc_effs_count, round(preprocessing_time, 2)]])
     print("Done preprocessing! Planning...")
 
-def evaluate(dom, prob):
-    eval_single(dom, prob, get_num_agents(prob), AncEffDomProbParser(create_updated_grammar_file()))
+def evaluate(dom, prob, grounded, agent_ref_cap):
+    eval_single(dom, prob, get_num_agents(prob), AncEffDomProbParser(create_updated_grammar_file()), grounded, agent_ref_cap)
 
 if __name__ == "__main__":
-    # single_file_run("\n".join(read_pdkbddl_file(os.path.join("refactored_rpmap", "test_files", "problem_1.pdkbddl"))))
-    # args = sys.argv[1:]   # everything after the script name
-    args = ["capture-the-flag", "2", "solve"] # for testing
-    args[1] = int(args[1]) # problem number (args[0] is the domain name)
-    if args[-1] == "solve":
-        evaluate(*args[:-1])
-    elif args[-1] == "write-plan":
-        write_plan_output(args[0])
+    p = argparse.ArgumentParser()
+    p.add_argument("domain")
+    p.add_argument("i", type=int)
+    p.add_argument("mode", choices=["solve", "write-plan"])
+    group = p.add_mutually_exclusive_group()
+    group.add_argument("--disable-cap", action="store_true")
+    group.add_argument("--ground", action="store_true")
+    group.add_argument("--set-cap", type=int, metavar="N")
+    args = p.parse_args()
+
+    if args.mode == "solve":
+        if args.disable_cap:
+            args.set_cap = sys.maxsize
+        if not args.set_cap:
+            args.set_cap = AGENT_REF_CAP
+        evaluate(args.domain, args.i, args.ground, args.set_cap)
     else:
-        raise ValueError("Unexpected arguments.")
+        write_plan_output(args.domain)

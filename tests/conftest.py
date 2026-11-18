@@ -1,4 +1,4 @@
-from evaluate import create_updated_grammar_file
+from evaluate_grounded import create_updated_grammar_file
 import pytest
 
 @pytest.fixture(scope="session", autouse=True)

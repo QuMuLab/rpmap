@@ -25,10 +25,12 @@ class PossibleGenericMODLType(Enum):
     # PLOV = 4
 
 class ActionMODLType(Enum):
-    ITN = 1
+    pass
+    # ITN = 1
 
 class PossibleActionMODLType(Enum):
-    PITN = 1
+    pass
+    # PITN = 1
 
 class AncEffType(Enum):
     ADD = 1

@@ -1,7 +1,7 @@
 
 (define (domain proselytize)
 
-	(:agents alice bob cindy derek evelyn)
+	(:agents alice bob cindy)
     (:requirements :typing)
     (:types loc agent)
     (:constants )
@@ -29,8 +29,8 @@
         :precondition       (and (leader ?a) (at ?a ?l) (book-at ?l))
         :effect (and 
             [bel, ?a](book-teachings)
-            (forall (?ag - agent)
-                [des, ?a][bel, ?ag](book-teachings)
+            (forall (?oa - agent)
+                [des, ?a][bel, ?oa](book-teachings)
             )
         )
     )

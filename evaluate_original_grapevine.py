@@ -1,6 +1,6 @@
 # from pdkb.planner import parse_and_preprocess, cleanup
 from rpmap.utils import write_file
-from evaluate import get_num_agents, get_agents_str, write_plan_output
+from evaluate_grounded import get_num_agents, get_agents_str, write_plan_output
 import csv, sys, time, os
 
 # NOTE: These two functions are taken from the original RP-MEP. 

@@ -1,6 +1,6 @@
 (:ancillary_effects
     (:anceff catch
-        :parameters (?a1 - agent ?l - loc)
+        :parameters (?a1 ?a2 - agent ?l - loc)
         :antecedent (
             :poscond ?pos
             :negcond ?neg
@@ -8,14 +8,14 @@
             :type add
         )
         :consequent (
-            :poscond ?pos + (capturer ?a1) + (defender $agent$) + (at $agent$ ?l) + (not (hiding-at ?a1 ?l)) + (not (capture-win))
+            :poscond ?pos + (capturer ?a1) + (defender ?a2) + (at ?a2 ?l) + (not (hiding-at ?a1 ?l)) + (not (capture-win))
             :negcond ?neg
             :rml (caught ?a1)
             :type add
         )
     )
     (:anceff catch_2
-        :parameters (?a1 - agent ?l - loc)
+        :parameters (?a1 ?a2 - agent ?l - loc)
         :antecedent (
             :poscond ?pos
             :negcond ?neg
@@ -23,14 +23,14 @@
             :type add
         )
         :consequent (
-            :poscond ?pos + (capturer $agent$) + (defender ?a1) + (at $agent$ ?l) + (not (hiding-at $agent$ ?l)) + (not (capture-win))
+            :poscond ?pos + (capturer ?a2) + (defender ?a1) + (at ?a2 ?l) + (not (hiding-at ?a2 ?l)) + (not (capture-win))
             :negcond ?neg
-            :rml (caught $agent$)
+            :rml (caught ?a2)
             :type add
         )
     )
     (:anceff catch-scout
-        :parameters (?a1 - agent ?l - loc)
+        :parameters (?a1 ?a2 - agent ?l - loc)
         :antecedent (
             :poscond ?pos
             :negcond ?neg
@@ -38,14 +38,14 @@
             :type add
         )
         :consequent (
-            :poscond ?pos + (scout ?a1) + (defender $agent$) + (at $agent$ ?l) + (not (hiding-at ?a1 ?l)) + (not (capture-win))
+            :poscond ?pos + (scout ?a1) + (defender ?a2) + (at ?a2 ?l) + (not (hiding-at ?a1 ?l)) + (not (capture-win))
             :negcond ?neg
             :rml (caught ?a1)
             :type add
         )
     )
     (:anceff catch-scout_2
-        :parameters (?a1 - agent ?l - loc)
+        :parameters (?a1 ?a2 - agent ?l - loc)
         :antecedent (
             :poscond ?pos
             :negcond ?neg
@@ -53,14 +53,14 @@
             :type add
         )
         :consequent (
-            :poscond ?pos + (scout $agent$) + (defender ?a1) + (at $agent$ ?l) + (not (hiding-at $agent$ ?l)) + (not (capture-win))
+            :poscond ?pos + (scout ?a2) + (defender ?a1) + (at ?a2 ?l) + (not (hiding-at ?a2 ?l)) + (not (capture-win))
             :negcond ?neg
-            :rml (caught $agent$)
+            :rml (caught ?a2)
             :type add
         )
     )
     (:anceff catch-hiding
-        :parameters (?a1 - agent ?l - loc)
+        :parameters (?a1 ?a2 - agent ?l - loc)
         :antecedent (
             :poscond ?pos
             :negcond ?neg
@@ -68,29 +68,29 @@
             :type add
         )
         :consequent (
-            :poscond ?pos + (capturer $agent$) + (defender ?a1) + (at $agent$ ?l) + (hiding-at $agent$ ?l) + [bel, ?a1](hiding-spot-at ?l) + (not (capture-win))
+            :poscond ?pos + (capturer ?a2) + (defender ?a1) + (at ?a2 ?l) + (hiding-at ?a2 ?l) + [bel, ?a1](hiding-spot-at ?l) + (not (capture-win))
             :negcond ?neg
-            :rml (caught $agent$)
+            :rml (caught ?a2)
             :type add
         )
     )
     (:anceff scout-share-flag-info
-        :parameters (?a1 - agent ?l - loc)
+        :parameters (?test ?a2 - agent ?l - loc)
         :antecedent (
             :poscond ?pos
             :negcond ?neg
-            :rml [bel, ?a1](flag-at ?l)
+            :rml [bel, ?test](flag-at ?l)
             :type add
         )
         :consequent (
-            :poscond ?pos + (scout ?a1) + (capturer $agent$)
+            :poscond ?pos + (scout ?test) + (capturer ?a2)
             :negcond ?neg
-            :rml [des, ?a1][bel, $agent$](flag-at ?l)
+            :rml [des, ?test][bel, ?a2](flag-at ?l)
             :type add
         )
     )
     (:anceff scout-share-hiding-spot-info
-        :parameters (?a1 - agent ?l - loc)
+        :parameters (?a1 ?a2 - agent ?l - loc)
         :antecedent (
             :poscond ?pos
             :negcond ?neg
@@ -98,9 +98,9 @@
             :type add
         )
         :consequent (
-            :poscond ?pos + (scout ?a1) + (capturer $agent$)
+            :poscond ?pos + (scout ?a1) + (capturer ?a2)
             :negcond ?neg
-            :rml [des, ?a1][bel, $agent$](hiding-spot-at ?l)
+            :rml [des, ?a1][bel, ?a2](hiding-spot-at ?l)
             :type add
         )
     )

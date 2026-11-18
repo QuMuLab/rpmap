@@ -10,7 +10,7 @@ from pddl.parser import GRAMMAR_FILE
 from refactored_rpmap.parsing_and_grounding.core.anc_eff import *
 from refactored_rpmap.parsing_and_grounding.parser_setup import read_pdkbddl_file
 from refactored_rpmap.parsing_and_grounding.utils import cleaned_not
-from evaluate import parse
+from evaluate_grounded import parse
 from enum import Enum
 import pytest
 import os
