@@ -36,7 +36,7 @@ class ApplyAncEffs:
         self.var_match = {}
         self.raw_conds = None
         self.max_depth_detected = 0
-        self.current_vars = set()
+        self.current_vars = {Variable(v.name, v.type_tags) for v in self.current_action_vars}
 
     @staticmethod
     def gen_id(term):
@@ -208,7 +208,8 @@ class ApplyAncEffs:
             relevant_vars = [v for v in self.current_vars if var_name in v.name]
             max_idx = 0
             for v in relevant_vars:
-                max_idx = max(int(v.name.split("__")[1]), max_idx)
+                if "__" in v.name and v.name.split("__")[1].isdigit():
+                    max_idx = max(int(v.name.split("__")[1]), max_idx)
             self.var_match[var] = Variable(f"{var_name}__{max_idx + 1}", var.type_tags)
             return self.var_match[var]
 
@@ -460,7 +461,7 @@ class ApplyAncEffs:
         simplify.comment = next_term.comment
         return simplify
 
-    def apply_anc_effs_to_action(self, next_term, derive_condition, act_precondition, anc_effs = None):
+    def apply_anc_effs_to_action(self, next_term, action = None, anc_effs = None):
         anc_effs = {a: self.anc_effs[a] for a in anc_effs} if anc_effs else self.anc_effs 
         next_term.id = ApplyAncEffs.gen_id(next_term)
         next_term.comment = f" id({next_term.id})"
@@ -475,7 +476,7 @@ class ApplyAncEffs:
             #     print()
             if next_term_rep not in processed_conds:
                 if isinstance(next_term, When):
-                    next_term = ApplyAncEffs.simplify_against_precondition(next_term, act_precondition)
+                    next_term = ApplyAncEffs.simplify_against_precondition(next_term, action.precondition if action else And())
                     if not next_term:
                         continue
                 if isinstance(next_term, And):
@@ -508,10 +509,10 @@ class ApplyAncEffs:
                     # if anc_eff.name == "mutual-awareness-pos__belief" and "(and [BEL, ?agent_anc_eff__10](book-teachings))" in next_term_rep:
                     #     print(next_term_rep)
                     #     print()
-                    if self.check_ant_match(anc_eff.antecedent.rml, anc_eff.antecedent.anceff_type, next_term, anc_eff.antecedent.awareness, derive_condition):
+                    if self.check_ant_match(anc_eff.antecedent.rml, anc_eff.antecedent.anceff_type, next_term, anc_eff.antecedent.awareness, action.derive_condition if action else "never"):
                         # print(f"Applying {anc_eff.name} to {next_term_rep}...")
                         self.current_vars.update(ApplyAncEffs.get_vars(next_term))
-                        new_terms = self.apply_anc_eff_all_nestings(anc_eff.consequent, next_term, anc_eff.antecedent.awareness, derive_condition)
+                        new_terms = self.apply_anc_eff_all_nestings(anc_eff.consequent, next_term, anc_eff.antecedent.awareness, action.derive_condition if action else "never")
                         if self.max_depth_detected > self.problem.depth:
                             self.reset()
                             continue
@@ -630,8 +631,10 @@ class ApplyAncEffs:
         self.domain._predicates = [ApplyAncEffs.term_to_rml(p) for p in all_rmls]
         anc_effs_count = 0
         for action in self.domain.actions:
+            self.current_action_vars = set(action.parameters)
+            self.current_vars = set(action.parameters)
             for o in action.effect.operands:
-                new_terms = self.apply_anc_effs_to_action(o, action.derive_condition, action.precondition)
+                new_terms = self.apply_anc_effs_to_action(o, action)
                 if new_terms:
                     action.effect._operands.extend(new_terms)
                     # print(anc_effs_count)
@@ -658,10 +661,10 @@ class ApplyAncEffs:
 
         # apply closure to everything in the initial state
         self.problem._init = list(self.problem.init)
-        closure_anc_effs = ["kd45closure__belief", "kd45closure__desire", "kd45closure__intention"]#, "kd45closure__disdain", "kd45closure__love"]
+        closure_anc_effs = ["kd45closure__belief", "kd45closure__desire"]#, "kd45closure__intention"]#, "kd45closure__disdain", "kd45closure__love"]
         init_closure = []
         for init_rml in self.problem.init:
-            init_closure.extend(self.apply_anc_effs_to_action(init_rml, "never", And(), closure_anc_effs))
+            init_closure.extend(self.apply_anc_effs_to_action(init_rml, anc_effs=closure_anc_effs))
         self.problem._init.extend(init_closure)
 
         if self.problem.init_type == "complete":
