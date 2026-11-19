@@ -52,7 +52,7 @@ def write_plan_output(dom):
         writer = csv.writer(f)
         writer.writerows(rows)
 
-def create_updated_grammar_file():
+def create_updated_grammar_file(grounded):
     # read the original grammar file
     original_path = os.path.join("refactored_rpmap", "parsing_and_grounding", "grammar.lark")
     with open(original_path, "r") as f:
@@ -67,7 +67,7 @@ def create_updated_grammar_file():
         f.write(original_grammar + "\n" + anceff_grammar)
 
     # modify the domain and problem grammar files to add in the new rules
-    construct_domain_grammar()
+    construct_domain_grammar(grounded)
     construct_problem_grammar() 
     # read the lark file
     with open(GRAMMAR_FILE, "r") as f:
@@ -109,12 +109,13 @@ def eval_single(dom, problem_num, num_agents, parser, grounded, agent_ref_cap):
     print("Applying conditional effects...")
     
     if grounded:
-        anc_effs, domain, problem = (anc_effs, *ground(anc_effs, parse_result[0], parse_result[2]))
+        anc_effs, domain, problem = (anc_effs, *ground(domain, problem))
         domain, problem, anc_effs_count = apply_anc_effs_grounded.ApplyAncEffs(anc_effs, domain, problem).apply_anc_effs()
     else:
-        domain = apply_and_check_intention(anc_effs, domain, problem)
+        domain = apply_and_check_intention(domain)
         domain, problem, anc_effs_count = apply_anc_effs_lifted.ApplyAncEffs(anc_effs, domain, problem, agent_ref_cap).apply_anc_effs()
     pddl.core.Domain.post_processing_print = True
+    pddl.core.Domain.grounded = grounded
     pddl.core.Action.post_processing_print = True
     write(grounded_dom_path, str(domain))
     write(grounded_prob_path, str(problem))
@@ -125,7 +126,7 @@ def eval_single(dom, problem_num, num_agents, parser, grounded, agent_ref_cap):
     print("Done preprocessing! Planning...")
 
 def evaluate(dom, prob, grounded, agent_ref_cap):
-    eval_single(dom, prob, get_num_agents(prob), AncEffDomProbParser(create_updated_grammar_file()), grounded, agent_ref_cap)
+    eval_single(dom, prob, get_num_agents(prob), AncEffDomProbParser(create_updated_grammar_file(grounded)), grounded, agent_ref_cap)
 
 if __name__ == "__main__":
     p = argparse.ArgumentParser()

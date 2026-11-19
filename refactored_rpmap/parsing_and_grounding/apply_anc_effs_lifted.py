@@ -640,23 +640,25 @@ class ApplyAncEffs:
                     raise TimeoutError("Preprocessing exceeded 30-minute time limit.")
 
         for action in self.domain.actions:
-            for i in range(len(action.effect._operands)):
-                all_vars = set()
-                o = action.effect._operands[i]
-                if isinstance(o, When):
-                    all_vars.update(ApplyAncEffs.get_vars(o.condition))
-                    all_vars.update(ApplyAncEffs.get_vars(o.effect))
-                elif isinstance(o, And) or isinstance(o, SeparatedRMLTerm) or isinstance(o, Not):
-                    all_vars.update(ApplyAncEffs.get_vars(o))
-                diff_vars = all_vars.difference(set(action.parameters))
+            diff_vars = ApplyAncEffs.get_vars(action.derive_condition).difference(set(action.parameters)) if isinstance(action.derive_condition, SeparatedRMLTerm) else []
+            if diff_vars:
+                action._derive_condition = Forall(action.derive_condition, diff_vars)
+            for i in range(len(action.precondition._operands)):
+                o = action.precondition._operands[i]
+                diff_vars = ApplyAncEffs.get_vars(o).difference(set(action.parameters))
                 if diff_vars:
-                    comment = action.effect._operands[i].comment if hasattr(action.effect._operands[i], "comment") else None
+                    action._precondition._operands[i] = Forall(o, diff_vars)
+            for i in range(len(action.effect._operands)):
+                o = action.effect._operands[i]
+                diff_vars = ApplyAncEffs.get_vars(o).difference(set(action.parameters))
+                if diff_vars:
+                    comment = o.comment if hasattr(o, "comment") else None
                     action.effect._operands[i] = Forall(o, diff_vars)
                     action.effect._operands[i].comment = comment
 
         # apply closure to everything in the initial state
         self.problem._init = list(self.problem.init)
-        closure_anc_effs = ["kd45closure__belief"]#, "kd45closure__desire"]#, "kd45closure__intention"]#, "kd45closure__disdain", "kd45closure__love"]
+        closure_anc_effs = ["kd45closure__belief", "kd45closure__desire", "kd45closure__intention"]#, "kd45closure__disdain", "kd45closure__love"]
         init_closure = []
         for init_rml in self.problem.init:
             init_closure.extend(self.apply_anc_effs_to_action(init_rml, "never", And(), closure_anc_effs))

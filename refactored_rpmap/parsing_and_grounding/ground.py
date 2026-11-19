@@ -37,11 +37,7 @@ def ground_formula(formula: Sequence, assignment, domain):
             if fo.negated:
                 raise ValueError("Parsing error. Predicates should not be negated yet, as modalities (including negations) have not yet been applied.")
             terms = ground_formula(fo.terms, assignment, domain)
-            # turn action predicate into atomic predicate
-            if fo.name in domain.lifted_action_names:
-                grounded_formulas.append(Predicate(f"{fo.name}_{'_'.join(t.name for t in terms)}"))
-            else:
-                grounded_formulas.append(Predicate(fo.name, *terms, always_known=fo.always_known, negated=fo.negated))
+            grounded_formulas.append(Predicate(fo.name, *terms, always_known=fo.always_known, negated=fo.negated))
         elif isinstance(fo, ForallCondition):
             variables = {v for v in fo.variables}
             val_generator = create_valuations(domain.gathered_constants, variables)
@@ -136,68 +132,15 @@ def create_grounded_operators(domain):
             operators.add(ground_action(a, domain, assignment))
     return operators
 
-def gather_itn_preds(formula):
-    itn_preds = set()
-    for fo in formula:
-        if isinstance(fo, Predicate):
-            pass
-        elif isinstance(fo, SeparatedRMLTerm):
-            if not isinstance(fo.term, RMLOrPredTerm):
-                if fo.nestings:
-                    for n in fo.nestings:
-                        if isinstance(n, NOT_MODL):
-                            continue
-                        elif isinstance(n, Nesting):
-                            mod_type = n.mod_type
-                        elif isinstance(n, MODLTermWNesting):
-                            mod_type = n.modl.mod_type
-                        else:
-                            raise PDDLValidationError(f"Unknown nesting type {type(n)}.")
-                        if isinstance(mod_type, ActionMODLType) or isinstance(mod_type, PossibleActionMODLType):
-                            itn_preds.add(fo.term)
-        elif isinstance(fo, ForallCondition):
-            itn_preds.update(gather_itn_preds([fo.condition]))
-        elif isinstance(fo, Forall):
-            itn_preds.update(gather_itn_preds([fo.effect]))
-        elif isinstance(fo, And):
-            for o in fo.operands:
-                itn_preds.update(gather_itn_preds([o]))
-        elif isinstance(fo, Not):
-            itn_preds.update(gather_itn_preds([fo.argument]))
-        elif isinstance(fo, When):
-            itn_preds.update(gather_itn_preds([fo.condition]))
-            itn_preds.update(gather_itn_preds([fo.effect]))
-        elif isinstance(fo, ListCompVar) or isinstance(fo, ListCompAgents) or isinstance(fo, ListCompVarAgents):
-            itn_preds.update(gather_itn_preds([fo.term]))
-        else:
-            raise NotImplementedError("Unknown formula type: " + str(type(fo)))
-    return itn_preds
-
-def create_itn_action_preds(operators, agents, problem, anc_effs):
+def create_itn_action_preds(operators, agents, predicates_dict):
     operators = list(operators)
-    itn_preds = set()
-    # find all intention predicates
-    itn_preds.update(gather_itn_preds(problem.init))
-    itn_preds.update(gather_itn_preds(problem.goal))
-    for a in operators:
-        if isinstance(a.derive_condition, SeparatedRMLTerm):
-            itn_preds.update(gather_itn_preds([a.derive_condition]))
-        itn_preds.update(gather_itn_preds(a.precondition.operands))
-        itn_preds.update(gather_itn_preds(a.effect.operands))
-    for ae in anc_effs:
-        for fo in ([ae.antecedent.rml] + ae.consequent.rml):
-            itn_preds.update(gather_itn_preds([fo]))
-    itn_preds_strs = [str(p) for p in itn_preds]
-    action_intention_f = set()
     for i in range(len(operators)):
-        o_name = f"({operators[i].name})"
-        if o_name in itn_preds_strs:
-            action_iaps = [SeparatedRMLTerm([NOT_MODL(), Nesting(PossibleActionMODLType.PITN, Agent(ag))], Predicate(operators[i].name)) for ag in agents]
+        if operators[i].name in predicates_dict:
+            action_iaps = [SeparatedRMLTerm([NOT_MODL(), Nesting(PossibleActionMODLType.PITN, Agent(ag))], predicates_dict[operators[i].name]) for ag in agents]
             operators[i] = Action(operators[i].name, operators[i].parameters, operators[i].precondition, create_and(list(operators[i].effect.operands) + action_iaps), derive_condition=operators[i].derive_condition)
-        action_intention_f.add(Predicate(operators[i].name))
-    return set(operators), action_intention_f
+    return set(operators)
 
-def ground(anc_effs, domain, problem):
+def ground(domain, problem):
     constants = set(domain.constants) | set(problem.objects) | set(domain.agents.values())
     domain.gathered_constants = constants
     lifted_action_names = {a.name for a in domain.actions}
@@ -205,8 +148,7 @@ def ground(anc_effs, domain, problem):
 
     g_formulas = create_grounded_fluents(domain)
     g_operators = create_grounded_operators(domain)
-    g_operators, action_intention_f = create_itn_action_preds(g_operators, domain.agents.values(), problem, anc_effs)
-    g_formulas.update(action_intention_f)
+    g_operators = create_itn_action_preds(g_operators, domain.agents.values(), {p.name: p for p in domain.predicates})
     grounded_domain = pddl_core.Domain(
         name=domain.name,
         requirements=domain.requirements,

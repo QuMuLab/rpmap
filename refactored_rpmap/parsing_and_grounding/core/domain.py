@@ -36,7 +36,6 @@ def action_transformer(self, args):
         _children[i][1:]: _children[i + 1] for i in range(0, len(_children), 2)
     }
     a = Action(action_name, variables, **action_body, derive_condition=args[4])
-    self._predicates_by_name[a.name] = Predicate(a.name, *a.parameters)
     return a
 
 def agent_transformer(self, args):
@@ -73,8 +72,7 @@ def terminal_predicate(self, args):
     check_pred_name(pred_name)
     terms = args[3:-1]
     if pred_name not in domain_preds:
-        warnings.warn(f"Predicate {pred_name} not defined in the domain. Is it an action name?")
-        ak = False
+        raise PDDLValidationError(f"Predicate {pred_name} not defined in the domain!")
     else:
         for i in range(len(terms)):
             terms[i]._type_tags = domain_preds[pred_name].terms[i].type_tags
@@ -112,33 +110,33 @@ def new_action_str(self):
     operator_str += ")"
     return operator_str
 
-# def new_predicate_str_rmls_lifted(self):
-#     """New predicate string adapted from the pddl.logic.Predicate.__str__ method."""
-#     p_str = f"{self.name}"
-#     if self.arity == 0:
-#         p_str += f")"
-#     else:
-#         terms = f"{' '.join(map(str, self.terms))})" 
-#         p_str = f"{p_str} {terms}"
-#     if self.negated:
-#         p_str = f"(not_{p_str}"
-#     else:
-#         p_str = f"({p_str}"
-#     return p_str   
+def new_predicate_str_rmls_lifted(self):
+    """New predicate string adapted from the pddl.logic.Predicate.__str__ method."""
+    p_str = f"{self.name}"
+    if self.arity == 0:
+        p_str += f")"
+    else:
+        terms = f"{' '.join(map(str, self.terms))})" 
+        p_str = f"{p_str} {terms}"
+    if self.negated:
+        p_str = f"(not_{p_str}"
+    else:
+        p_str = f"({p_str}"
+    return p_str   
 
-# def new_predicate_str_rmls_str(self):
-#     """New predicate string adapted from the pddl.logic.Predicate.__str__ method."""
-#     p_str = f"{self.name}"
-#     if self.arity == 0:
-#         p_str += f")"
-#     else:
-#         terms = f"{'_'.join(map(str, self.terms))})" 
-#         p_str = f"{p_str}_{terms}"
-#     if self.negated:
-#         p_str = f"(not_{p_str}"
-#     else:
-#         p_str = f"({p_str}"
-#     return p_str   
+def new_predicate_str_rmls_str(self):
+    """New predicate string adapted from the pddl.logic.Predicate.__str__ method."""
+    p_str = f"{self.name}"
+    if self.arity == 0:
+        p_str += f")"
+    else:
+        terms = f"{'_'.join(map(str, self.terms))})" 
+        p_str = f"{p_str}_{terms}"
+    if self.negated:
+        p_str = f"(not_{p_str}"
+    else:
+        p_str = f"({p_str}"
+    return p_str   
 
 def new_predicate_str_rmls_repr(self):
     """New predicate string adapted from the pddl.logic.Predicate.__str__ method."""
@@ -203,7 +201,7 @@ def new_domain_str(self):
     body += types_str
     body += print_constants("(:constants", self.constants, ")\n")
     if self.predicates:
-        pred_strs = NL_AND_TAB.join([single_predicate_print_types(p) for p in self.predicates])
+        pred_strs = NL_AND_TAB.join([str(p) for p in self.predicates])
         body += f"(:predicates{NL_AND_TAB}{pred_strs}\n)\n"
     if self.functions:
         body += print_types_or_functions_with_parents(
@@ -308,7 +306,7 @@ def inject_domain_grammar(label, rule, function, grammar_file=GRAMMAR_FILE):
     write_no_duplicate(new_rule, grammar_file)
     setattr(domain.DomainTransformer, label, function)
 
-def modify_domain_classes():
+def modify_domain_classes(grounded):
     pddl.logic.base.Not._negate = negate_not
     pddl.logic.base.Not.__repr__ = new_not_repr
     pddl.logic.base.Not.__str__ = new_not_str
@@ -316,8 +314,9 @@ def modify_domain_classes():
     pddl.logic.effects.When.__repr__ = new_when_repr
     pddl.logic.predicates.Predicate.orig_init = pddl.logic.predicates.Predicate.__init__
     pddl.logic.predicates.Predicate.__init__ = new_predicate_init
-    # pddl.logic.predicates.Predicate.__str__ = new_predicate_str_rmls_lifted
-    # pddl.logic.predicates.Predicate.__str__ = new_predicate_str_rmls_str
+    if grounded:
+        pddl.logic.predicates.Predicate.__str__ = new_predicate_str_rmls_lifted
+        pddl.logic.predicates.Predicate.__str__ = new_predicate_str_rmls_str
     pddl.logic.predicates.Predicate.__repr__ = new_predicate_str_rmls_repr
     pddl.logic.predicates.Predicate.__eq__ = new_predicate_eq
     pddl.logic.predicates.Predicate.__hash__ = new_predicate_hash
@@ -335,16 +334,16 @@ def modify_domain_classes():
     pddl.core.Domain.post_processing_print = False
     pddl.core.Action.post_processing_print = False
 
-def modify_domain_classes_and_transformer():
-    modify_domain_classes()
+def modify_domain_classes_and_transformer(grounded):
+    modify_domain_classes(grounded)
     # delete the start attribute (a new start rule will be made)
     delattr(domain.DomainTransformer, "start")
     delattr(domain.DomainTransformer, "constant")
 
 # to build the domain grammar via Python magic
-def construct_domain_grammar():
+def construct_domain_grammar(grounded):
     """Construct the entire domain grammar."""
-    modify_domain_classes_and_transformer()
+    modify_domain_classes_and_transformer(grounded)
     
     inject_domain_grammar("agents", "LPAR \":agents\" agent+ RPAR", agents_transformer)
     inject_domain_grammar("agent", "/[a-zA-Z_][a-zA-Z0-9_]*/", agent_transformer)

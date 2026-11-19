@@ -11,69 +11,12 @@ from .core.anc_eff import ActionMODLType, PossibleActionMODLType, NOT_MODL, Agen
 from .utils import create_and, cleaned_not
 
 
-def act_to_pred(action):
-    return Predicate(action.name, *action.parameters)
-
-def gather_itn_preds(act_dict, formula):
-    itn_preds = set()
-    for fo in formula:
-        if isinstance(fo, Predicate):
-            pass
-        elif isinstance(fo, SeparatedRMLTerm):
-            if not isinstance(fo.term, RMLOrPredTerm):
-                if fo.nestings:
-                    for n in fo.nestings:
-                        if isinstance(n, NOT_MODL):
-                            continue
-                        elif isinstance(n, Nesting):
-                            mod_type = n.mod_type
-                        elif isinstance(n, MODLTermWNesting):
-                            mod_type = n.modl.mod_type
-                        else:
-                            raise PDDLValidationError(f"Unknown nesting type {type(n)}.")
-                        if isinstance(mod_type, ActionMODLType) or isinstance(mod_type, PossibleActionMODLType):
-                            # want to keep everything equal and lifted (no grounding or variance in term names)
-                            itn_preds.add(act_to_pred(act_dict[fo.term.name]))
-        elif isinstance(fo, ForallCondition):
-            itn_preds.update(gather_itn_preds(act_dict, [fo.condition]))
-        elif isinstance(fo, Forall):
-            itn_preds.update(gather_itn_preds(act_dict, [fo.effect]))
-        elif isinstance(fo, And):
-            for o in fo.operands:
-                itn_preds.update(gather_itn_preds(act_dict, [o]))
-        elif isinstance(fo, Not):
-            itn_preds.update(gather_itn_preds(act_dict, [fo.argument]))
-        elif isinstance(fo, When):
-            itn_preds.update(gather_itn_preds(act_dict, [fo.condition]))
-            itn_preds.update(gather_itn_preds(act_dict, [fo.effect]))
-        elif isinstance(fo, ListCompVar) or isinstance(fo, ListCompAgents) or isinstance(fo, ListCompVarAgents):
-            itn_preds.update(gather_itn_preds(act_dict, [fo.term]))
-        else:
-            raise NotImplementedError("Unknown formula type: " + str(type(fo)))
-    return itn_preds
-
-def create_itn_action_preds(act_dict, problem, anc_effs):
-    operators = list(act_dict.values())
-    itn_preds = set()
-    # find all intention predicates
-    itn_preds.update(gather_itn_preds(act_dict, problem.init))
-    itn_preds.update(gather_itn_preds(act_dict, problem.goal))
-    for a in operators:
-        if isinstance(a.derive_condition, SeparatedRMLTerm):
-            itn_preds.update(gather_itn_preds(act_dict, [a.derive_condition]))
-        itn_preds.update(gather_itn_preds(act_dict, a.precondition.operands))
-        itn_preds.update(gather_itn_preds(act_dict, a.effect.operands))
-    for ae in anc_effs:
-        for fo in ([ae.antecedent.rml] + ae.consequent.rml):
-            itn_preds.update(gather_itn_preds(act_dict, [fo]))
-    itn_preds = {p.name: p for p in itn_preds}
-    action_intention_f = set()
+def create_itn_action_preds(operators, predicates_dict):
     for i in range(len(operators)):
-        if operators[i].name in itn_preds:
-            action_iap = SeparatedRMLTerm([NOT_MODL(), Nesting(PossibleActionMODLType.PITN, Agent(Variable("itn_ag", ["agent"])))], itn_preds[operators[i].name])
+        if operators[i].name in predicates_dict:
+            action_iap = SeparatedRMLTerm([NOT_MODL(), Nesting(PossibleActionMODLType.PITN, Agent(Variable("itn_ag", ["agent"])))], predicates_dict[operators[i].name])
             operators[i] = Action(operators[i].name, operators[i].parameters, operators[i].precondition, create_and(list(operators[i].effect.operands) + [action_iap]), derive_condition=operators[i].derive_condition)
-            action_intention_f.add(act_to_pred(operators[i]))
-    return set(operators), action_intention_f
+    return set(operators)
 
 def check_intention_error(srt: SeparatedRMLTerm, action_names: Sequence[str]):
     if srt.nestings:
@@ -130,26 +73,17 @@ def check_action_format(action: Action, action_names: Sequence[str]):
 def normalize_action_form(action):
     precondition = action.precondition if isinstance(action.precondition, And) else create_and([action.precondition])
     effect = action.effect if isinstance(action.effect, And) else create_and([action.effect])
-    # parameters = list(action.parameters)
-    # # gather any special derived condition variables (dlr__*) and add them to the parameters list
-    # if action.derive_condition:
-    #     dc_vars = set()
-    #     if isinstance(action.derive_condition, SeparatedRMLTerm):
-    #         dc_vars.update([n.agent.term for n in action.derive_condition.nestings if isinstance(n, Nesting)])
-    #         dc_vars.update(action.derive_condition.term.terms)
-    #     dlr_vars = {v for v in dc_vars if "dlr__" in v.name}
-    #     parameters.extend(dlr_vars)
     return Action(action.name, action.parameters, precondition, effect, derive_condition=action.derive_condition)
 
-def apply_and_check_intention(anc_effs, domain, problem):
+def apply_and_check_intention(domain):
     # ensure the preconditions and actions are all in "And" form
-    actions, action_intention_f = create_itn_action_preds({a.name: a for a in [check_action_format(normalize_action_form(a), [a.name for a in domain.actions]) for a in domain.actions]}, problem, anc_effs)
+    actions = create_itn_action_preds([check_action_format(normalize_action_form(a), [o.name for o in domain.actions]) for a in domain.actions], {p.name: p for p in domain.predicates})
     domain = pddl_core.Domain(
         name=domain.name,
         requirements=domain.requirements,
         types=domain.types,
         constants=domain.constants,
-        predicates=domain.predicates | action_intention_f,
+        predicates=domain.predicates,
         derived_predicates=domain.derived_predicates,
         functions=domain.functions,
         actions=actions,
